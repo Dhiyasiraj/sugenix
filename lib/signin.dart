@@ -77,7 +77,9 @@ class Signup extends StatelessWidget {
                       ),
                     ),
                     items: [
-                      DropdownMenuItem(child: Text("User"), value: "user"),
+                      DropdownMenuItem(child: Text("Pharmacy"), value: "pharmacy"),
+                      DropdownMenuItem(child: Text("Doctor"), value: "doctor"),
+                      DropdownMenuItem(child: Text("Patient"), value: "patient"),
                       DropdownMenuItem(child: Text("Admin"), value: "admin"),
                     ],
                     onChanged: (value) {},
