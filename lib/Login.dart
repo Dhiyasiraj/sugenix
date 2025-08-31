@@ -6,20 +6,34 @@ class Login extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  const Color.fromARGB(184, 117, 141, 148),
-                  Colors.white,
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment.topLeft, // Start from top-left
+            radius: 0.7,
+            colors: [
+              Color(0xFF0C4556),
+              Colors.white,
+            ],
+            stops: [0.0, 1.0],
+          ),
+        ),
+        child: Stack(
+          children: [
+            // Add second gradient at bottom-right
+            Container(
+              decoration: const BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.bottomRight,
+                  radius: 0.7,
+                  colors: [
+                    Color(0xFF0C4556),
+                    Colors.transparent,
+                  ],
+                  stops: [0.0, 1.0],
+                ),
               ),
             ),
-          ),
           Padding(
             padding: const EdgeInsets.only(
               left: 50,
@@ -112,6 +126,7 @@ class Login extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

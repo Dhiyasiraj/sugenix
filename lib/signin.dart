@@ -6,21 +6,35 @@ class Signup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
      
-    return Scaffold(
-      body: Stack(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  const Color.fromARGB(184, 117, 141, 148),
-                  Colors.white,
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+   return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment.topLeft, // Start from top-left
+            radius: 0.7,
+            colors: [
+              Color(0xFF0C4556),
+              Colors.white,
+            ],
+            stops: [0.0, 1.0],
+          ),
+        ),
+        child: Stack(
+          children: [
+            // Add second gradient at bottom-right
+            Container(
+              decoration: const BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.bottomRight,
+                  radius: 0.7,
+                  colors: [
+                    Color(0xFF0C4556),
+                    Colors.transparent,
+                  ],
+                  stops: [0.0, 1.0],
+                ),
               ),
             ),
-          ),
           Padding(
             padding: const EdgeInsets.only(left: 30, right: 30),
             child: SingleChildScrollView(
@@ -30,14 +44,14 @@ class Signup extends StatelessWidget {
                   SizedBox(height: 110),
                   Padding(
                     padding: EdgeInsets.only(left: 10),
-                    child: Text("Sign In", style: TextStyle(fontSize: 24)),
+                    child: Text("Sign In", style: TextStyle(fontSize: 24,color: Colors.black,fontWeight: FontWeight.bold  )),
                   ),
                   SizedBox(height: 70),
                   Padding(
                     padding: const EdgeInsets.only(left: 8),
                     child: Text(
-                      "Your journey to smarter diabetes care starts here",
-                      style: TextStyle(fontSize: 19),
+                     '"Your journey to smarter diabetes care starts here"',
+                      style: TextStyle(fontSize: 19,color: Colors.blueGrey),
                     ),
                   ),
                   SizedBox(height: 50),
@@ -141,6 +155,7 @@ class Signup extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+   );
   }
 }

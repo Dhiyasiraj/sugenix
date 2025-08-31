@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sugenix/Login.dart';
 import 'package:sugenix/forgetpass.dart';
+import 'package:sugenix/profile.dart';
 import 'package:sugenix/signin.dart';
 import 'package:sugenix/splash.dart';
 
@@ -14,6 +15,6 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(debugShowCheckedModeBanner: false, home: Forgetpass());
+    return MaterialApp(debugShowCheckedModeBanner: false, home: Profile());
   }
 }

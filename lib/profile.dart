@@ -6,20 +6,34 @@ const Profile({super.key});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Color.fromARGB(184, 101, 160, 179),
-                  Color.fromARGB(255, 255, 255, 255),
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment.topLeft, // Start from top-left
+            radius: 0.7,
+            colors: [
+              Color(0xFF0C4556),
+              Colors.white,
+            ],
+            stops: [0.0, 1.0],
+          ),
+        ),
+        child: Stack(
+          children: [
+            // Add second gradient at bottom-right
+            Container(
+              decoration: const BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.bottomRight,
+                  radius: 0.7,
+                  colors: [
+                    Color(0xFF0C4556),
+                    Colors.transparent,
+                  ],
+                  stops: [0.0, 1.0],
+                ),
               ),
             ),
-          ),
           Padding(padding: EdgeInsets.only(left: 30, right: 30),),
            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -82,6 +96,7 @@ const Profile({super.key});
                 
         ],
       ),
+    ),
     );
   }
 }
