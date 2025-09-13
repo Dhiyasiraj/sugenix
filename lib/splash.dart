@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sugenix/signin.dart';
+import 'package:sugenix/Login.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -7,9 +7,9 @@ class SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Future.delayed(Duration(seconds: 3), () {
-      Navigator.push(
+      Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => Signup())
+        MaterialPageRoute(builder: (context) => Login()),
       );
     });
 
@@ -19,10 +19,7 @@ class SplashScreen extends StatelessWidget {
           gradient: RadialGradient(
             center: Alignment.topLeft, // Start from top-left
             radius: 0.7,
-            colors: [
-              Color(0xFF0C4556),
-              Colors.white,
-            ],
+            colors: [Color(0xFF0C4556), Colors.white],
             stops: [0.0, 1.0],
           ),
         ),
@@ -47,11 +44,12 @@ class SplashScreen extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Cross logo
-                   Image.asset(
-                    'assets/cross.png',
+                  // Sugenix logo
+                  Image.asset(
+                    'assets/sugenix_logo.png.png',
                     height: 50,
                     width: 50,
+                  ),
                   const SizedBox(width: 10),
                   const Text(
                     "SUGENIX",

@@ -1,7 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:sugenix/signin.dart';
+import 'package:sugenix/forgetpass.dart';
+import 'package:sugenix/screens/home_screen.dart';
+import 'package:sugenix/main.dart';
 
-class Login extends StatelessWidget {
+class Login extends StatefulWidget {
   const Login({super.key});
+
+  @override
+  State<Login> createState() => _LoginState();
+}
+
+class _LoginState extends State<Login> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   Widget build(BuildContext context) {
@@ -9,124 +22,180 @@ class Login extends StatelessWidget {
       body: Container(
         decoration: const BoxDecoration(
           gradient: RadialGradient(
-            center: Alignment.topLeft, // Start from top-left
+            center: Alignment.topLeft,
             radius: 0.7,
-            colors: [
-              Color(0xFF0C4556),
-              Colors.white,
-            ],
+            colors: [Color(0xFF0C4556), Colors.white],
             stops: [0.0, 1.0],
           ),
         ),
-        child: Stack(
-          children: [
-            // Add second gradient at bottom-right
-            Container(
-              decoration: const BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment.bottomRight,
-                  radius: 0.7,
-                  colors: [
-                    Color(0xFF0C4556),
-                    Colors.transparent,
-                  ],
-                  stops: [0.0, 1.0],
-                ),
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.only(
-              left: 50,
-              right: 50,
-              top: 68,
-              bottom: 0,
-            ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: 90),
-                Text(
-                  'Welcome Back',
+                const SizedBox(height: 40),
+                const Text(
+                  "Welcome back",
                   style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 40,
+                    color: Colors.white,
+                    fontSize: 28,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 100),
-                // Email TextField
-                TextField(
-                  decoration: InputDecoration(
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(9),
-                      borderSide: BorderSide(color: Colors.grey),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(9),
-                      borderSide: BorderSide(color: Colors.grey),
-                    ),
-                    labelText: "Email",
-                    suffixIcon: Icon(Icons.email),
-                  ),
+                const SizedBox(height: 20),
+                const Text(
+                  "Sign in to continue",
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
-                SizedBox(height: 20),
-                // Password TextField
-                TextField(
-                  decoration: InputDecoration(
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(9),
-                      borderSide: BorderSide(color: Colors.grey),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(9),
-                      borderSide: BorderSide(color: Colors.grey),
-                    ),
-                    labelText: "Password",
-                    suffixIcon: Icon(Icons.lock), // Replaced with lock icon
-                  ),
-                  obscureText: true, // To mask the password text
-                ),
-                SizedBox(height: 20),
-                // Login Button
-                SizedBox(
-                  height: 55,
-                  width: 250,
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromRGBO(12, 69, 86, 72),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                const SizedBox(height: 40),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
                       ),
-                    ),
-                    child: Text(
-                      "Login",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: _emailController,
+                          decoration: InputDecoration(
+                            hintText: "Email",
+                            prefixIcon: const Icon(Icons.email_outlined),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[100],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        TextField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          decoration: InputDecoration(
+                            hintText: "Password",
+                            prefixIcon: const Icon(Icons.lock_outlined),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[100],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {
+                              _showForgotPasswordModal(context);
+                            },
+                            child: const Text(
+                              "Forgot password?",
+                              style: TextStyle(
+                                color: Color(0xFF0C4556),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const MainNavigationScreen(),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0C4556),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: const Text(
+                              "Login",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              "Don't have an account? ",
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const Signup(),
+                                  ),
+                                );
+                              },
+                              child: const Text(
+                                "Sign up",
+                                style: TextStyle(
+                                  color: Color(0xFF0C4556),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                SizedBox(height: 20),
-
-                Text(
-                  'Forgot password',
-                  style: TextStyle(color: Color.fromRGBO(12, 69, 86, 72)),
-                ),
-                SizedBox(height: 110),
-                // Sign Up Text
-                Text(
-                  "Don't have an account? Join us",
-                  style: TextStyle(color: Color.fromRGBO(12, 69, 86, 72)),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
-    ),
+    );
+  }
+
+  void _showForgotPasswordModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const ForgotPasswordModal(),
     );
   }
 }
