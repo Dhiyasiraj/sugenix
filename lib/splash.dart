@@ -48,27 +48,10 @@ class SplashScreen extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Cross logo
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Container(
-                        width: 50,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0C4556),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      Container(
-                        width: 20,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0C4556),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ],
-                  ),
+                   Image.asset(
+                    'assets/cross.png',
+                    height: 50,
+                    width: 50,
                   const SizedBox(width: 10),
                   const Text(
                     "SUGENIX",
