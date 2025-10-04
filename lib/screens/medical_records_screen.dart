@@ -99,7 +99,7 @@ class AddRecordScreen extends StatefulWidget {
 class _AddRecordScreenState extends State<AddRecordScreen> {
   String _selectedRecordType = "Report";
   final _recordDateController = TextEditingController(text: "27 FEB, 2021");
-  final _addedByController = TextEditingController(text: "Abdullah Human");
+  final _addedByController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -195,6 +195,9 @@ class _AddRecordScreenState extends State<AddRecordScreen> {
         TextField(
           controller: controller,
           decoration: InputDecoration(
+            hintText: label == "Records added by"
+                ? "Name"
+                : label, // <-- Use hintText instead of labelText
             suffixIcon: Icon(icon, color: const Color(0xFF0C4556)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),

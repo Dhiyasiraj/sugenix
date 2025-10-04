@@ -112,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Hi, Homerwork!",
+              "Hey There!",
               style: TextStyle(
                 fontSize: isTablet ? 32 : 24,
                 fontWeight: FontWeight.bold,

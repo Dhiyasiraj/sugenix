@@ -195,7 +195,7 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          const Icon(Icons.check_circle, color: Colors.green, size: 16),
+          const Icon(Icons.check_circle, color: Color(0xFF0C4556), size: 16),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -461,15 +461,16 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
   }
 
   Map<String, dynamic> _getGlucoseStatus(double value) {
+    const statusColor = Color(0xFF0C4556);
     if (value < 70) {
       return {
-        'color': Colors.red,
+        'color': statusColor,
         'message': 'Low - Consider immediate action',
       };
     } else if (value > 180) {
-      return {'color': Colors.orange, 'message': 'High - Monitor closely'};
+      return {'color': statusColor, 'message': 'High - Monitor closely'};
     } else {
-      return {'color': Colors.green, 'message': 'Normal - Good control'};
+      return {'color': statusColor, 'message': 'Normal - Good control'};
     }
   }
 
