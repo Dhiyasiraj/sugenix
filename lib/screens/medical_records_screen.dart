@@ -103,16 +103,22 @@ class AddRecordScreen extends StatefulWidget {
 class _AddRecordScreenState extends State<AddRecordScreen> {
   String _selectedRecordType = "Report";
   final _recordDateController = TextEditingController(text: "27 FEB, 2021");
-<<<<<<< HEAD
+
   final _addedByController = TextEditingController(text: "Abdullah Human");
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final MedicalRecordsService _medicalRecordsService = MedicalRecordsService();
   List<XFile> _selectedImages = [];
   bool _isLoading = false;
-=======
-  final _addedByController = TextEditingController();
->>>>>>> 689ee9aa0ad752bc602aa5ccf42b6896e4eadf16
+
+  @override
+  void dispose() {
+    _recordDateController.dispose();
+    _addedByController.dispose();
+    _titleController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

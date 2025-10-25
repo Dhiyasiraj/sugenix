@@ -18,12 +18,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final GlucoseService _glucoseService = GlucoseService();
   final AuthService _authService = AuthService();
-  
+
   List<Map<String, dynamic>> _recentReadings = [];
   Map<String, dynamic>? _userProfile;
   Map<String, dynamic>? _glucoseStats;
   bool _isLoading = true;
-  
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -106,21 +106,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       vsync: this,
     );
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _animationController.forward();
   }
@@ -129,7 +125,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     try {
       // Load user profile
       _userProfile = await _authService.getUserProfile();
-      
+
       // Load recent glucose readings
       _glucoseService.getGlucoseReadings().listen((readings) {
         if (mounted) {
@@ -220,21 +216,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-<<<<<<< HEAD
   Widget _buildWelcomeHeader() {
     final userName = _userProfile?['name'] ?? 'User';
     final currentTime = DateFormat('EEEE, MMMM d').format(DateTime.now());
-    
+
     return Container(
       padding: const EdgeInsets.all(25),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF0C4556),
-            Color(0xFF1A6B7A),
-          ],
+          colors: [Color(0xFF0C4556), Color(0xFF1A6B7A)],
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
@@ -245,71 +237,53 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.waving_hand,
-                  color: Colors.white,
-                  size: 24,
-                ),
-=======
-  Widget _buildHeader(bool isTablet) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Hey There!",
-              style: TextStyle(
-                fontSize: isTablet ? 32 : 24,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF0C4556),
->>>>>>> 689ee9aa0ad752bc602aa5ccf42b6896e4eadf16
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Welcome back,',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      userName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-          Text(
-            currentTime,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 14,
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
             ),
+            child: const Icon(Icons.waving_hand, color: Colors.white, size: 28),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Welcome back,',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  userName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  currentTime,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Optional profile avatar placeholder (use user's photoUrl if available)
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: Colors.white.withOpacity(0.12),
+            child: Icon(Icons.person, color: Colors.white.withOpacity(0.9)),
           ),
         ],
       ),
@@ -465,10 +439,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 8),
                 const Text(
                   'Start monitoring your glucose levels',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
                 ),
               ],
             ),
@@ -518,7 +489,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+  Widget _buildStatItem(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -537,13 +513,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               color: color,
             ),
           ),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Colors.grey,
-            ),
-          ),
+          Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
         ],
       ),
     );
@@ -618,7 +588,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildActionCard(String title, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildActionCard(
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -682,7 +657,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                   const Spacer(),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.green.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
@@ -915,21 +893,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   const SizedBox(height: 4),
                   Text(
                     doctor.specialization,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(
-                        Icons.star,
-                        size: 14,
-                        color: Colors.amber,
-                      ),
+                      const Icon(Icons.star, size: 14, color: Colors.amber),
                       const SizedBox(width: 4),
                       Text(
                         doctor.rating.toString(),
@@ -952,20 +923,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Map<String, dynamic> _getGlucoseStatus(double value) {
     if (value < 70) {
-      return {
-        'color': Colors.red,
-        'message': 'Low',
-      };
+      return {'color': Colors.red, 'message': 'Low'};
     } else if (value > 180) {
-      return {
-        'color': Colors.orange,
-        'message': 'High',
-      };
+      return {'color': Colors.orange, 'message': 'High'};
     } else {
-      return {
-        'color': Colors.green,
-        'message': 'Normal',
-      };
+      return {'color': Colors.green, 'message': 'Normal'};
     }
   }
 }
