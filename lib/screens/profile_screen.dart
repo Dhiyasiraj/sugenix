@@ -13,7 +13,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final AuthService _authService = AuthService();
+   final AuthService _authService = AuthService();
   Map<String, dynamic>? _userProfile;
   bool _isLoading = true;
   bool _isEditing = false;

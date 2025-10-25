@@ -253,9 +253,7 @@ class _SignupState extends State<Signup> {
     if (_nameController.text.isEmpty ||
         _emailController.text.isEmpty ||
         _passwordController.text.isEmpty ||
-        _confirmPasswordController.text.isEmpty ||
-        _phoneController.text.isEmpty ||
-        _dateOfBirthController.text.isEmpty) {
+        _confirmPasswordController.text.isEmpty) {
       _showSnackBar('Please fill in all fields');
       return;
     }
@@ -275,14 +273,13 @@ class _SignupState extends State<Signup> {
     });
 
     try {
-      DateTime dateOfBirth = DateTime.parse(_dateOfBirthController.text);
-
       await _authService.signUpWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
         name: _nameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        dateOfBirth: dateOfBirth,
+        phone: '', // Optional field
+        dateOfBirth: DateTime.now()
+            .subtract(const Duration(days: 365 * 25)), // Default age 25
         gender: _selectedGender,
         diabetesType: _selectedDiabetesType,
       );

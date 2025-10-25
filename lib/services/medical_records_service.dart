@@ -5,7 +5,6 @@ import 'package:sugenix/services/cloudinary_service.dart';
 
 class MedicalRecordsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final CloudinaryService _cloudinaryService = CloudinaryService();
 
   // Add medical record
   Future<void> addMedicalRecord({
@@ -18,7 +17,7 @@ class MedicalRecordsService {
   }) async {
     try {
       // Upload images to Cloudinary
-      List<String> imageUrls = await _cloudinaryService.uploadImages(images);
+      List<String> imageUrls = await CloudinaryService.uploadImages(images);
 
       // Add record to Firestore
       await _firestore.collection('medical_records').add({
@@ -88,7 +87,7 @@ class MedicalRecordsService {
 
       // Handle new images if provided
       if (newImages != null && newImages.isNotEmpty) {
-        List<String> newImageUrls = await _cloudinaryService.uploadImages(
+        List<String> newImageUrls = await CloudinaryService.uploadImages(
           newImages,
         );
 
