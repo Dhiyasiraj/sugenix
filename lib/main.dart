@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:sugenix/firebase_options.dart';
 import 'package:sugenix/splash.dart';
 import 'package:sugenix/Login.dart';
 import 'package:sugenix/signin.dart';
@@ -10,8 +12,14 @@ import 'package:sugenix/screens/profile_screen.dart';
 import 'package:sugenix/screens/emergency_screen.dart';
 import 'package:sugenix/screens/glucose_monitoring_screen.dart';
 import 'package:sugenix/models/doctor.dart';
+import 'package:sugenix/utils/responsive_layout.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+);
+
   runApp(const SugenixApp());
 }
 
@@ -65,12 +73,7 @@ class SugenixApp extends StatelessWidget {
         '/medical-records': (context) => const MedicalRecordsScreen(),
         '/medicine-orders': (context) => const MedicineOrdersScreen(),
         '/profile': (context) => const ProfileScreen(),
-        '/settings': (context) => const SettingsScreen(),
-        '/menu': (context) => const MenuScreen(),
         '/emergency': (context) => const EmergencyScreen(),
-        '/location-permission': (context) => const LocationPermissionScreen(),
-        '/help-center': (context) => const HelpCenterScreen(),
-        '/privacy-policy': (context) => const PrivacyPolicyScreen(),
         '/glucose-monitoring': (context) => const GlucoseMonitoringScreen(),
       },
     );

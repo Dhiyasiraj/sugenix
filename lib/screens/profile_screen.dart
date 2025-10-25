@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:sugenix/screens/medical_records_screen.dart';
 import 'package:sugenix/screens/medicine_orders_screen.dart';
+import 'package:sugenix/services/auth_service.dart';
+import 'package:sugenix/utils/responsive_layout.dart';
+import 'package:shimmer/shimmer.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -10,10 +13,82 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _nameController = TextEditingController(text: "Abdullah Human");
-  final _mobileController = TextEditingController(text: "+90700000000");
-  final _emailController = TextEditingController(text: "abdullah@gmail.com");
-  final _addressController = TextEditingController();
+  final AuthService _authService = AuthService();
+  Map<String, dynamic>? _userProfile;
+  bool _isLoading = true;
+  bool _isEditing = false;
+
+  final _nameController = TextEditingController();
+  final _mobileController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _diabetesTypeController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      final profile = await _authService.getUserProfile();
+      if (profile != null) {
+        setState(() {
+          _userProfile = profile;
+          _nameController.text = profile['name'] ?? '';
+          _mobileController.text = profile['phone'] ?? '';
+          _emailController.text = profile['email'] ?? '';
+          _diabetesTypeController.text = profile['diabetesType'] ?? '';
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _updateProfile() async {
+    try {
+      await _authService.updateUserProfile(
+        name: _nameController.text,
+        phone: _mobileController.text,
+        diabetesType: _diabetesTypeController.text,
+      );
+
+      setState(() {
+        _isEditing = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile updated successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update profile: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _mobileController.dispose();
+    _emailController.dispose();
+    _diabetesTypeController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,508 +107,465 @@ class _ProfileScreenState extends State<ProfileScreen> {
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          if (!_isEditing)
+            IconButton(
+              icon: const Icon(Icons.edit, color: Color(0xFF0C4556)),
+              onPressed: () {
+                setState(() {
+                  _isEditing = true;
+                });
+              },
+            ),
+        ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildHeaderSection(),
-            _buildPersonalInfoSection(),
-            _buildContinueButton(),
-          ],
-        ),
+      body: _isLoading
+          ? _buildShimmerLoading()
+          : ResponsiveLayout(
+              mobile: _buildMobileLayout(),
+              tablet: _buildTabletLayout(),
+              desktop: _buildDesktopLayout(),
+            ),
+    );
+  }
+
+  Widget _buildShimmerLoading() {
+    return SingleChildScrollView(
+      padding: ResponsiveHelper.getResponsivePadding(context),
+      child: Column(
+        children: [
+          Shimmer.fromColors(
+            baseColor: Colors.grey[300]!,
+            highlightColor: Colors.grey[100]!,
+            child: Container(
+              height: 200,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Shimmer.fromColors(
+            baseColor: Colors.grey[300]!,
+            highlightColor: Colors.grey[100]!,
+            child: Container(
+              height: 400,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildHeaderSection() {
-    return Container(
-      height: 200,
-      decoration: const BoxDecoration(
-        color: Color(0xFF0C4556),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
+  Widget _buildMobileLayout() {
+    return SingleChildScrollView(
+      padding: ResponsiveHelper.getResponsivePadding(context),
+      child: Column(
+        children: [
+          _buildProfileHeader(),
+          const SizedBox(height: 20),
+          _buildProfileForm(),
+          const SizedBox(height: 20),
+          _buildActionButtons(),
+        ],
       ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              "Setup your profile",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+    );
+  }
+
+  Widget _buildTabletLayout() {
+    return SingleChildScrollView(
+      padding: ResponsiveHelper.getResponsivePadding(context),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 1,
+            child: Column(
+              children: [
+                _buildProfileHeader(),
+                const SizedBox(height: 20),
+                _buildActionButtons(),
+              ],
+            ),
+          ),
+          const SizedBox(width: 20),
+          Expanded(flex: 2, child: _buildProfileForm()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout() {
+    return SingleChildScrollView(
+      padding: ResponsiveHelper.getResponsivePadding(context),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 1,
+            child: Column(
+              children: [
+                _buildProfileHeader(),
+                const SizedBox(height: 20),
+                _buildActionButtons(),
+              ],
+            ),
+          ),
+          const SizedBox(width: 30),
+          Expanded(flex: 2, child: _buildProfileForm()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader() {
+    return Container(
+      padding: const EdgeInsets.all(25),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF0C4556), Color(0xFF1A6B7A)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0C4556).withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: ResponsiveHelper.isMobile(context) ? 40 : 50,
+            backgroundColor: Colors.white.withOpacity(0.2),
+            child: Icon(
+              Icons.person,
+              size: ResponsiveHelper.isMobile(context) ? 40 : 50,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 15),
+          Text(
+            _userProfile?['name'] ?? 'User',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: ResponsiveHelper.getResponsiveFontSize(
+                context,
+                mobile: 20,
+                tablet: 22,
+                desktop: 24,
+              ),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            _userProfile?['email'] ?? '',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: ResponsiveHelper.getResponsiveFontSize(
+                context,
+                mobile: 14,
+                tablet: 16,
+                desktop: 18,
               ),
             ),
-            const SizedBox(height: 20),
-            Stack(
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              _userProfile?['diabetesType'] ?? 'Type 1',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileForm() {
+    return Container(
+      padding: const EdgeInsets.all(25),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Personal Information',
+            style: TextStyle(
+              fontSize: ResponsiveHelper.getResponsiveFontSize(
+                context,
+                mobile: 18,
+                tablet: 20,
+                desktop: 22,
+              ),
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF0C4556),
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildTextField(
+            'Full Name',
+            _nameController,
+            Icons.person,
+            enabled: _isEditing,
+          ),
+          const SizedBox(height: 15),
+          _buildTextField(
+            'Email',
+            _emailController,
+            Icons.email,
+            enabled: false, // Email cannot be changed
+          ),
+          const SizedBox(height: 15),
+          _buildTextField(
+            'Mobile Number',
+            _mobileController,
+            Icons.phone,
+            enabled: _isEditing,
+          ),
+          const SizedBox(height: 15),
+          _buildTextField(
+            'Diabetes Type',
+            _diabetesTypeController,
+            Icons.medical_services,
+            enabled: _isEditing,
+          ),
+          if (_isEditing) ...[
+            const SizedBox(height: 25),
+            Row(
               children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.white,
-                  child: const Icon(
-                    Icons.person,
-                    size: 50,
-                    color: Color(0xFF0C4556),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _updateProfile,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0C4556),
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text(
+                      'Save Changes',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    width: 30,
-                    height: 30,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
+                const SizedBox(width: 15),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      setState(() {
+                        _isEditing = false;
+                      });
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      side: const BorderSide(color: Color(0xFF0C4556)),
                     ),
-                    child: const Icon(
-                      Icons.camera_alt,
-                      size: 16,
-                      color: Color(0xFF0C4556),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        color: Color(0xFF0C4556),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
           ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildPersonalInfoSection() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller,
+    IconData icon, {
+    bool enabled = true,
+  }) {
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: const Color(0xFF0C4556)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFF0C4556)),
+        ),
+        filled: true,
+        fillColor: enabled ? Colors.white : Colors.grey[100],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Container(
+      padding: const EdgeInsets.all(25),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Personal Information",
+          Text(
+            'Quick Actions',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: ResponsiveHelper.getResponsiveFontSize(
+                context,
+                mobile: 18,
+                tablet: 20,
+                desktop: 22,
+              ),
               fontWeight: FontWeight.bold,
-              color: Color(0xFF0C4556),
+              color: const Color(0xFF0C4556),
             ),
           ),
           const SizedBox(height: 20),
-          _buildInfoField("Name", _nameController, Icons.person),
-          const SizedBox(height: 20),
-          _buildInfoField("Mobile Number", _mobileController, Icons.phone),
-          const SizedBox(height: 20),
-          _buildInfoField("Email", _emailController, Icons.email),
-          const SizedBox(height: 20),
-          _buildInfoField(
-            "Address",
-            _addressController,
-            Icons.location_on,
-            hintText: "Add Address",
+          _buildActionButton(
+            'Medical Records',
+            Icons.folder_open,
+            const Color(0xFF4CAF50),
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MedicalRecordsScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 15),
+          _buildActionButton(
+            'Medicine Orders',
+            Icons.medication,
+            const Color(0xFF2196F3),
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MedicineOrdersScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 15),
+          _buildActionButton(
+            'Emergency Contacts',
+            Icons.emergency,
+            const Color(0xFFF44336),
+            () {
+              // Navigate to emergency contacts
+            },
+          ),
+          const SizedBox(height: 15),
+          _buildActionButton(
+            'Settings',
+            Icons.settings,
+            const Color(0xFF9C27B0),
+            () {
+              // Navigate to settings
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoField(
-    String label,
-    TextEditingController controller,
-    IconData icon, {
-    String? hintText,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF0C4556),
-          ),
+  Widget _buildActionButton(
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
         ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            hintText: hintText,
-            suffixIcon: Icon(Icons.edit, color: const Color(0xFF0C4556)),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide.none,
-            ),
-            filled: true,
-            fillColor: Colors.grey[100],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildContinueButton() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: SizedBox(
-        width: double.infinity,
-        height: 50,
-        child: ElevatedButton(
-          onPressed: () {
-            // Handle profile update
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Profile updated successfully!"),
-                backgroundColor: Colors.green,
-              ),
-            );
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF0C4556),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-          child: const Text(
-            "CONTINUE",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
-
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends State<SettingsScreen> {
-  bool _textMessages = true;
-  bool _pushAlerts = true;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          "Settings",
-          style: TextStyle(
-            color: Color(0xFF0C4556),
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            _buildAccountSettings(),
-            const SizedBox(height: 30),
-            _buildMoreOptions(),
-            const SizedBox(height: 30),
-            _buildLanguageSection(),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: ResponsiveHelper.getResponsiveFontSize(
+                    context,
+                    mobile: 14,
+                    tablet: 16,
+                    desktop: 18,
+                  ),
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF0C4556),
+                ),
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, color: color, size: 16),
           ],
         ),
       ),
     );
-  }
-
-  Widget _buildAccountSettings() {
-    final accountItems = [
-      {"title": "Change Password", "icon": Icons.lock},
-      {"title": "Notifications", "icon": Icons.notifications},
-      {"title": "Statistics", "icon": Icons.analytics},
-      {"title": "About us", "icon": Icons.info},
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Account settings",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF0C4556),
-          ),
-        ),
-        const SizedBox(height: 15),
-        ...accountItems
-            .map(
-              (item) => _buildSettingsItem(
-                item["title"] as String,
-                item["icon"] as IconData,
-                () {},
-              ),
-            )
-            .toList(),
-      ],
-    );
-  }
-
-  Widget _buildMoreOptions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "More options",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF0C4556),
-          ),
-        ),
-        const SizedBox(height: 15),
-        _buildToggleItem("Text messages", _textMessages, (value) {
-          setState(() {
-            _textMessages = value;
-          });
-        }),
-        _buildToggleItem("Push alerts", _pushAlerts, (value) {
-          setState(() {
-            _pushAlerts = value;
-          });
-        }),
-      ],
-    );
-  }
-
-  Widget _buildLanguageSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Language",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF0C4556),
-          ),
-        ),
-        const SizedBox(height: 15),
-        _buildSettingsItem("English", Icons.language, () {}),
-      ],
-    );
-  }
-
-  Widget _buildSettingsItem(String title, IconData icon, VoidCallback onTap) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        leading: Icon(icon, color: const Color(0xFF0C4556)),
-        title: Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-        trailing: const Icon(
-          Icons.arrow_forward_ios,
-          size: 16,
-          color: Colors.grey,
-        ),
-        onTap: onTap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  Widget _buildToggleItem(
-    String title,
-    bool value,
-    ValueChanged<bool> onChanged,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        leading: const Icon(Icons.settings, color: Color(0xFF0C4556)),
-        title: Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-        trailing: Switch(
-          value: value,
-          onChanged: onChanged,
-          activeColor: const Color(0xFF0C4556),
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-}
-
-class MenuScreen extends StatelessWidget {
-  const MenuScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF0C4556), Colors.white],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [_buildHeader(), _buildMenuItems(), _buildLogoutButton()],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          const Text(
-            "USER NAME",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 5),
-          const Text(
-            "+90700000000",
-            style: TextStyle(color: Colors.white70, fontSize: 16),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuItems() {
-    final menuItems = [
-      {"title": "My Doctors", "icon": Icons.medical_services},
-      {"title": "Medical Records", "icon": Icons.assignment},
-      {"title": "Medicines Orders", "icon": Icons.medication},
-      {"title": "Privacy & Policy", "icon": Icons.privacy_tip},
-      {"title": "Help Center", "icon": Icons.help},
-      {"title": "Settings", "icon": Icons.settings},
-    ];
-
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: ListView.builder(
-          padding: const EdgeInsets.all(20),
-          itemCount: menuItems.length,
-          itemBuilder: (context, index) {
-            final item = menuItems[index];
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              child: ListTile(
-                leading: Icon(
-                  item["icon"] as IconData,
-                  color: const Color(0xFF0C4556),
-                ),
-                title: Text(
-                  item["title"] as String,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                trailing: const Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: Colors.grey,
-                ),
-                onTap: () {
-                  _navigateToMenuItem(context, item["title"] as String);
-                },
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLogoutButton() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: SizedBox(
-        width: double.infinity,
-        height: 50,
-        child: ElevatedButton(
-          onPressed: () {
-            // Handle logout
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-          child: const Text(
-            "Logout",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _navigateToMenuItem(BuildContext context, String title) {
-    switch (title) {
-      case "My Doctors":
-        // Navigate to doctors list
-        break;
-      case "Medical Records":
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const MedicalRecordsScreen()),
-        );
-        break;
-      case "Medicines Orders":
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const MedicineOrdersScreen()),
-        );
-        break;
-      case "Settings":
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const SettingsScreen()),
-        );
-        break;
-      default:
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("$title feature coming soon!")));
-    }
   }
 }

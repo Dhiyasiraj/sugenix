@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sugenix/models/glucose_record.dart';
+import 'package:sugenix/services/glucose_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class GlucoseMonitoringScreen extends StatefulWidget {
   const GlucoseMonitoringScreen({super.key});
@@ -10,32 +12,26 @@ class GlucoseMonitoringScreen extends StatefulWidget {
 }
 
 class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
-  final List<GlucoseRecord> _glucoseRecords = [
-    GlucoseRecord(
-      id: '1',
-      userId: 'user1',
-      value: 120.0,
-      type: 'fasting',
-      timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-      notes: 'Before breakfast',
-    ),
-    GlucoseRecord(
-      id: '2',
-      userId: 'user1',
-      value: 180.0,
-      type: 'post_meal',
-      timestamp: DateTime.now().subtract(const Duration(hours: 1)),
-      notes: 'After lunch',
-    ),
-    GlucoseRecord(
-      id: '3',
-      userId: 'user1',
-      value: 95.0,
-      type: 'random',
-      timestamp: DateTime.now().subtract(const Duration(minutes: 30)),
-      notes: 'Evening check',
-    ),
-  ];
+  final GlucoseService _glucoseService = GlucoseService();
+  List<Map<String, dynamic>> _glucoseRecords = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGlucoseRecords();
+  }
+
+  void _loadGlucoseRecords() {
+    _glucoseService.getGlucoseReadings().listen((records) {
+      if (mounted) {
+        setState(() {
+          _glucoseRecords = records;
+          _isLoading = false;
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,10 +76,23 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
   }
 
   Widget _buildCurrentReading() {
+    if (_isLoading) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final latestRecord = _glucoseRecords.isNotEmpty
         ? _glucoseRecords.first
         : null;
-    final glucoseLevel = latestRecord?.value ?? 0.0;
+    final glucoseLevel = latestRecord != null
+        ? (latestRecord['value'] as double)
+        : 0.0;
     final status = _getGlucoseStatus(glucoseLevel);
 
     return Container(
@@ -226,9 +235,11 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
     );
   }
 
-  Widget _buildReadingCard(GlucoseRecord record) {
-    final status = _getGlucoseStatus(record.value);
-    final timeAgo = _getTimeAgo(record.timestamp);
+  Widget _buildReadingCard(Map<String, dynamic> record) {
+    final value = record['value'] as double;
+    final status = _getGlucoseStatus(value);
+    final timestamp = record['timestamp'] as Timestamp;
+    final timeAgo = _getTimeAgo(timestamp.toDate());
 
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
@@ -265,7 +276,7 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "${record.value.toStringAsFixed(0)} mg/dL",
+                  "${value.toStringAsFixed(0)} mg/dL",
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -274,20 +285,20 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  "${_getTypeLabel(record.type)} • $timeAgo",
+                  "${_getTypeLabel(record['type'] as String)} • $timeAgo",
                   style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
-                if (record.notes != null) ...[
+                if (record['notes'] != null) ...[
                   const SizedBox(height: 5),
                   Text(
-                    record.notes!,
+                    record['notes'] as String,
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
               ],
             ),
           ),
-          if (record.isAIFlagged)
+          if (record['isAIFlagged'] == true)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
@@ -389,6 +400,7 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
 
   void _showAddGlucoseDialog() {
     final glucoseController = TextEditingController();
+    final notesController = TextEditingController();
     String selectedType = 'fasting';
 
     showDialog(
@@ -429,6 +441,15 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
                   });
                 },
               ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: notesController,
+                decoration: const InputDecoration(
+                  labelText: "Notes (Optional)",
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
             ],
           ),
           actions: [
@@ -437,19 +458,25 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
               child: const Text("Cancel"),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (glucoseController.text.isNotEmpty) {
-                  final newRecord = GlucoseRecord(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    userId: 'user1',
-                    value: double.parse(glucoseController.text),
-                    type: selectedType,
-                    timestamp: DateTime.now(),
-                  );
-                  setState(() {
-                    _glucoseRecords.insert(0, newRecord);
-                  });
-                  Navigator.pop(context);
+                  try {
+                    await _glucoseService.addGlucoseReading(
+                      value: double.parse(glucoseController.text),
+                      type: selectedType,
+                      notes: notesController.text.isNotEmpty
+                          ? notesController.text
+                          : null,
+                    );
+                    Navigator.pop(context);
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to add reading: ${e.toString()}'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 }
               },
               child: const Text("Add"),

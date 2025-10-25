@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "726054875301",
+    "project_id": "sugenix-8e308",
+    "storage_bucket": "sugenix-8e308.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:726054875301:android:08ef47bfb75937483a1d4c",
+        "android_client_info": {
+          "package_name": "com.example.sugenix"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC_pXzCP8ZJLotaiWbxKh0pfgZMQNgl9LM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sugenix/Login.dart';
 import 'package:sugenix/screens/home_screen.dart';
 import 'package:sugenix/main.dart';
+import 'package:sugenix/services/auth_service.dart';
 
 class Signup extends StatefulWidget {
   const Signup({super.key});
@@ -15,9 +16,15 @@ class _SignupState extends State<Signup> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _dateOfBirthController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _agreeToTerms = false;
+  bool _isLoading = false;
+  String _selectedGender = 'Male';
+  String _selectedDiabetesType = 'Type 1';
+  final AuthService _authService = AuthService();
 
   @override
   Widget build(BuildContext context) {
@@ -175,16 +182,8 @@ class _SignupState extends State<Signup> {
                           width: double.infinity,
                           height: 50,
                           child: ElevatedButton(
-                            onPressed: _agreeToTerms
-                                ? () {
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const MainNavigationScreen(),
-                                      ),
-                                    );
-                                  }
+                            onPressed: _agreeToTerms && !_isLoading
+                                ? _handleSignup
                                 : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0C4556),
@@ -192,14 +191,23 @@ class _SignupState extends State<Signup> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child: const Text(
-                              "Sign up",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text(
+                                    "Sign up",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                           ),
                         ),
                         const SizedBox(height: 20),
@@ -238,6 +246,69 @@ class _SignupState extends State<Signup> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _handleSignup() async {
+    if (_nameController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        _confirmPasswordController.text.isEmpty ||
+        _phoneController.text.isEmpty ||
+        _dateOfBirthController.text.isEmpty) {
+      _showSnackBar('Please fill in all fields');
+      return;
+    }
+
+    if (_passwordController.text != _confirmPasswordController.text) {
+      _showSnackBar('Passwords do not match');
+      return;
+    }
+
+    if (_passwordController.text.length < 6) {
+      _showSnackBar('Password must be at least 6 characters');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      DateTime dateOfBirth = DateTime.parse(_dateOfBirthController.text);
+
+      await _authService.signUpWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        name: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        dateOfBirth: dateOfBirth,
+        gender: _selectedGender,
+        diabetesType: _selectedDiabetesType,
+      );
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar('Signup failed: ${e.toString().split(': ').last}');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 }
