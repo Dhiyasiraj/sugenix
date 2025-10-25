@@ -13,6 +13,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+<<<<<<< HEAD
   final AuthService _authService = AuthService();
   Map<String, dynamic>? _userProfile;
   bool _isLoading = true;
@@ -89,6 +90,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _diabetesTypeController.dispose();
     super.dispose();
   }
+=======
+  final _nameController = TextEditingController(text: "Name");
+  final _mobileController = TextEditingController(text: "+90700000000");
+  final _emailController = TextEditingController(text: "aaaa@gmail.com");
+  final _addressController = TextEditingController();
+>>>>>>> 689ee9aa0ad752bc602aa5ccf42b6896e4eadf16
 
   @override
   Widget build(BuildContext context) {

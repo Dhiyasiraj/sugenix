@@ -220,6 +220,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+<<<<<<< HEAD
   Widget _buildWelcomeHeader() {
     final userName = _userProfile?['name'] ?? 'User';
     final currentTime = DateFormat('EEEE, MMMM d').format(DateTime.now());
@@ -260,6 +261,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   color: Colors.white,
                   size: 24,
                 ),
+=======
+  Widget _buildHeader(bool isTablet) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Hey There!",
+              style: TextStyle(
+                fontSize: isTablet ? 32 : 24,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF0C4556),
+>>>>>>> 689ee9aa0ad752bc602aa5ccf42b6896e4eadf16
               ),
               const SizedBox(width: 15),
               Expanded(
