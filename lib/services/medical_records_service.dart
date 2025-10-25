@@ -1,54 +1,45 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sugenix/services/cloudinary_service.dart';
 
 class MedicalRecordsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final CloudinaryService _cloudinaryService = CloudinaryService();
 
   // Add medical record
   Future<void> addMedicalRecord({
-    required String type, // 'report', 'prescription', 'invoice'
     required String title,
-    String? description,
+    required String description,
+    required String recordType,
+    required String recordDate,
+    required String addedBy,
     required List<XFile> images,
-    DateTime? recordDate,
-    String? addedBy,
   }) async {
     try {
-      if (_auth.currentUser == null) throw Exception('No user logged in');
-
-      List<String> imageUrls = [];
-
       // Upload images to Cloudinary
-      imageUrls = await CloudinaryService.uploadImages(images);
+      List<String> imageUrls = await _cloudinaryService.uploadImages(images);
 
-      // Save record to Firestore
+      // Add record to Firestore
       await _firestore.collection('medical_records').add({
-        'userId': _auth.currentUser!.uid,
-        'type': type,
         'title': title,
         'description': description,
+        'recordType': recordType,
+        'recordDate': recordDate,
+        'addedBy': addedBy,
         'imageUrls': imageUrls,
-        'recordDate': recordDate ?? FieldValue.serverTimestamp(),
-        'addedBy': addedBy ?? _auth.currentUser!.displayName ?? 'User',
         'createdAt': FieldValue.serverTimestamp(),
-        'isActive': true,
       });
     } catch (e) {
-      throw Exception('Failed to add medical record: ${e.toString()}');
+      throw Exception('Failed to add medical record: $e');
     }
   }
 
   // Get medical records for current user
   Stream<List<Map<String, dynamic>>> getMedicalRecords() {
-    if (_auth.currentUser == null) return Stream.value([]);
-
     return _firestore
         .collection('medical_records')
-        .where('userId', isEqualTo: _auth.currentUser!.uid)
-        .where('isActive', isEqualTo: true)
+        .where('addedBy', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map(
@@ -60,24 +51,22 @@ class MedicalRecordsService {
         );
   }
 
-  // Get medical records by type
-  Stream<List<Map<String, dynamic>>> getMedicalRecordsByType(String type) {
-    if (_auth.currentUser == null) return Stream.value([]);
+  // Get medical record by ID
+  Future<Map<String, dynamic>?> getMedicalRecordById(String recordId) async {
+    try {
+      DocumentSnapshot doc =
+          await _firestore.collection('medical_records').doc(recordId).get();
 
-    return _firestore
-        .collection('medical_records')
-        .where('userId', isEqualTo: _auth.currentUser!.uid)
-        .where('type', isEqualTo: type)
-        .where('isActive', isEqualTo: true)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs.map((doc) {
-            Map<String, dynamic> data = doc.data();
-            data['id'] = doc.id;
-            return data;
-          }).toList(),
-        );
+      if (doc.exists) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id;
+        return data;
+      } else {
+        return null;
+      }
+    } catch (e) {
+      throw Exception('Failed to get medical record: $e');
+    }
   }
 
   // Update medical record
@@ -85,6 +74,8 @@ class MedicalRecordsService {
     required String recordId,
     String? title,
     String? description,
+    String? recordType,
+    String? recordDate,
     List<XFile>? newImages,
   }) async {
     try {
@@ -92,18 +83,18 @@ class MedicalRecordsService {
 
       if (title != null) updateData['title'] = title;
       if (description != null) updateData['description'] = description;
+      if (recordType != null) updateData['recordType'] = recordType;
+      if (recordDate != null) updateData['recordDate'] = recordDate;
 
       // Handle new images if provided
       if (newImages != null && newImages.isNotEmpty) {
-        List<String> newImageUrls = await CloudinaryService.uploadImages(
+        List<String> newImageUrls = await _cloudinaryService.uploadImages(
           newImages,
         );
 
         // Get existing images and add new ones
-        DocumentSnapshot doc = await _firestore
-            .collection('medical_records')
-            .doc(recordId)
-            .get();
+        DocumentSnapshot doc =
+            await _firestore.collection('medical_records').doc(recordId).get();
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         List<String> existingImages = List<String>.from(
           data['imageUrls'] ?? [],
@@ -137,12 +128,9 @@ class MedicalRecordsService {
   // Get medical record statistics
   Future<Map<String, dynamic>> getMedicalRecordsStatistics() async {
     try {
-      if (_auth.currentUser == null) throw Exception('No user logged in');
-
       QuerySnapshot snapshot = await _firestore
           .collection('medical_records')
-          .where('userId', isEqualTo: _auth.currentUser!.uid)
-          .where('isActive', isEqualTo: true)
+          .where('addedBy', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
           .get();
 
       int totalRecords = snapshot.docs.length;
@@ -182,12 +170,9 @@ class MedicalRecordsService {
   // Search medical records
   Future<List<Map<String, dynamic>>> searchMedicalRecords(String query) async {
     try {
-      if (_auth.currentUser == null) throw Exception('No user logged in');
-
       QuerySnapshot snapshot = await _firestore
           .collection('medical_records')
-          .where('userId', isEqualTo: _auth.currentUser!.uid)
-          .where('isActive', isEqualTo: true)
+          .where('addedBy', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
           .get();
 
       List<Map<String, dynamic>> results = [];
@@ -195,8 +180,8 @@ class MedicalRecordsService {
       for (var doc in snapshot.docs) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         String title = (data['title'] as String? ?? '').toLowerCase();
-        String description = (data['description'] as String? ?? '')
-            .toLowerCase();
+        String description =
+            (data['description'] as String? ?? '').toLowerCase();
         String type = (data['type'] as String? ?? '').toLowerCase();
 
         if (title.contains(query.toLowerCase()) ||
@@ -231,11 +216,9 @@ class MedicalRecordsService {
     String? type,
   }) async {
     try {
-      if (_auth.currentUser == null) throw Exception('No user logged in');
-
       Query query = _firestore
           .collection('medical_records')
-          .where('userId', isEqualTo: _auth.currentUser!.uid)
+          .where('addedBy', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
           .where('isActive', isEqualTo: true);
 
       if (startDate != null) {
@@ -248,9 +231,8 @@ class MedicalRecordsService {
         query = query.where('type', isEqualTo: type);
       }
 
-      QuerySnapshot snapshot = await query
-          .orderBy('createdAt', descending: true)
-          .get();
+      QuerySnapshot snapshot =
+          await query.orderBy('createdAt', descending: true).get();
 
       return snapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;

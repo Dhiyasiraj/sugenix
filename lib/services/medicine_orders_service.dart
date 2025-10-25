@@ -228,7 +228,8 @@ class MedicineOrdersService {
     try {
       if (_auth.currentUser == null) throw Exception('No user logged in');
 
-      List<String> imageUrls = await CloudinaryService.uploadImages(images);
+      final cloudinaryService = CloudinaryService();
+      List<String> imageUrls = await cloudinaryService.uploadImages(images);
 
       // Save prescription to Firestore
       DocumentReference prescriptionRef = await _firestore

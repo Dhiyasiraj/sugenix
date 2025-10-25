@@ -428,58 +428,64 @@ class _AddRecordScreenState extends State<AddRecordScreen> {
   }
 
   Future<void> _handleUpload() async {
-    if (_titleController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a title'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+  if (_titleController.text.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please enter a title'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
 
-    if (_selectedImages.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select at least one image'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+  if (_selectedImages.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please select at least one image'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
 
-    setState(() {
-      _isLoading = true;
-    });
+  setState(() {
+    _isLoading = true;
+  });
 
-    try {
-      await _medicalRecordsService.addMedicalRecord(
-        type: _selectedRecordType.toLowerCase(),
-        title: _titleController.text,
-        description: _descriptionController.text.isNotEmpty
-            ? _descriptionController.text
-            : null,
-        images: _selectedImages,
-        recordDate: DateTime.now(),
-        addedBy: _addedByController.text,
-      );
+  try {
+  await _medicalRecordsService.addMedicalRecord(
+    recordType: _selectedRecordType.toLowerCase(),
+    title: _titleController.text,
+    description: _descriptionController.text.isNotEmpty
+        ? _descriptionController.text
+        : '',
+    images: _selectedImages,
+    recordDate: DateTime.now().toString(), // Convert DateTime to String
+    addedBy: _addedByController.text,
+  );
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const AllRecordsScreen()),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to upload record: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
+  setState(() {
+    _isLoading = false;
+  });
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Medical record added successfully'),
+      backgroundColor: Colors.green,
+    ),
+  );
+} catch (e) {
+  setState(() {
+    _isLoading = false;
+  });
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Failed to add medical record'),
+      backgroundColor: Colors.red,
+    ),
+  );
+} finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
