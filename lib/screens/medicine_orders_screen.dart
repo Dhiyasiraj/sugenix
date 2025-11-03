@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sugenix/screens/medicine_scanner_screen.dart';
 
 class MedicineOrdersScreen extends StatelessWidget {
   const MedicineOrdersScreen({super.key});
@@ -53,6 +54,11 @@ class MedicineOrdersScreen extends StatelessWidget {
 
   Widget _buildMedicineServices() {
     final services = [
+      {
+        "title": "Scan Medicine",
+        "icon": Icons.qr_code_scanner,
+        "color": Colors.purple,
+      },
       {
         "title": "Order medicine online",
         "icon": Icons.medication,
@@ -144,6 +150,12 @@ class MedicineOrdersScreen extends StatelessWidget {
 
   void _navigateToService(BuildContext context, String service) {
     switch (service) {
+      case "Scan Medicine":
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const MedicineScannerScreen()),
+        );
+        break;
       case "Order medicine online":
         Navigator.push(
           context,

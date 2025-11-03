@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:sugenix/services/emergency_service.dart';
+import 'package:sugenix/utils/responsive_layout.dart';
 
 class EmergencyScreen extends StatefulWidget {
   const EmergencyScreen({super.key});
@@ -8,6 +10,7 @@ class EmergencyScreen extends StatefulWidget {
 }
 
 class _EmergencyScreenState extends State<EmergencyScreen> {
+  final EmergencyService _emergencyService = EmergencyService();
   bool _isEmergencyActive = false;
   int _countdown = 5;
 
@@ -63,10 +66,15 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   }
 
   Widget _buildEmergencyTitle() {
-    return const Text(
+    return Text(
       "Emergency SOS",
       style: TextStyle(
-        fontSize: 28,
+        fontSize: ResponsiveHelper.getResponsiveFontSize(
+          context,
+          mobile: 24,
+          tablet: 26,
+          desktop: 28,
+        ),
         fontWeight: FontWeight.bold,
         color: Colors.white,
       ),
@@ -74,24 +82,36 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   }
 
   Widget _buildEmergencyDescription() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 40),
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: ResponsiveHelper.isMobile(context) ? 30 : 40,
+      ),
       child: Text(
         "Press and hold the button below to activate emergency mode. Your location and medical information will be shared with emergency contacts.",
-        style: TextStyle(fontSize: 16, color: Colors.white70),
+        style: TextStyle(
+          fontSize: ResponsiveHelper.getResponsiveFontSize(
+            context,
+            mobile: 14,
+            tablet: 15,
+            desktop: 16,
+          ),
+          color: Colors.white70,
+        ),
         textAlign: TextAlign.center,
       ),
     );
   }
 
   Widget _buildSOSButton() {
+    final buttonSize = ResponsiveHelper.isMobile(context) ? 180.0 : 200.0;
+    
     return GestureDetector(
       onTapDown: (_) => _startEmergency(),
       onTapUp: (_) => _cancelEmergency(),
       onTapCancel: () => _cancelEmergency(),
       child: Container(
-        width: 200,
-        height: 200,
+        width: buttonSize,
+        height: buttonSize,
         decoration: BoxDecoration(
           color: Colors.red,
           shape: BoxShape.circle,
@@ -103,11 +123,16 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
             ),
           ],
         ),
-        child: const Center(
+        child: Center(
           child: Text(
             "SOS",
             style: TextStyle(
-              fontSize: 32,
+              fontSize: ResponsiveHelper.getResponsiveFontSize(
+                context,
+                mobile: 28,
+                tablet: 30,
+                desktop: 32,
+              ),
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
@@ -118,9 +143,11 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   }
 
   Widget _buildCountdownDisplay() {
+    final size = ResponsiveHelper.isMobile(context) ? 130.0 : 150.0;
+    
     return Container(
-      width: 150,
-      height: 150,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.2),
         shape: BoxShape.circle,
@@ -128,8 +155,13 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
       child: Center(
         child: Text(
           _countdown.toString(),
-          style: const TextStyle(
-            fontSize: 48,
+          style: TextStyle(
+            fontSize: ResponsiveHelper.getResponsiveFontSize(
+              context,
+              mobile: 42,
+              tablet: 45,
+              desktop: 48,
+            ),
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
@@ -141,18 +173,31 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   Widget _buildEmergencyActiveContent() {
     return Column(
       children: [
-        const Text(
+        Text(
           "Emergency Activated!",
           style: TextStyle(
-            fontSize: 24,
+            fontSize: ResponsiveHelper.getResponsiveFontSize(
+              context,
+              mobile: 20,
+              tablet: 22,
+              desktop: 24,
+            ),
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
         ),
-        const SizedBox(height: 20),
-        const Text(
+        SizedBox(height: ResponsiveHelper.isMobile(context) ? 15 : 20),
+        Text(
           "Your emergency contacts have been notified.\nHelp is on the way!",
-          style: TextStyle(fontSize: 16, color: Colors.white70),
+          style: TextStyle(
+            fontSize: ResponsiveHelper.getResponsiveFontSize(
+              context,
+              mobile: 14,
+              tablet: 15,
+              desktop: 16,
+            ),
+            color: Colors.white70,
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 40),
@@ -196,22 +241,47 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     });
   }
 
-  void _activateEmergency() {
-    // Simulate emergency activation
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Emergency activated! Contacts notified."),
-        backgroundColor: Colors.red,
-        duration: Duration(seconds: 3),
-      ),
-    );
+  Future<void> _activateEmergency() async {
+    try {
+      await _emergencyService.sendEmergencyAlert();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Emergency activated! Contacts notified."),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to activate emergency: ${e.toString()}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
-  void _cancelEmergency() {
-    setState(() {
-      _isEmergencyActive = false;
-      _countdown = 5;
-    });
+  Future<void> _cancelEmergency() async {
+    try {
+      await _emergencyService.cancelEmergencyAlert();
+      setState(() {
+        _isEmergencyActive = false;
+        _countdown = 5;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to cancel emergency: ${e.toString()}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 

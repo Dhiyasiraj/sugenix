@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:sugenix/models/doctor.dart';
+import 'package:sugenix/utils/responsive_layout.dart';
+import 'package:intl/intl.dart';
+import 'package:sugenix/services/appointment_service.dart';
+import 'package:sugenix/services/auth_service.dart';
 
 class DoctorDetailsScreen extends StatelessWidget {
   final Doctor doctor;
@@ -26,9 +30,9 @@ class DoctorDetailsScreen extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            _buildDoctorProfile(),
-            _buildStatistics(),
-            _buildServiceInfo(),
+            _buildDoctorProfile(context),
+            _buildStatistics(context),
+            _buildServiceInfo(context),
             _buildBookNowButton(context),
           ],
         ),
@@ -36,47 +40,76 @@ class DoctorDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDoctorProfile() {
+  Widget _buildDoctorProfile(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(
+        ResponsiveHelper.isMobile(context) ? 15 : 20,
+      ),
       child: Column(
         children: [
           CircleAvatar(
-            radius: 50,
+            radius: ResponsiveHelper.isMobile(context) ? 45 : 50,
             backgroundColor: const Color(0xFF0C4556),
             child: Text(
               doctor.name.split(' ').map((e) => e[0]).join(),
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: 24,
+                fontSize: ResponsiveHelper.getResponsiveFontSize(
+                  context,
+                  mobile: 20,
+                  tablet: 22,
+                  desktop: 24,
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 15),
+          SizedBox(height: ResponsiveHelper.isMobile(context) ? 12 : 15),
           Text(
             doctor.name,
-            style: const TextStyle(
-              fontSize: 24,
+            style: TextStyle(
+              fontSize: ResponsiveHelper.getResponsiveFontSize(
+                context,
+                mobile: 20,
+                tablet: 22,
+                desktop: 24,
+              ),
               fontWeight: FontWeight.bold,
-              color: Color(0xFF0C4556),
+              color: const Color(0xFF0C4556),
             ),
           ),
           const SizedBox(height: 5),
           Text(
             doctor.specialization,
-            style: const TextStyle(fontSize: 16, color: Colors.grey),
+            style: TextStyle(
+              fontSize: ResponsiveHelper.getResponsiveFontSize(
+                context,
+                mobile: 14,
+                tablet: 15,
+                desktop: 16,
+              ),
+              color: Colors.grey,
+            ),
           ),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.star, color: Colors.amber, size: 20),
+              Icon(
+                Icons.star,
+                color: Colors.amber,
+                size: ResponsiveHelper.isMobile(context) ? 18 : 20,
+              ),
               const SizedBox(width: 5),
               Text(
                 doctor.rating.toString(),
-                style: const TextStyle(
-                  fontSize: 16,
+                style: TextStyle(
+                  fontSize: ResponsiveHelper.getResponsiveFontSize(
+                    context,
+                    mobile: 14,
+                    tablet: 15,
+                    desktop: 16,
+                  ),
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -87,10 +120,14 @@ class DoctorDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatistics() {
+  Widget _buildStatistics(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(20),
+      margin: EdgeInsets.symmetric(
+        horizontal: ResponsiveHelper.isMobile(context) ? 15 : 20,
+      ),
+      padding: EdgeInsets.all(
+        ResponsiveHelper.isMobile(context) ? 15 : 20,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -106,34 +143,51 @@ class DoctorDetailsScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildStatItem(
+            context,
             "${doctor.totalBookings} Booking",
             Icons.calendar_today,
           ),
-          _buildStatItem("${doctor.totalPatients} Patient", Icons.people),
-          _buildStatItem("${doctor.likes} Likes", Icons.favorite),
+          _buildStatItem(context, "${doctor.totalPatients} Patient", Icons.people),
+          _buildStatItem(context, "${doctor.likes} Likes", Icons.favorite),
         ],
       ),
     );
   }
 
-  Widget _buildStatItem(String text, IconData icon) {
+  Widget _buildStatItem(BuildContext context, String text, IconData icon) {
     return Column(
       children: [
-        Icon(icon, color: const Color(0xFF0C4556), size: 30),
+        Icon(
+          icon,
+          color: const Color(0xFF0C4556),
+          size: ResponsiveHelper.isMobile(context) ? 25 : 30,
+        ),
         const SizedBox(height: 8),
         Text(
           text,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: ResponsiveHelper.getResponsiveFontSize(
+              context,
+              mobile: 12,
+              tablet: 13,
+              desktop: 14,
+            ),
+          ),
           textAlign: TextAlign.center,
         ),
       ],
     );
   }
 
-  Widget _buildServiceInfo() {
+  Widget _buildServiceInfo(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(20),
-      padding: const EdgeInsets.all(20),
+      margin: EdgeInsets.all(
+        ResponsiveHelper.isMobile(context) ? 15 : 20,
+      ),
+      padding: EdgeInsets.all(
+        ResponsiveHelper.isMobile(context) ? 15 : 20,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -148,12 +202,17 @@ class DoctorDetailsScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "Service Info",
             style: TextStyle(
-              fontSize: 18,
+              fontSize: ResponsiveHelper.getResponsiveFontSize(
+                context,
+                mobile: 16,
+                tablet: 17,
+                desktop: 18,
+              ),
               fontWeight: FontWeight.bold,
-              color: Color(0xFF0C4556),
+              color: const Color(0xFF0C4556),
             ),
           ),
           const SizedBox(height: 15),
@@ -180,9 +239,11 @@ class DoctorDetailsScreen extends StatelessWidget {
 
   Widget _buildBookNowButton(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(20),
+      margin: EdgeInsets.all(
+        ResponsiveHelper.isMobile(context) ? 15 : 20,
+      ),
       width: double.infinity,
-      height: 50,
+      height: ResponsiveHelper.isMobile(context) ? 50 : 55,
       child: ElevatedButton(
         onPressed: () {
           Navigator.push(
@@ -222,11 +283,69 @@ class AppointmentBookingScreen extends StatefulWidget {
 }
 
 class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
-  String _selectedDate = "Today, 25 Feb";
-  String _selectedTime = "3:00 PM";
+  final AppointmentService _appointmentService = AppointmentService();
+  final AuthService _authService = AuthService();
+  
+  DateTime _selectedDate = DateTime.now();
+  String _selectedTime = "15:00";
   final _patientNameController = TextEditingController();
   final _mobileController = TextEditingController();
+  final _notesController = TextEditingController();
   String _selectedPatient = "My Self";
+  bool _isLoading = false;
+  List<String> _availableTimeSlots = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+    _loadAvailableSlots();
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      final profile = await _authService.getUserProfile();
+      setState(() {
+        _patientNameController.text = profile?['name'] ?? '';
+        _mobileController.text = profile?['phone'] ?? '';
+      });
+    } catch (e) {
+      // Handle error
+    }
+  }
+
+  Future<void> _loadAvailableSlots() async {
+    try {
+      final slots = await _appointmentService.getAvailableTimeSlots(
+        widget.doctor.id,
+        _selectedDate,
+      );
+      setState(() {
+        _availableTimeSlots = slots;
+        if (slots.isNotEmpty && !slots.contains(_selectedTime)) {
+          _selectedTime = slots.first;
+        }
+      });
+    } catch (e) {
+      // Use default slots
+      setState(() {
+        _availableTimeSlots = [
+          '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+          '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
+          '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
+          '18:00', '18:30', '19:00', '19:30', '20:00', '20:30'
+        ];
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _patientNameController.dispose();
+    _mobileController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -342,33 +461,66 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
   }
 
   Widget _buildDateSelector() {
-    final dates = ["Yesterday, 24 Feb", "Today, 25 Feb", "Tomorrow, 26 Feb"];
+    final today = DateTime.now();
+    final dates = [
+      today.subtract(const Duration(days: 1)),
+      today,
+      today.add(const Duration(days: 1)),
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "Select Date",
           style: TextStyle(
-            fontSize: 18,
+            fontSize: ResponsiveHelper.getResponsiveFontSize(
+              context,
+              mobile: 16,
+              tablet: 18,
+              desktop: 20,
+            ),
             fontWeight: FontWeight.bold,
-            color: Color(0xFF0C4556),
+            color: const Color(0xFF0C4556),
           ),
         ),
         const SizedBox(height: 15),
         Row(
-          children: dates.map((date) {
-            final isSelected = date == _selectedDate;
+          children: dates.asMap().entries.map((entry) {
+            final date = entry.value;
+            final isSelected = _selectedDate.year == date.year &&
+                _selectedDate.month == date.month &&
+                _selectedDate.day == date.day;
+            final isToday = date.year == today.year &&
+                date.month == today.month &&
+                date.day == today.day;
+            final isYesterday = date.day == today.subtract(const Duration(days: 1)).day;
+            final isTomorrow = date.day == today.add(const Duration(days: 1)).day;
+
+            String dateLabel;
+            if (isToday) {
+              dateLabel = 'Today, ${DateFormat('dd MMM').format(date)}';
+            } else if (isYesterday) {
+              dateLabel = 'Yesterday, ${DateFormat('dd MMM').format(date)}';
+            } else if (isTomorrow) {
+              dateLabel = 'Tomorrow, ${DateFormat('dd MMM').format(date)}';
+            } else {
+              dateLabel = DateFormat('EEE, dd MMM').format(date);
+            }
+
             return Expanded(
               child: GestureDetector(
-                onTap: () {
+                onTap: () async {
                   setState(() {
                     _selectedDate = date;
                   });
+                  await _loadAvailableSlots();
                 },
                 child: Container(
                   margin: const EdgeInsets.only(right: 10),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: EdgeInsets.symmetric(
+                    vertical: ResponsiveHelper.isMobile(context) ? 10 : 12,
+                  ),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? const Color(0xFF0C4556)
@@ -376,11 +528,17 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    date,
+                    dateLabel,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: isSelected ? Colors.white : Colors.black,
                       fontWeight: FontWeight.w500,
+                      fontSize: ResponsiveHelper.getResponsiveFontSize(
+                        context,
+                        mobile: 12,
+                        tablet: 13,
+                        desktop: 14,
+                      ),
                     ),
                   ),
                 ),
@@ -393,41 +551,53 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
   }
 
   Widget _buildTimeSlots() {
+    if (_availableTimeSlots.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // Group slots by period
+    final morningSlots = _availableTimeSlots.where((slot) {
+      final hour = int.parse(slot.split(':')[0]);
+      return hour >= 9 && hour < 12;
+    }).toList();
+
+    final afternoonSlots = _availableTimeSlots.where((slot) {
+      final hour = int.parse(slot.split(':')[0]);
+      return hour >= 12 && hour < 17;
+    }).toList();
+
+    final eveningSlots = _availableTimeSlots.where((slot) {
+      final hour = int.parse(slot.split(':')[0]);
+      return hour >= 17 && hour < 21;
+    }).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "Available Time",
           style: TextStyle(
-            fontSize: 18,
+            fontSize: ResponsiveHelper.getResponsiveFontSize(
+              context,
+              mobile: 16,
+              tablet: 18,
+              desktop: 20,
+            ),
             fontWeight: FontWeight.bold,
-            color: Color(0xFF0C4556),
+            color: const Color(0xFF0C4556),
           ),
         ),
         const SizedBox(height: 15),
-        _buildTimeSlotSection("Afternoon Slots", [
-          "12:00 PM",
-          "12:30 PM",
-          "1:00 PM",
-          "1:30 PM",
-          "2:00 PM",
-          "2:30 PM",
-          "3:00 PM",
-          "3:30 PM",
-          "4:00 PM",
-          "4:30 PM",
-          "5:00 PM",
-        ]),
-        const SizedBox(height: 20),
-        _buildTimeSlotSection("Evening Slots", [
-          "6:00 PM",
-          "6:30 PM",
-          "7:00 PM",
-          "7:30 PM",
-          "8:00 PM",
-          "8:30 PM",
-          "9:00 PM",
-        ]),
+        if (morningSlots.isNotEmpty)
+          _buildTimeSlotSection("Morning", morningSlots),
+        if (afternoonSlots.isNotEmpty) ...[
+          if (morningSlots.isNotEmpty) const SizedBox(height: 15),
+          _buildTimeSlotSection("Afternoon", afternoonSlots),
+        ],
+        if (eveningSlots.isNotEmpty) ...[
+          if (afternoonSlots.isNotEmpty || morningSlots.isNotEmpty) const SizedBox(height: 15),
+          _buildTimeSlotSection("Evening", eveningSlots),
+        ],
       ],
     );
   }
@@ -437,19 +607,31 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
+          "$title Slots",
+          style: TextStyle(
+            fontSize: ResponsiveHelper.getResponsiveFontSize(
+              context,
+              mobile: 14,
+              tablet: 16,
+              desktop: 18,
+            ),
             fontWeight: FontWeight.bold,
             color: Colors.grey,
           ),
         ),
         const SizedBox(height: 10),
         Wrap(
-          spacing: 10,
-          runSpacing: 10,
+          spacing: ResponsiveHelper.isMobile(context) ? 8 : 10,
+          runSpacing: ResponsiveHelper.isMobile(context) ? 8 : 10,
           children: times.map((time) {
             final isSelected = time == _selectedTime;
+            final timeParts = time.split(':');
+            final hour = int.parse(timeParts[0]);
+            final minute = int.parse(timeParts[1]);
+            final period = hour >= 12 ? 'PM' : 'AM';
+            final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+            final displayTime = '$displayHour:${minute.toString().padLeft(2, '0')} $period';
+
             return GestureDetector(
               onTap: () {
                 setState(() {
@@ -457,9 +639,9 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                 });
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 15,
-                  vertical: 8,
+                padding: EdgeInsets.symmetric(
+                  horizontal: ResponsiveHelper.isMobile(context) ? 12 : 15,
+                  vertical: ResponsiveHelper.isMobile(context) ? 6 : 8,
                 ),
                 decoration: BoxDecoration(
                   color: isSelected
@@ -468,10 +650,16 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  time,
+                  displayTime,
                   style: TextStyle(
                     color: isSelected ? Colors.white : Colors.black,
                     fontWeight: FontWeight.w500,
+                    fontSize: ResponsiveHelper.getResponsiveFontSize(
+                      context,
+                      mobile: 12,
+                      tablet: 13,
+                      desktop: 14,
+                    ),
                   ),
                 ),
               ),
@@ -486,12 +674,17 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "Appointment For",
           style: TextStyle(
-            fontSize: 18,
+            fontSize: ResponsiveHelper.getResponsiveFontSize(
+              context,
+              mobile: 16,
+              tablet: 18,
+              desktop: 20,
+            ),
             fontWeight: FontWeight.bold,
-            color: Color(0xFF0C4556),
+            color: const Color(0xFF0C4556),
           ),
         ),
         const SizedBox(height: 15),
@@ -499,25 +692,52 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
           controller: _patientNameController,
           decoration: InputDecoration(
             hintText: "Patient Name",
+            prefixIcon: const Icon(Icons.person, color: Color(0xFF0C4556)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide.none,
             ),
             filled: true,
             fillColor: Colors.grey[100],
+            contentPadding: EdgeInsets.all(
+              ResponsiveHelper.isMobile(context) ? 15 : 18,
+            ),
           ),
         ),
         const SizedBox(height: 15),
         TextField(
           controller: _mobileController,
+          keyboardType: TextInputType.phone,
           decoration: InputDecoration(
             hintText: "Mobile Number",
+            prefixIcon: const Icon(Icons.phone, color: Color(0xFF0C4556)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide.none,
             ),
             filled: true,
             fillColor: Colors.grey[100],
+            contentPadding: EdgeInsets.all(
+              ResponsiveHelper.isMobile(context) ? 15 : 18,
+            ),
+          ),
+        ),
+        const SizedBox(height: 15),
+        TextField(
+          controller: _notesController,
+          maxLines: 3,
+          decoration: InputDecoration(
+            hintText: "Additional Notes (Optional)",
+            prefixIcon: const Icon(Icons.note, color: Color(0xFF0C4556)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
+            ),
+            filled: true,
+            fillColor: Colors.grey[100],
+            contentPadding: EdgeInsets.all(
+              ResponsiveHelper.isMobile(context) ? 15 : 18,
+            ),
           ),
         ),
       ],
@@ -599,51 +819,150 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
   Widget _buildNextButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 50,
+      height: ResponsiveHelper.isMobile(context) ? 50 : 55,
       child: ElevatedButton(
-        onPressed: () {
-          _showConfirmationDialog(context);
-        },
+        onPressed: _isLoading ? null : () => _bookAppointment(context),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF0C4556),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
         ),
-        child: const Text(
-          "Next",
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        child: _isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : Text(
+                "Book Appointment",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: ResponsiveHelper.getResponsiveFontSize(
+                    context,
+                    mobile: 14,
+                    tablet: 16,
+                    desktop: 18,
+                  ),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
       ),
     );
   }
 
-  void _showConfirmationDialog(BuildContext context) {
+  Future<void> _bookAppointment(BuildContext context) async {
+    if (_patientNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter patient name'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_mobileController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter mobile number'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Parse time
+      final timeParts = _selectedTime.split(':');
+      final hour = int.parse(timeParts[0]);
+      final minute = int.parse(timeParts[1]);
+      final appointmentDateTime = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        hour,
+        minute,
+      );
+
+      // Book appointment
+      await _appointmentService.bookAppointment(
+        doctorId: widget.doctor.id,
+        doctorName: widget.doctor.name,
+        dateTime: appointmentDateTime,
+        patientName: _patientNameController.text.trim(),
+        patientMobile: _mobileController.text.trim(),
+        patientType: _selectedPatient,
+        notes: _notesController.text.trim().isNotEmpty
+            ? _notesController.text.trim()
+            : null,
+        fee: widget.doctor.consultationFee > 0 ? widget.doctor.consultationFee : null,
+      );
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        _showSuccessDialog(context, appointmentDateTime);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to book appointment: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showSuccessDialog(BuildContext context, DateTime appointmentDateTime) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.check_circle, color: Colors.green, size: 60),
             const SizedBox(height: 20),
-            const Text(
-              "Thank You! Your Appointment Successful!",
+            Text(
+              "Appointment Booked Successfully!",
               style: TextStyle(
-                fontSize: 18,
+                fontSize: ResponsiveHelper.getResponsiveFontSize(
+                  context,
+                  mobile: 16,
+                  tablet: 18,
+                  desktop: 20,
+                ),
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF0C4556),
+                color: const Color(0xFF0C4556),
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 15),
             Text(
-              "Your appointment with ${widget.doctor.name} is on ${_selectedDate} at $_selectedTime",
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
+              "Your appointment with ${widget.doctor.name} is on ${DateFormat('MMM dd, yyyy').format(appointmentDateTime)} at ${DateFormat('hh:mm a').format(appointmentDateTime)}",
+              style: TextStyle(
+                fontSize: ResponsiveHelper.getResponsiveFontSize(
+                  context,
+                  mobile: 13,
+                  tablet: 14,
+                  desktop: 15,
+                ),
+                color: Colors.grey,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -651,8 +970,8 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pop(context);
+                  Navigator.pop(context); // Close dialog
+                  Navigator.pop(context); // Go back to doctor details
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0C4556),
@@ -660,9 +979,17 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   "Done",
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: ResponsiveHelper.getResponsiveFontSize(
+                      context,
+                      mobile: 14,
+                      tablet: 16,
+                      desktop: 18,
+                    ),
+                  ),
                 ),
               ),
             ),

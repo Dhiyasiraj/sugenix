@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:sugenix/models/glucose_record.dart';
 import 'package:sugenix/services/glucose_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -144,6 +143,9 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
   }
 
   Widget _buildAIAnalysis() {
+    // Calculate AI predictions based on recent data (UI only - no actual AI)
+    final prediction = _calculateAIPrediction();
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -176,7 +178,7 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
               ),
               const SizedBox(width: 15),
               const Text(
-                "AI Analysis",
+                "AI Analysis & Prediction",
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -186,17 +188,170 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
             ],
           ),
           const SizedBox(height: 15),
+          if (prediction['riskLevel'] != null)
+            Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(
+                color: prediction['riskColor'] as Color,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    prediction['riskIcon'] as IconData,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          prediction['riskTitle'] as String,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          prediction['riskMessage'] as String,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 15),
           const Text(
-            "Your glucose levels are within normal range. Continue monitoring and maintain your current diet and medication routine.",
-            style: TextStyle(fontSize: 14, color: Colors.grey, height: 1.5),
+            "Trend Analysis",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0C4556),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            prediction['trendAnalysis'] as String,
+            style: const TextStyle(fontSize: 14, color: Colors.grey, height: 1.5),
           ),
           const SizedBox(height: 15),
-          _buildRecommendationItem("Take your medication as prescribed"),
-          _buildRecommendationItem("Stay hydrated throughout the day"),
-          _buildRecommendationItem("Consider light exercise after meals"),
+          const Text(
+            "Personalized Recommendations",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0C4556),
+            ),
+          ),
+          const SizedBox(height: 10),
+          ...(prediction['recommendations'] as List<String>)
+              .map((rec) => _buildRecommendationItem(rec))
+              .toList(),
         ],
       ),
     );
+  }
+
+  Map<String, dynamic> _calculateAIPrediction() {
+    if (_glucoseRecords.isEmpty) {
+      return {
+        'riskLevel': null,
+        'trendAnalysis':
+            'No data available yet. Start logging your glucose readings to get AI predictions and personalized recommendations.',
+        'recommendations': [
+          'Begin monitoring your glucose levels regularly',
+          'Log readings at different times of the day',
+          'Maintain a consistent monitoring schedule',
+        ],
+      };
+    }
+
+    // Calculate average and trend (mock AI prediction - UI only)
+    final recentReadings = _glucoseRecords.take(7).toList();
+    final avgGlucose = recentReadings.isEmpty
+        ? 0.0
+        : (recentReadings
+                .map((r) => r['value'] as double)
+                .reduce((a, b) => a + b) /
+            recentReadings.length);
+
+    final isRising = recentReadings.length > 1 &&
+        (recentReadings.first['value'] as double) >
+            (recentReadings.last['value'] as double);
+    final isHigh = avgGlucose > 180;
+    final isLow = avgGlucose < 70;
+
+    String riskTitle;
+    String riskMessage;
+    Color riskColor;
+    IconData riskIcon;
+
+    if (isHigh) {
+      riskTitle = 'High Glucose Alert';
+      riskMessage =
+          'Your average glucose levels are elevated. Consider consulting your doctor.';
+      riskColor = Colors.red;
+      riskIcon = Icons.warning;
+    } else if (isLow) {
+      riskTitle = 'Low Glucose Alert';
+      riskMessage =
+          'Your average glucose levels are low. Monitor closely and have a snack if needed.';
+      riskColor = Colors.orange;
+      riskIcon = Icons.warning;
+    } else {
+      riskTitle = 'Normal Range';
+      riskMessage =
+          'Your glucose levels are within the target range. Keep up the good work!';
+      riskColor = Colors.green;
+      riskIcon = Icons.check_circle;
+    }
+
+    String trendAnalysis = isRising
+        ? 'Your glucose levels show a rising trend. Monitor closely and maintain your medication schedule. Consider reviewing your diet and activity levels.'
+        : 'Your glucose levels are relatively stable. Continue with your current management plan.';
+
+    List<String> recommendations = [];
+    if (isHigh) {
+      recommendations = [
+        'Take your medications as prescribed',
+        'Limit carbohydrate intake in your next meal',
+        'Consider light physical activity',
+        'Stay well hydrated',
+      ];
+    } else if (isLow) {
+      recommendations = [
+        'Have a snack with 15g of carbohydrates',
+        'Monitor glucose levels every 15-30 minutes',
+        'Avoid strenuous activities until levels normalize',
+        'Consult your doctor if levels remain low',
+      ];
+    } else {
+      recommendations = [
+        'Continue taking medication as prescribed',
+        'Maintain your current diet and exercise routine',
+        'Stay hydrated throughout the day',
+        'Keep monitoring regularly',
+      ];
+    }
+
+    return {
+      'riskLevel': isHigh ? 'high' : (isLow ? 'low' : 'normal'),
+      'riskTitle': riskTitle,
+      'riskMessage': riskMessage,
+      'riskColor': riskColor,
+      'riskIcon': riskIcon,
+      'trendAnalysis': trendAnalysis,
+      'recommendations': recommendations,
+    };
   }
 
   Widget _buildRecommendationItem(String text) {

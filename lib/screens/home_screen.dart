@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:sugenix/models/doctor.dart';
 import 'package:sugenix/screens/doctor_details_screen.dart';
+import 'package:sugenix/screens/ai_assistant_screen.dart';
+import 'package:sugenix/screens/wellness_screen.dart';
 import 'package:sugenix/services/glucose_service.dart';
 import 'package:sugenix/services/auth_service.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:intl/intl.dart';
+import 'package:sugenix/services/doctor_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +20,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final GlucoseService _glucoseService = GlucoseService();
   final AuthService _authService = AuthService();
+  final DoctorService _doctorService = DoctorService();
 
   List<Map<String, dynamic>> _recentReadings = [];
   Map<String, dynamic>? _userProfile;
@@ -28,70 +31,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
-  final List<Doctor> liveDoctors = [
-    Doctor(
-      id: '1',
-      name: 'Dr. Sarah Johnson',
-      specialization: 'Diabetologist',
-      rating: 4.8,
-      isOnline: true,
-    ),
-    Doctor(
-      id: '2',
-      name: 'Dr. Michael Chen',
-      specialization: 'Endocrinologist',
-      rating: 4.9,
-      isOnline: true,
-    ),
-    Doctor(
-      id: '3',
-      name: 'Dr. Emily Davis',
-      specialization: 'Nutritionist',
-      rating: 4.7,
-      isOnline: true,
-    ),
-  ];
-
-  final List<Doctor> popularDoctors = [
-    Doctor(
-      id: '4',
-      name: 'Dr. James Wilson',
-      specialization: 'Diabetologist',
-      rating: 4.9,
-      isOnline: false,
-    ),
-    Doctor(
-      id: '5',
-      name: 'Dr. Lisa Brown',
-      specialization: 'Endocrinologist',
-      rating: 4.8,
-      isOnline: false,
-    ),
-    Doctor(
-      id: '6',
-      name: 'Dr. Robert Taylor',
-      specialization: 'Nutritionist',
-      rating: 4.7,
-      isOnline: false,
-    ),
-  ];
-
-  final List<Doctor> pediatricDoctors = [
-    Doctor(
-      id: '7',
-      name: 'Dr. Maria Garcia',
-      specialization: 'Pediatric Diabetologist',
-      rating: 4.9,
-      isOnline: true,
-    ),
-    Doctor(
-      id: '8',
-      name: 'Dr. David Lee',
-      specialization: 'Pediatric Endocrinologist',
-      rating: 4.8,
-      isOnline: false,
-    ),
-  ];
+  List<Doctor> _allDoctors = [];
 
   @override
   void initState() {
@@ -138,6 +78,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       // Load glucose statistics
       _glucoseStats = await _glucoseService.getGlucoseStatistics(days: 7);
+
+      // Listen to doctors
+      _doctorService.streamDoctors().listen((doctors) {
+        if (mounted) {
+          setState(() {
+            _allDoctors = doctors;
+          });
+        }
+      });
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -564,6 +513,42 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 children: [
                   Expanded(
                     child: _buildActionCard(
+                      'AI Assistant',
+                      Icons.psychology,
+                      const Color(0xFF9C27B0),
+                      () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const AIAssistantScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: _buildActionCard(
+                      'Wellness',
+                      Icons.favorite,
+                      const Color(0xFFE91E63),
+                      () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const WellnessScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 15),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildActionCard(
                       'Emergency',
                       Icons.emergency,
                       const Color(0xFFF44336),
@@ -636,6 +621,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildLiveDoctors() {
+    final liveDoctors = _allDoctors.where((d) => d.isOnline).toList();
     return AnimationConfiguration.staggeredList(
       position: 2,
       duration: const Duration(milliseconds: 600),
@@ -718,6 +704,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildPopularDoctors() {
+    final popularDoctors = _allDoctors
+        .where((d) => d.rating >= 4.5)
+        .toList();
     return AnimationConfiguration.staggeredList(
       position: 3,
       duration: const Duration(milliseconds: 600),
@@ -763,6 +752,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildPediatricDoctors() {
+    final pediatricDoctors = _allDoctors
+        .where((d) => d.specialization.toLowerCase().contains('pediatric'))
+        .toList();
     return AnimationConfiguration.staggeredList(
       position: 4,
       duration: const Duration(milliseconds: 600),

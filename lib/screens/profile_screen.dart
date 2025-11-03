@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:sugenix/screens/medical_records_screen.dart';
 import 'package:sugenix/screens/medicine_orders_screen.dart';
+import 'package:sugenix/screens/appointments_screen.dart';
+import 'package:sugenix/screens/emergency_screen.dart';
 import 'package:sugenix/services/auth_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:shimmer/shimmer.dart';
@@ -13,7 +15,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-   final AuthService _authService = AuthService();
+  final AuthService _authService = AuthService();
   Map<String, dynamic>? _userProfile;
   bool _isLoading = true;
   bool _isEditing = false;
@@ -501,11 +503,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 15),
           _buildActionButton(
+            'My Appointments',
+            Icons.calendar_today,
+            const Color(0xFF2196F3),
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AppointmentsScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 15),
+          _buildActionButton(
             'Emergency Contacts',
             Icons.emergency,
             const Color(0xFFF44336),
             () {
-              // Navigate to emergency contacts
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const EmergencyScreen(),
+                ),
+              );
             },
           ),
           const SizedBox(height: 15),

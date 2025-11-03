@@ -6,6 +6,11 @@ class SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final bool isTablet = width >= 800 && width < 1200;
+    final bool isDesktop = width >= 1200;
+    final double logoSize = isDesktop ? 90 : (isTablet ? 70 : 50);
+    final double titleSize = isDesktop ? 34 : (isTablet ? 26 : 22);
     Future.delayed(Duration(seconds: 3), () {
       Navigator.pushReplacement(
         context,
@@ -47,15 +52,15 @@ class SplashScreen extends StatelessWidget {
                   // Sugenix logo
                   Image.asset(
                     'assets/sugenix_logo.png.png',
-                    height: 50,
-                    width: 50,
+                    height: logoSize,
+                    width: logoSize,
                   ),
                   const SizedBox(width: 10),
-                  const Text(
+                  Text(
                     "SUGENIX",
                     style: TextStyle(
                       color: Color(0xFF0C4556),
-                      fontSize: 22,
+                      fontSize: titleSize,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 1.2,
                     ),

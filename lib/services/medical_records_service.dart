@@ -5,6 +5,7 @@ import 'package:sugenix/services/cloudinary_service.dart';
 
 class MedicalRecordsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Add medical record
   Future<void> addMedicalRecord({
@@ -20,13 +21,17 @@ class MedicalRecordsService {
       List<String> imageUrls = await CloudinaryService.uploadImages(images);
 
       // Add record to Firestore
+      if (_auth.currentUser == null) throw Exception('No user logged in');
+      
       await _firestore.collection('medical_records').add({
         'title': title,
         'description': description,
         'recordType': recordType,
         'recordDate': recordDate,
-        'addedBy': addedBy,
+        'addedBy': _auth.currentUser!.uid,
+        'addedByName': addedBy,
         'imageUrls': imageUrls,
+        'userId': _auth.currentUser!.uid,
         'createdAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
@@ -36,16 +41,20 @@ class MedicalRecordsService {
 
   // Get medical records for current user
   Stream<List<Map<String, dynamic>>> getMedicalRecords() {
+    if (_auth.currentUser == null) return Stream.value([]);
+    
     return _firestore
         .collection('medical_records')
-        .where('addedBy', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+        .where('userId', isEqualTo: _auth.currentUser!.uid)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map(
           (snapshot) => snapshot.docs.map((doc) {
-            Map<String, dynamic> data = doc.data();
-            data['id'] = doc.id;
-            return data;
+            final data = doc.data();
+            return {
+              'id': doc.id,
+              ...data,
+            };
           }).toList(),
         );
   }
@@ -127,9 +136,11 @@ class MedicalRecordsService {
   // Get medical record statistics
   Future<Map<String, dynamic>> getMedicalRecordsStatistics() async {
     try {
+      if (_auth.currentUser == null) throw Exception('No user logged in');
+      
       QuerySnapshot snapshot = await _firestore
           .collection('medical_records')
-          .where('addedBy', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+          .where('userId', isEqualTo: _auth.currentUser!.uid)
           .get();
 
       int totalRecords = snapshot.docs.length;
@@ -169,9 +180,11 @@ class MedicalRecordsService {
   // Search medical records
   Future<List<Map<String, dynamic>>> searchMedicalRecords(String query) async {
     try {
+      if (_auth.currentUser == null) throw Exception('No user logged in');
+      
       QuerySnapshot snapshot = await _firestore
           .collection('medical_records')
-          .where('addedBy', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+          .where('userId', isEqualTo: _auth.currentUser!.uid)
           .get();
 
       List<Map<String, dynamic>> results = [];
@@ -215,10 +228,11 @@ class MedicalRecordsService {
     String? type,
   }) async {
     try {
+      if (_auth.currentUser == null) throw Exception('No user logged in');
+      
       Query query = _firestore
           .collection('medical_records')
-          .where('addedBy', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
-          .where('isActive', isEqualTo: true);
+          .where('userId', isEqualTo: _auth.currentUser!.uid);
 
       if (startDate != null) {
         query = query.where('createdAt', isGreaterThanOrEqualTo: startDate);

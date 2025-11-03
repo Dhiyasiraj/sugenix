@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:sugenix/Login.dart';
-import 'package:sugenix/screens/home_screen.dart';
 import 'package:sugenix/main.dart';
 import 'package:sugenix/services/auth_service.dart';
+import 'package:sugenix/utils/responsive_layout.dart';
 
 class Signup extends StatefulWidget {
   const Signup({super.key});
@@ -16,8 +16,6 @@ class _SignupState extends State<Signup> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _dateOfBirthController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _agreeToTerms = false;
@@ -28,6 +26,20 @@ class _SignupState extends State<Signup> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isWide = screenWidth >= 800;
+    final double titleSize = ResponsiveHelper.getResponsiveFontSize(
+      context,
+      mobile: 28,
+      tablet: 32,
+      desktop: 36,
+    );
+    final double subtitleSize = ResponsiveHelper.getResponsiveFontSize(
+      context,
+      mobile: 16,
+      tablet: 18,
+      desktop: 20,
+    );
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -45,36 +57,41 @@ class _SignupState extends State<Signup> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 40),
-                const Text(
+                Text(
                   "Sign in",
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 28,
+                    fontSize: titleSize,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
+                Text(
                   "Your journey to smarter diabetes care starts here",
-                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                  style: TextStyle(color: Colors.white70, fontSize: subtitleSize),
                 ),
                 const SizedBox(height: 40),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
+                Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: isWide ? 560 : double.infinity,
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      children: [
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Column(
+                          children: [
                         TextField(
                           controller: _nameController,
                           decoration: InputDecoration(
@@ -211,7 +228,7 @@ class _SignupState extends State<Signup> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        Row(
+                            Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Text(
@@ -236,8 +253,10 @@ class _SignupState extends State<Signup> {
                               ),
                             ),
                           ],
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),

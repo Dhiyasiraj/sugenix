@@ -1,24 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sugenix/firebase_options.dart';
 import 'package:sugenix/splash.dart';
 import 'package:sugenix/Login.dart';
 import 'package:sugenix/signin.dart';
 import 'package:sugenix/screens/home_screen.dart';
-import 'package:sugenix/screens/doctor_details_screen.dart';
 import 'package:sugenix/screens/medical_records_screen.dart';
 import 'package:sugenix/screens/medicine_orders_screen.dart';
 import 'package:sugenix/screens/profile_screen.dart';
 import 'package:sugenix/screens/emergency_screen.dart';
 import 'package:sugenix/screens/glucose_monitoring_screen.dart';
-import 'package:sugenix/models/doctor.dart';
-import 'package:sugenix/utils/responsive_layout.dart';
+import 'package:sugenix/screens/ai_assistant_screen.dart';
+import 'package:sugenix/screens/wellness_screen.dart';
+import 'package:sugenix/screens/medicine_scanner_screen.dart';
+import 'package:sugenix/screens/appointments_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
-);
+  );
+
+  // Enable Firebase offline persistence
+  final firestore = FirebaseFirestore.instance;
+  firestore.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+  );
 
   runApp(const SugenixApp());
 }
@@ -63,18 +72,16 @@ class SugenixApp extends StatelessWidget {
         '/login': (context) => const Login(),
         '/signup': (context) => const Signup(),
         '/home': (context) => const HomeScreen(),
-        '/doctor-details': (context) => DoctorDetailsScreen(
-          doctor: Doctor(
-            id: '1',
-            name: 'Dr. Sample',
-            specialization: 'Diabetologist',
-          ),
-        ),
+        // Note: Doctor details requires a Doctor object; navigate via MaterialPageRoute
         '/medical-records': (context) => const MedicalRecordsScreen(),
         '/medicine-orders': (context) => const MedicineOrdersScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/emergency': (context) => const EmergencyScreen(),
         '/glucose-monitoring': (context) => const GlucoseMonitoringScreen(),
+        '/ai-assistant': (context) => const AIAssistantScreen(),
+        '/wellness': (context) => const WellnessScreen(),
+        '/medicine-scanner': (context) => const MedicineScannerScreen(),
+        '/appointments': (context) => const AppointmentsScreen(),
       },
     );
   }
@@ -188,27 +195,6 @@ class CalendarScreen extends StatelessWidget {
   }
 }
 
-class ChatScreen extends StatelessWidget {
-  const ChatScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('AI Chat Assistant'),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF0C4556),
-      ),
-      body: const Center(
-        child: Text(
-          'AI Chat Assistant\nComing Soon!',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 18, color: Colors.grey),
-        ),
-      ),
-    );
-  }
-}
 
 class FavoritesScreen extends StatelessWidget {
   const FavoritesScreen({super.key});

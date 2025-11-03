@@ -267,44 +267,66 @@ class MedicineOrdersService {
   // Search medicines
   Future<List<Map<String, dynamic>>> searchMedicines(String query) async {
     try {
-      // In a real implementation, you would search a medicines database
-      // For now, we'll return mock data
-      return [
-            {
-              'id': '1',
-              'name': 'Metformin 500mg',
-              'description': 'Diabetes medication',
-              'price': 25.50,
-              'manufacturer': 'Generic Pharma',
-              'available': true,
-            },
-            {
-              'id': '2',
-              'name': 'Insulin Glargine',
-              'description': 'Long-acting insulin',
-              'price': 45.00,
-              'manufacturer': 'MediCorp',
-              'available': true,
-            },
-            {
-              'id': '3',
-              'name': 'Glucose Test Strips',
-              'description': 'Blood glucose test strips',
-              'price': 15.75,
-              'manufacturer': 'TestCorp',
-              'available': true,
-            },
-          ]
-          .where(
-            (medicine) =>
-                (medicine['name'] as String).toLowerCase().contains(
-                  query.toLowerCase(),
-                ) ||
-                (medicine['description'] as String).toLowerCase().contains(
-                  query.toLowerCase(),
-                ),
-          )
-          .toList();
+      if (query.isEmpty) {
+        return [];
+      }
+
+      final queryLower = query.toLowerCase();
+      
+      // Search in medicines collection
+      QuerySnapshot snapshot = await _firestore
+          .collection('medicines')
+          .where('name', isGreaterThanOrEqualTo: queryLower)
+          .where('name', isLessThan: queryLower + 'z')
+          .limit(20)
+          .get();
+
+      List<Map<String, dynamic>> results = [];
+      
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final name = (data['name'] as String? ?? '').toLowerCase();
+        final description = (data['description'] as String? ?? '').toLowerCase();
+        
+        // Check if query matches name or description
+        if (name.contains(queryLower) || description.contains(queryLower)) {
+          results.add({
+            'id': doc.id,
+            'name': data['name'] ?? '',
+            'description': data['description'] ?? '',
+            'price': (data['price'] as num?)?.toDouble() ?? 0.0,
+            'manufacturer': data['manufacturer'] ?? '',
+            'available': data['available'] ?? true,
+            ...data,
+          });
+        }
+      }
+
+      // Also try searching by description if no results
+      if (results.isEmpty) {
+        final descSnapshot = await _firestore
+            .collection('medicines')
+            .where('description', isGreaterThanOrEqualTo: queryLower)
+            .where('description', isLessThan: queryLower + 'z')
+            .limit(20)
+            .get();
+
+        for (var doc in descSnapshot.docs) {
+          final data = doc.data();
+          final price = data['price'];
+          results.add({
+            'id': doc.id,
+            'name': data['name'] ?? '',
+            'description': data['description'] ?? '',
+            'price': price is num ? price.toDouble() : 0.0,
+            'manufacturer': data['manufacturer'] ?? '',
+            'available': data['available'] ?? true,
+            ...data,
+          });
+        }
+      }
+
+      return results;
     } catch (e) {
       throw Exception('Failed to search medicines: ${e.toString()}');
     }
