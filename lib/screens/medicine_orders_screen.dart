@@ -1,8 +1,127 @@
 import 'package:flutter/material.dart';
 import 'package:sugenix/screens/medicine_scanner_screen.dart';
+import 'package:sugenix/screens/cart_screen.dart';
+import 'package:sugenix/services/medicine_database_service.dart';
+import 'package:sugenix/services/medicine_cart_service.dart';
+import 'package:sugenix/services/language_service.dart';
+import 'package:sugenix/screens/language_screen.dart';
+import 'package:sugenix/widgets/offline_banner.dart';
 
-class MedicineOrdersScreen extends StatelessWidget {
+class MedicineOrdersScreen extends StatefulWidget {
   const MedicineOrdersScreen({super.key});
+
+  @override
+  State<MedicineOrdersScreen> createState() => _MedicineOrdersScreenState();
+}
+
+class _MedicineOrdersScreenState extends State<MedicineOrdersScreen> {
+  final MedicineDatabaseService _db = MedicineDatabaseService();
+  final MedicineCartService _cart = MedicineCartService();
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _results = [];
+  bool _searching = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildSearchResults() {
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _results.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final m = _results[index];
+        final name = (m['name'] as String?) ?? '';
+        final desc = (m['description'] as String?) ?? '';
+        final price = (m['price'] as num?)?.toDouble() ?? 0.0;
+        final manufacturer = (m['manufacturer'] as String?) ?? '';
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              )
+            ],
+          ),
+          child: ListTile(
+            leading: const Icon(Icons.medication, color: Color(0xFF0C4556)),
+            title: Text(name,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600, color: Color(0xFF0C4556))),
+            subtitle: Text(
+              desc.isNotEmpty ? desc : manufacturer,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.grey),
+            ),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text('₹${price.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, color: Color(0xFF0C4556))),
+                const SizedBox(height: 6),
+                SizedBox(
+                  height: 32,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0C4556),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () async {
+                      try {
+                        await _cart.addToCart(
+                          medicineId: (m['id'] as String?) ?? name,
+                          name: name,
+                          price: price,
+                          manufacturer: manufacturer,
+                        );
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Added to cart')),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content:
+                                  Text('Failed to add: ${e.toString()}')),
+                        );
+                      }
+                    },
+                    child: const Text('Add',
+                        style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _runSearch(String q) async {
+    setState(() => _searching = true);
+    try {
+      final list = await _db.searchMedicines(q);
+      setState(() => _results = list);
+    } catch (_) {
+      setState(() => _results = []);
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -10,27 +129,65 @@ class MedicineOrdersScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          "Medicine orders",
-          style: TextStyle(
-            color: Color(0xFF0C4556),
-            fontWeight: FontWeight.bold,
-          ),
+        title: FutureBuilder<String>(
+          future: LanguageService.getTranslated('medicine'),
+          builder: (context, snapshot) {
+            final title = snapshot.data ?? 'Medicine';
+            return Text(
+              title,
+              style: const TextStyle(
+                color: Color(0xFF0C4556),
+                fontWeight: FontWeight.bold,
+              ),
+            );
+          },
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LanguageScreen()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.shopping_cart, color: Color(0xFF0C4556)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CartScreen()),
+              );
+            },
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            _buildSearchBar(),
-            const SizedBox(height: 30),
-            _buildMedicineServices(),
-          ],
-        ),
+      body: Column(
+        children: [
+          const OfflineBanner(),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  _buildSearchBar(),
+                  const SizedBox(height: 30),
+                  if (_searching)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_results.isNotEmpty)
+                    _buildSearchResults()
+                  else
+                    _buildMedicineServices(),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -41,12 +198,18 @@ class MedicineOrdersScreen extends StatelessWidget {
         color: Colors.grey[100],
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const TextField(
+      child: TextField(
+        controller: _searchController,
+        onSubmitted: _runSearch,
         decoration: InputDecoration(
           hintText: "Search medicines...",
-          prefixIcon: Icon(Icons.search, color: Colors.grey),
+          prefixIcon: const Icon(Icons.search, color: Colors.grey),
+          suffixIcon: IconButton(
+            icon: const Icon(Icons.search, color: Color(0xFF0C4556)),
+            onPressed: () => _runSearch(_searchController.text),
+          ),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
         ),
       ),
     );
@@ -159,7 +322,7 @@ class MedicineOrdersScreen extends StatelessWidget {
       case "Order medicine online":
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const EmptyCartScreen()),
+          MaterialPageRoute(builder: (context) => const CartScreen()),
         );
         break;
       case "Prescription medical records":

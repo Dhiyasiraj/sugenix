@@ -6,6 +6,8 @@ import 'package:sugenix/services/platform_image_service.dart';
 import 'package:sugenix/services/medicine_database_service.dart';
 import 'package:sugenix/services/cloudinary_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
+import 'package:sugenix/services/language_service.dart';
+import 'package:sugenix/screens/language_screen.dart';
 
 class MedicineScannerScreen extends StatefulWidget {
   const MedicineScannerScreen({super.key});
@@ -129,17 +131,34 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          "Medicine Scanner",
-          style: TextStyle(
-            color: Color(0xFF0C4556),
-            fontWeight: FontWeight.bold,
-          ),
+        title: FutureBuilder<String>(
+          future: LanguageService.getTranslated('medicine'),
+          builder: (context, snapshot) {
+            final title = snapshot.data ?? 'Medicine Scanner';
+            return Text(
+              title,
+              style: const TextStyle(
+                color: Color(0xFF0C4556),
+                fontWeight: FontWeight.bold,
+              ),
+            );
+          },
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LanguageScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: ResponsiveHelper.getResponsivePadding(context),

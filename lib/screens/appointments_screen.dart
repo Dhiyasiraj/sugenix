@@ -3,6 +3,8 @@ import 'package:sugenix/services/appointment_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:sugenix/services/language_service.dart';
+import 'package:sugenix/screens/language_screen.dart';
 
 class AppointmentsScreen extends StatefulWidget {
   const AppointmentsScreen({super.key});
@@ -59,23 +61,40 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: Text(
-          "My Appointments",
-          style: TextStyle(
-            color: const Color(0xFF0C4556),
-            fontWeight: FontWeight.bold,
-            fontSize: ResponsiveHelper.getResponsiveFontSize(
-              context,
-              mobile: 18,
-              tablet: 20,
-              desktop: 22,
-            ),
-          ),
+        title: FutureBuilder<String>(
+          future: LanguageService.getTranslated('home'),
+          builder: (context, snapshot) {
+            final title = snapshot.data ?? 'My Appointments';
+            return Text(
+              title,
+              style: TextStyle(
+                color: const Color(0xFF0C4556),
+                fontWeight: FontWeight.bold,
+                fontSize: ResponsiveHelper.getResponsiveFontSize(
+                  context,
+                  mobile: 18,
+                  tablet: 20,
+                  desktop: 22,
+                ),
+              ),
+            );
+          },
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LanguageScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [

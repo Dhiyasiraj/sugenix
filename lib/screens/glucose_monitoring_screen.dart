@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:sugenix/services/glucose_service.dart';
+import 'package:sugenix/screens/glucose_history_screen.dart';
+import 'package:sugenix/widgets/offline_banner.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sugenix/services/language_service.dart';
+import 'package:sugenix/screens/language_screen.dart';
 
 class GlucoseMonitoringScreen extends StatefulWidget {
   const GlucoseMonitoringScreen({super.key});
@@ -38,12 +42,18 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          "Glucose Monitoring",
-          style: TextStyle(
-            color: Color(0xFF0C4556),
-            fontWeight: FontWeight.bold,
-          ),
+        title: FutureBuilder<String>(
+          future: LanguageService.getTranslated('glucose'),
+          builder: (context, snapshot) {
+            final title = snapshot.data ?? 'Glucose';
+            return Text(
+              title,
+              style: const TextStyle(
+                color: Color(0xFF0C4556),
+                fontWeight: FontWeight.bold,
+              ),
+            );
+          },
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
@@ -51,25 +61,41 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LanguageScreen()),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.add, color: Color(0xFF0C4556)),
             onPressed: () => _showAddGlucoseDialog(),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildCurrentReading(),
-            const SizedBox(height: 30),
-            _buildAIAnalysis(),
-            const SizedBox(height: 30),
-            _buildRecentReadings(),
-            const SizedBox(height: 30),
-            _buildQuickActions(),
-          ],
-        ),
+      body: Column(
+        children: [
+          const OfflineBanner(),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildCurrentReading(),
+                  const SizedBox(height: 30),
+                  _buildAIAnalysis(),
+                  const SizedBox(height: 30),
+                  _buildRecentReadings(),
+                  const SizedBox(height: 30),
+                  _buildQuickActions(),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -498,7 +524,14 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
             ),
             const SizedBox(width: 15),
             Expanded(
-              child: _buildActionButton("View History", Icons.history, () {}),
+              child: _buildActionButton("View History", Icons.history, () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const GlucoseHistoryScreen(),
+                  ),
+                );
+              }),
             ),
           ],
         ),
@@ -510,7 +543,34 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
             ),
             const SizedBox(width: 15),
             Expanded(
-              child: _buildActionButton("Export Data", Icons.download, () {}),
+              child: _buildActionButton("Export Data", Icons.download, () async {
+                // Quick export for last 30 days
+                try {
+                  final end = DateTime.now();
+                  final start = end.subtract(const Duration(days: 30));
+                  final readings = await _glucoseService.getGlucoseReadingsByDateRange(
+                    startDate: start,
+                    endDate: end,
+                  );
+                  if (readings.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No data to export')),
+                    );
+                    return;
+                  }
+                  // Navigate to history screen where export button is available for full experience
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const GlucoseHistoryScreen(),
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Export failed: ${e.toString()}')),
+                  );
+                }
+              }),
             ),
           ],
         ),

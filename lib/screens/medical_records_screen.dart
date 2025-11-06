@@ -8,6 +8,9 @@ import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
+import 'package:sugenix/services/language_service.dart';
+import 'package:sugenix/screens/language_screen.dart';
+import 'package:sugenix/widgets/offline_banner.dart';
 
 class MedicalRecordsScreen extends StatefulWidget {
   const MedicalRecordsScreen({super.key});
@@ -44,18 +47,24 @@ class _MedicalRecordsScreenState extends State<MedicalRecordsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: Text(
-          "Medical Records",
-          style: TextStyle(
-            color: const Color(0xFF0C4556),
-            fontWeight: FontWeight.bold,
-            fontSize: ResponsiveHelper.getResponsiveFontSize(
-              context,
-              mobile: 18,
-              tablet: 20,
-              desktop: 22,
-            ),
-          ),
+        title: FutureBuilder<String>(
+          future: LanguageService.getTranslated('records'),
+          builder: (context, snapshot) {
+            final title = snapshot.data ?? 'Records';
+            return Text(
+              title,
+              style: TextStyle(
+                color: const Color(0xFF0C4556),
+                fontWeight: FontWeight.bold,
+                fontSize: ResponsiveHelper.getResponsiveFontSize(
+                  context,
+                  mobile: 18,
+                  tablet: 20,
+                  desktop: 22,
+                ),
+              ),
+            );
+          },
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
@@ -75,11 +84,18 @@ class _MedicalRecordsScreenState extends State<MedicalRecordsScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _records.isEmpty
-              ? _buildEmptyState()
-              : _buildRecordsList(),
+      body: Column(
+        children: [
+          const OfflineBanner(),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _records.isEmpty
+                    ? _buildEmptyState()
+                    : _buildRecordsList(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -451,6 +467,17 @@ class _AddRecordScreenState extends State<AddRecordScreen> {
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LanguageScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: ResponsiveHelper.getResponsivePadding(context),

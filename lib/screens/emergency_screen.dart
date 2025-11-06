@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:sugenix/services/emergency_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
+import 'package:sugenix/services/language_service.dart';
+import 'package:sugenix/screens/language_screen.dart';
 
 class EmergencyScreen extends StatefulWidget {
   const EmergencyScreen({super.key});
@@ -17,6 +19,28 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: FutureBuilder<String>(
+          future: LanguageService.getTranslated('home'),
+          builder: (context, snapshot) {
+            final title = snapshot.data ?? 'Emergency';
+            return Text(title, style: const TextStyle(color: Colors.white));
+          },
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.language, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LanguageScreen()),
+              );
+            },
+          )
+        ],
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: RadialGradient(

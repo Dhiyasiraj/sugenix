@@ -6,6 +6,11 @@ import 'package:sugenix/screens/emergency_screen.dart';
 import 'package:sugenix/services/auth_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:sugenix/services/language_service.dart';
+import 'package:sugenix/screens/language_screen.dart';
+import 'package:sugenix/services/role_service.dart';
+import 'package:sugenix/screens/admin_panel_screen.dart';
+import 'package:sugenix/screens/doctor_dashboard_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -99,18 +104,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          "Profile",
-          style: TextStyle(
-            color: Color(0xFF0C4556),
-            fontWeight: FontWeight.bold,
-          ),
+        title: FutureBuilder<String>(
+          future: LanguageService.getTranslated('profile'),
+          builder: (context, snapshot) {
+            final title = snapshot.data ?? 'Profile';
+            return Text(
+              title,
+              style: const TextStyle(
+                color: Color(0xFF0C4556),
+                fontWeight: FontWeight.bold,
+              ),
+            );
+          },
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
+          StreamBuilder<String>(
+            stream: RoleService().roleStream(),
+            builder: (context, snapshot) {
+              final role = snapshot.data ?? 'user';
+              if (role == 'admin') {
+                return IconButton(
+                  icon: const Icon(Icons.admin_panel_settings, color: Color(0xFF0C4556)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AdminPanelScreen()),
+                    );
+                  },
+                );
+              }
+              if (role == 'doctor') {
+                return IconButton(
+                  icon: const Icon(Icons.medical_information, color: Color(0xFF0C4556)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DoctorDashboardScreen()),
+                    );
+                  },
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LanguageScreen()),
+              );
+            },
+          ),
           if (!_isEditing)
             IconButton(
               icon: const Icon(Icons.edit, color: Color(0xFF0C4556)),

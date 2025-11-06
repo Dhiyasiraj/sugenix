@@ -15,6 +15,9 @@ import 'package:sugenix/screens/ai_assistant_screen.dart';
 import 'package:sugenix/screens/wellness_screen.dart';
 import 'package:sugenix/screens/medicine_scanner_screen.dart';
 import 'package:sugenix/screens/appointments_screen.dart';
+import 'package:sugenix/screens/doctor_details_screen.dart';
+import 'package:sugenix/services/favorites_service.dart';
+import 'package:sugenix/models/doctor.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -201,22 +204,69 @@ class FavoritesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final favoritesService = FavoritesService();
     return Scaffold(
       appBar: AppBar(
         title: const Text('Favourite Doctors'),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF0C4556),
-        actions: [
-          IconButton(icon: const Icon(Icons.favorite), onPressed: () {}),
-        ],
       ),
-      body: const Center(
-        child: Text(
-          'Favourite Doctors\nComing Soon!',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 18, color: Colors.grey),
-        ),
+      body: StreamBuilder<List<Doctor>>(
+        stream: favoritesService.streamFavoriteDoctors(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final doctors = snapshot.data ?? [];
+          if (doctors.isEmpty) {
+            return const Center(
+              child: Text(
+                'No favourites yet',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: doctors.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final d = doctors[index];
+              return ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                tileColor: Colors.white,
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFF0C4556),
+                  child: Icon(Icons.person, color: Colors.white),
+                ),
+                title: Text(
+                  d.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0C4556),
+                  ),
+                ),
+                subtitle: Text(
+                  d.specialization,
+                  style: const TextStyle(color: Colors.grey),
+                ),
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DoctorDetailsScreen(doctor: d),
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        },
       ),
+      backgroundColor: const Color(0xFFF5F6F8),
     );
   }
 }

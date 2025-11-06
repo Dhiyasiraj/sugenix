@@ -9,6 +9,9 @@ import 'package:shimmer/shimmer.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:intl/intl.dart';
 import 'package:sugenix/services/doctor_service.dart';
+import 'package:sugenix/services/favorites_service.dart';
+import 'package:sugenix/services/language_service.dart';
+import 'package:sugenix/screens/language_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final GlucoseService _glucoseService = GlucoseService();
   final AuthService _authService = AuthService();
   final DoctorService _doctorService = DoctorService();
+  final FavoritesService _favoritesService = FavoritesService();
 
   List<Map<String, dynamic>> _recentReadings = [];
   Map<String, dynamic>? _userProfile;
@@ -104,6 +108,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: FutureBuilder<String>(
+          future: LanguageService.getTranslated('home'),
+          builder: (context, snapshot) {
+            final title = snapshot.data ?? 'Home';
+            return Text(title,
+                style: const TextStyle(
+                    color: Color(0xFF0C4556), fontWeight: FontWeight.bold));
+          },
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LanguageScreen()),
+              );
+            },
+          ),
+        ],
+      ),
       body: _isLoading ? _buildShimmerLoading() : _buildContent(),
     );
   }
@@ -864,6 +892,43 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ),
                       ),
                     ),
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: StreamBuilder<bool>(
+                      stream: _favoritesService.isFavoriteStream(doctor.id),
+                      builder: (context, snapshot) {
+                        final isFav = snapshot.data ?? false;
+                        return InkWell(
+                          onTap: () async {
+                            try {
+                              await _favoritesService.toggleFavorite(doctor.id);
+                              // Optionally show feedback
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to update favorite'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              isFav ? Icons.favorite : Icons.favorite_border,
+                              color: isFav ? Colors.redAccent : Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ],
               ),
             ),
