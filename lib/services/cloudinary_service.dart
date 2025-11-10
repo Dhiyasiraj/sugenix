@@ -15,7 +15,8 @@ class CloudinaryService {
       );
 
       request.fields['upload_preset'] = _uploadPreset;
-      request.files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+      request.files
+          .add(await http.MultipartFile.fromPath('file', imageFile.path));
 
       final response = await request.send();
       final responseData = await response.stream.bytesToString();

@@ -3,6 +3,7 @@ import 'package:sugenix/screens/medical_records_screen.dart';
 import 'package:sugenix/screens/medicine_orders_screen.dart';
 import 'package:sugenix/screens/appointments_screen.dart';
 import 'package:sugenix/screens/emergency_screen.dart';
+import 'package:sugenix/screens/emergency_contacts_screen.dart';
 import 'package:sugenix/services/auth_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:shimmer/shimmer.dart';
@@ -568,6 +569,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildActionButton(
             'Emergency Contacts',
             Icons.emergency,
+            const Color(0xFFF44336),
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const EmergencyContactsScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 15),
+          _buildActionButton(
+            'Emergency SOS',
+            Icons.sos,
             const Color(0xFFF44336),
             () {
               Navigator.push(

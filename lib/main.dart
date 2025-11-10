@@ -16,6 +16,9 @@ import 'package:sugenix/screens/wellness_screen.dart';
 import 'package:sugenix/screens/medicine_scanner_screen.dart';
 import 'package:sugenix/screens/appointments_screen.dart';
 import 'package:sugenix/screens/doctor_details_screen.dart';
+import 'package:sugenix/screens/glucose_history_screen.dart';
+import 'package:sugenix/screens/bluetooth_device_screen.dart';
+import 'package:sugenix/screens/emergency_contacts_screen.dart';
 import 'package:sugenix/services/favorites_service.dart';
 import 'package:sugenix/models/doctor.dart';
 
@@ -85,6 +88,9 @@ class SugenixApp extends StatelessWidget {
         '/wellness': (context) => const WellnessScreen(),
         '/medicine-scanner': (context) => const MedicineScannerScreen(),
         '/appointments': (context) => const AppointmentsScreen(),
+        '/glucose-history': (context) => const GlucoseHistoryScreen(),
+        '/bluetooth-devices': (context) => const BluetoothDeviceScreen(),
+        '/emergency-contacts': (context) => const EmergencyContactsScreen(),
       },
     );
   }

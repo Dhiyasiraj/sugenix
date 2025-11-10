@@ -11,6 +11,9 @@ import 'package:intl/intl.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/widgets/offline_banner.dart';
+import 'package:sugenix/services/appointment_service.dart';
+import 'package:sugenix/services/doctor_service.dart';
+import 'package:sugenix/models/doctor.dart';
 
 class MedicalRecordsScreen extends StatefulWidget {
   const MedicalRecordsScreen({super.key});
@@ -396,9 +399,128 @@ class _MedicalRecordsScreenState extends State<MedicalRecordsScreen> {
               ),
             ),
           ],
+          const SizedBox(height: 15),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.share, color: Color(0xFF0C4556)),
+                onPressed: () => _showShareDialog(record),
+                tooltip: 'Share with Doctor',
+              ),
+            ],
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _showShareDialog(Map<String, dynamic> record) async {
+    final appointmentService = AppointmentService();
+    final doctorService = DoctorService();
+
+    // Get user's appointments to find doctors
+    final appointmentsStream = appointmentService.getUserAppointments();
+    final appointments = await appointmentsStream.first;
+    final doctors = await doctorService.getDoctors();
+
+    if (appointments.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'You need to have an appointment to share records. Please book an appointment first.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Show dialog to select doctor
+    final selectedDoctor = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Share Record with Doctor',
+          style: TextStyle(
+            fontSize: ResponsiveHelper.getResponsiveFontSize(
+              context,
+              mobile: 18,
+              tablet: 20,
+              desktop: 22,
+            ),
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF0C4556),
+          ),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: appointments.length,
+            itemBuilder: (context, index) {
+              final appointment = appointments[index];
+              final doctorId = appointment['doctorId'] as String?;
+              final doctor = doctors.firstWhere(
+                (d) => d.id == doctorId,
+                orElse: () => Doctor(
+                  id: doctorId ?? '',
+                  name: 'Unknown Doctor',
+                  specialization: '',
+                ),
+              );
+
+              return ListTile(
+                leading: const Icon(Icons.person, color: Color(0xFF0C4556)),
+                title: Text(doctor.name),
+                subtitle: Text(doctor.specialization),
+                onTap: () {
+                  Navigator.pop(context, {
+                    'doctorId': doctorId,
+                    'appointmentId': appointment['id'],
+                    'doctorName': doctor.name,
+                  });
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedDoctor != null) {
+      try {
+        await appointmentService.shareMedicalRecordsWithDoctor(
+          doctorId: selectedDoctor['doctorId'] as String,
+          appointmentId: selectedDoctor['appointmentId'] as String,
+          recordIds: [record['id'] as String],
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Record shared with ${selectedDoctor['doctorName']} successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to share record: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 }
 

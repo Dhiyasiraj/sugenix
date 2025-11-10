@@ -24,6 +24,9 @@ dependencies:
   flutter_staggered_animations: ^1.1.1
   lottie: ^2.7.0
   universal_html: ^2.2.4
+  pdf: ^3.10.8
+  printing: ^5.13.4
+  csv: ^5.0.2
 
 dependency_overrides:
   firebase_auth_web: ^6.0.4
