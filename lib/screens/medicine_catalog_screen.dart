@@ -1,0 +1,265 @@
+import 'package:flutter/material.dart';
+import 'package:sugenix/services/medicine_database_service.dart';
+import 'package:sugenix/services/medicine_cart_service.dart';
+import 'package:sugenix/utils/responsive_layout.dart';
+import 'package:sugenix/screens/medicine_detail_screen.dart';
+
+class MedicineCatalogScreen extends StatefulWidget {
+  const MedicineCatalogScreen({super.key});
+
+  @override
+  State<MedicineCatalogScreen> createState() => _MedicineCatalogScreenState();
+}
+
+class _MedicineCatalogScreenState extends State<MedicineCatalogScreen> {
+  final MedicineDatabaseService _db = MedicineDatabaseService();
+  final MedicineCartService _cart = MedicineCartService();
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _results = [];
+  bool _loading = true;
+  bool _searching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitial();
+  }
+
+  Future<void> _loadInitial() async {
+    setState(() => _loading = true);
+    try {
+      final list = await _db.searchMedicines('');
+      setState(() {
+        _results = list;
+      });
+    } catch (_) {
+      setState(() => _results = []);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _runSearch(String q) async {
+    setState(() => _searching = true);
+    try {
+      final list = await _db.searchMedicines(q);
+      setState(() => _results = list);
+    } catch (_) {
+      setState(() => _results = []);
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isTablet = ResponsiveHelper.isTablet(context);
+    final isDesktop = ResponsiveHelper.isDesktop(context);
+    final crossAxisCount = isDesktop ? 5 : (isTablet ? 3 : 2);
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Medicine Catalog',
+          style: TextStyle(
+            color: Color(0xFF0C4556),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      backgroundColor: const Color(0xFFF5F6F8),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: _buildSearchBar(),
+          ),
+          if (_searching) const LinearProgressIndicator(minHeight: 2),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _results.isEmpty
+                    ? const Center(
+                        child: Text('No medicines found', style: TextStyle(color: Colors.grey)),
+                      )
+                    : GridView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          childAspectRatio: isDesktop ? 0.78 : (isTablet ? 0.80 : 0.76),
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                        ),
+                        itemCount: _results.length,
+                        itemBuilder: (context, index) {
+                          final m = _results[index];
+                          return _MedicineCard(
+                            medicine: m,
+                            onAddToCart: () async {
+                              try {
+                                await _cart.addToCart(
+                                  medicineId: (m['id'] as String?) ?? (m['name'] as String? ?? 'item'),
+                                  name: (m['name'] as String?) ?? 'Medicine',
+                                  price: (m['price'] as num?)?.toDouble() ?? 0.0,
+                                  manufacturer: m['manufacturer'] as String?,
+                                );
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Added to cart')),
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Add failed: ${e.toString()}')),
+                                );
+                              }
+                            },
+                            onOpen: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MedicineDetailScreen(medicine: m),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TextField(
+        controller: _searchController,
+        onSubmitted: _runSearch,
+        decoration: InputDecoration(
+          hintText: "Search medicines, brands...",
+          prefixIcon: const Icon(Icons.search, color: Colors.grey),
+          suffixIcon: IconButton(
+            icon: const Icon(Icons.search, color: Color(0xFF0C4556)),
+            onPressed: () => _runSearch(_searchController.text),
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        ),
+      ),
+    );
+  }
+}
+
+class _MedicineCard extends StatelessWidget {
+  final Map<String, dynamic> medicine;
+  final VoidCallback onAddToCart;
+  final VoidCallback onOpen;
+
+  const _MedicineCard({
+    required this.medicine,
+    required this.onAddToCart,
+    required this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final name = (medicine['name'] as String?) ?? 'Medicine';
+    final desc = (medicine['description'] as String?) ?? '';
+    final price = (medicine['price'] as num?)?.toDouble() ?? 0.0;
+
+    return GestureDetector(
+      onTap: onOpen,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: 90,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0C4556).withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Center(
+                  child: Icon(Icons.medication, color: Color(0xFF0C4556), size: 34),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF0C4556),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                desc,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+              const Spacer(),
+              Row(
+                children: [
+                  Text(
+                    '₹${price.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      color: Color(0xFF0C4556),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  SizedBox(
+                    height: 34,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0C4556),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: onAddToCart,
+                      child: const Text('Add', style: TextStyle(color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+

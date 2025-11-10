@@ -589,7 +589,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       'Medicine',
                       Icons.medication,
                       const Color(0xFF9C27B0),
-                      () {},
+                      () {
+                        Navigator.pushNamed(context, '/medicine-orders');
+                      },
                     ),
                   ),
                 ],

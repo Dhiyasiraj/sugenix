@@ -269,6 +269,46 @@ class _SignupState extends State<Signup> {
   }
 
   Future<void> _handleSignup() async {
+    // Ask for role first
+    final role = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Continue as',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0C4556),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildRoleTile('user', Icons.person, 'Patient/User'),
+                const SizedBox(height: 8),
+                _buildRoleTile('doctor', Icons.medical_services, 'Doctor / Diabetologist'),
+                const SizedBox(height: 8),
+                _buildRoleTile('pharmacy', Icons.local_pharmacy, 'Pharmacy'),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (role == null) {
+      return;
+    }
+
     if (_nameController.text.isEmpty ||
         _emailController.text.isEmpty ||
         _passwordController.text.isEmpty ||
@@ -304,10 +344,17 @@ class _SignupState extends State<Signup> {
       );
 
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
-        );
+        // Redirect based on chosen role
+        if (role == 'doctor') {
+          Navigator.pushReplacementNamed(context, '/register-doctor');
+        } else if (role == 'pharmacy') {
+          Navigator.pushReplacementNamed(context, '/register-pharmacy');
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -325,6 +372,35 @@ class _SignupState extends State<Signup> {
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  Widget _buildRoleTile(String value, IconData icon, String label) {
+    return InkWell(
+      onTap: () => Navigator.pop(context, value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: const Color(0xFF0C4556)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF0C4556),
+                ),
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.grey),
+          ],
+        ),
+      ),
     );
   }
 }

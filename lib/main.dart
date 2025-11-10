@@ -21,6 +21,9 @@ import 'package:sugenix/screens/bluetooth_device_screen.dart';
 import 'package:sugenix/screens/emergency_contacts_screen.dart';
 import 'package:sugenix/services/favorites_service.dart';
 import 'package:sugenix/models/doctor.dart';
+import 'package:sugenix/screens/doctor_registration_screen.dart';
+import 'package:sugenix/screens/pharmacy_registration_screen.dart';
+import 'package:sugenix/screens/medicine_catalog_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -78,9 +81,12 @@ class SugenixApp extends StatelessWidget {
         '/login': (context) => const Login(),
         '/signup': (context) => const Signup(),
         '/home': (context) => const HomeScreen(),
+        '/register-doctor': (context) => const DoctorRegistrationScreen(),
+        '/register-pharmacy': (context) => const PharmacyRegistrationScreen(),
         // Note: Doctor details requires a Doctor object; navigate via MaterialPageRoute
         '/medical-records': (context) => const MedicalRecordsScreen(),
         '/medicine-orders': (context) => const MedicineOrdersScreen(),
+        '/medicine-catalog': (context) => const MedicineCatalogScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/emergency': (context) => const EmergencyScreen(),
         '/glucose-monitoring': (context) => const GlucoseMonitoringScreen(),

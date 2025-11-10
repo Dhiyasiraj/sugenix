@@ -6,6 +6,9 @@ import 'package:sugenix/services/medicine_cart_service.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/widgets/offline_banner.dart';
+import 'package:sugenix/screens/prescription_upload_screen.dart';
+import 'package:sugenix/screens/orders_list_screen.dart';
+import 'package:sugenix/screens/medicine_catalog_screen.dart';
 
 class MedicineOrdersScreen extends StatefulWidget {
   const MedicineOrdersScreen({super.key});
@@ -320,16 +323,16 @@ class _MedicineOrdersScreenState extends State<MedicineOrdersScreen> {
         );
         break;
       case "Order medicine online":
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const CartScreen()),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const MedicineCatalogScreen()));
         break;
       case "Prescription medical records":
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const EmptyOrdersScreen()),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const PrescriptionUploadScreen()));
+        break;
+      case "Order status":
+        Navigator.push(context, MaterialPageRoute(builder: (_) => OrdersListScreen()));
+        break;
+      case "Order history":
+        Navigator.push(context, MaterialPageRoute(builder: (_) => OrdersListScreen()));
         break;
       default:
         ScaffoldMessenger.of(context).showSnackBar(
