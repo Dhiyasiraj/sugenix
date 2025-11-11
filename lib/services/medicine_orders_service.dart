@@ -223,14 +223,13 @@ class MedicineOrdersService {
     }
   }
 
-  // Upload prescription
   Future<String> uploadPrescription(List<XFile> images) async {
     try {
       if (_auth.currentUser == null) throw Exception('No user logged in');
 
       List<String> imageUrls = await CloudinaryService.uploadImages(images);
 
-      // Save prescription to Firestore
+      
       DocumentReference prescriptionRef = await _firestore
           .collection('prescriptions')
           .add({
