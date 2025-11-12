@@ -43,19 +43,32 @@ class MedicalRecordsService {
   Stream<List<Map<String, dynamic>>> getMedicalRecords() {
     if (_auth.currentUser == null) return Stream.value([]);
     
+    final userId = _auth.currentUser!.uid;
     return _firestore
         .collection('medical_records')
-        .where('userId', isEqualTo: _auth.currentUser!.uid)
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs.map((doc) {
-            final data = doc.data();
-            return {
-              'id': doc.id,
-              ...data,
-            };
-          }).toList(),
+          (snapshot) {
+            final allRecords = snapshot.docs.map((doc) {
+              final data = doc.data();
+              return {
+                'id': doc.id,
+                ...data,
+              };
+            }).toList();
+            
+            // Filter by userId and sort by createdAt
+            final filtered = allRecords.where((r) => r['userId'] == userId).toList();
+            filtered.sort((a, b) {
+              final aTime = a['createdAt'];
+              final bTime = b['createdAt'];
+              if (aTime == null || bTime == null) return 0;
+              final aDate = aTime is Timestamp ? aTime.toDate() : (aTime is DateTime ? aTime : DateTime.now());
+              final bDate = bTime is Timestamp ? bTime.toDate() : (bTime is DateTime ? bTime : DateTime.now());
+              return bDate.compareTo(aDate); // Descending
+            });
+            return filtered;
+          },
         );
   }
 
@@ -140,15 +153,21 @@ class MedicalRecordsService {
       
       QuerySnapshot snapshot = await _firestore
           .collection('medical_records')
-          .where('userId', isEqualTo: _auth.currentUser!.uid)
           .get();
+      final userId = _auth.currentUser!.uid;
 
-      int totalRecords = snapshot.docs.length;
+      // Filter by userId
+      final filteredDocs = snapshot.docs.where((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return data['userId'] == userId;
+      }).toList();
+
+      int totalRecords = filteredDocs.length;
       int reports = 0;
       int prescriptions = 0;
       int invoices = 0;
 
-      for (var doc in snapshot.docs) {
+      for (var doc in filteredDocs) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         String type = data['type'] as String;
         switch (type) {
@@ -184,12 +203,18 @@ class MedicalRecordsService {
       
       QuerySnapshot snapshot = await _firestore
           .collection('medical_records')
-          .where('userId', isEqualTo: _auth.currentUser!.uid)
           .get();
+      final userId = _auth.currentUser!.uid;
+
+      // Filter by userId
+      final filteredDocs = snapshot.docs.where((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return data['userId'] == userId;
+      }).toList();
 
       List<Map<String, dynamic>> results = [];
 
-      for (var doc in snapshot.docs) {
+      for (var doc in filteredDocs) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         String title = (data['title'] as String? ?? '').toLowerCase();
         String description =
@@ -230,28 +255,50 @@ class MedicalRecordsService {
     try {
       if (_auth.currentUser == null) throw Exception('No user logged in');
       
-      Query query = _firestore
-          .collection('medical_records')
-          .where('userId', isEqualTo: _auth.currentUser!.uid);
-
-      if (startDate != null) {
-        query = query.where('createdAt', isGreaterThanOrEqualTo: startDate);
-      }
-      if (endDate != null) {
-        query = query.where('createdAt', isLessThanOrEqualTo: endDate);
-      }
-      if (type != null) {
-        query = query.where('type', isEqualTo: type);
-      }
-
       QuerySnapshot snapshot =
-          await query.orderBy('createdAt', descending: true).get();
+          await _firestore.collection('medical_records').get();
+      final userId = _auth.currentUser!.uid;
 
-      return snapshot.docs.map((doc) {
+      // Filter by userId, date range, and type
+      final filteredDocs = snapshot.docs.where((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        if (data['userId'] != userId) return false;
+        
+        if (startDate != null) {
+          final createdAt = data['createdAt'];
+          if (createdAt != null) {
+            final date = createdAt is Timestamp ? createdAt.toDate() : (createdAt is DateTime ? createdAt : null);
+            if (date != null && date.isBefore(startDate.subtract(const Duration(seconds: 1)))) return false;
+          }
+        }
+        if (endDate != null) {
+          final createdAt = data['createdAt'];
+          if (createdAt != null) {
+            final date = createdAt is Timestamp ? createdAt.toDate() : (createdAt is DateTime ? createdAt : null);
+            if (date != null && date.isAfter(endDate.add(const Duration(days: 1)))) return false;
+          }
+        }
+        if (type != null && data['type'] != type) return false;
+        return true;
+      }).toList();
+
+      final results = filteredDocs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         data['id'] = doc.id;
         return data;
       }).toList();
+      
+      // Sort by createdAt descending
+      results.sort((a, b) {
+        final aTime = a['createdAt'];
+        final bTime = b['createdAt'];
+        if (aTime == null || bTime == null) return 0;
+        final aDate = aTime is Timestamp ? aTime.toDate() : (aTime is DateTime ? aTime : DateTime.now());
+        final bDate = bTime is Timestamp ? bTime.toDate() : (bTime is DateTime ? bTime : DateTime.now());
+        return bDate.compareTo(aDate);
+      });
+      
+      return results;
     } catch (e) {
       throw Exception('Failed to export medical records: ${e.toString()}');
     }

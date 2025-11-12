@@ -34,19 +34,34 @@ class GlucoseService {
   // Get glucose readings for current user
   Stream<List<Map<String, dynamic>>> getGlucoseReadings() {
     if (_auth.currentUser == null) return Stream.value([]);
+    final userId = _auth.currentUser!.uid;
 
-    return _firestore
-        .collection('glucose_readings')
-        .where('userId', isEqualTo: _auth.currentUser!.uid)
-        .orderBy('timestamp', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs.map((doc) {
-            Map<String, dynamic> data = doc.data();
-            data['id'] = doc.id;
-            return data;
-          }).toList(),
-        );
+    return _firestore.collection('glucose_readings').snapshots().map(
+      (snapshot) {
+        final allReadings = snapshot.docs.map((doc) {
+          Map<String, dynamic> data = doc.data();
+          data['id'] = doc.id;
+          return data;
+        }).toList();
+
+        // Filter by userId and sort by timestamp
+        final filtered =
+            allReadings.where((r) => r['userId'] == userId).toList();
+        filtered.sort((a, b) {
+          final aTime = a['timestamp'];
+          final bTime = b['timestamp'];
+          if (aTime == null || bTime == null) return 0;
+          final aDate = aTime is Timestamp
+              ? aTime.toDate()
+              : (aTime is DateTime ? aTime : DateTime.now());
+          final bDate = bTime is Timestamp
+              ? bTime.toDate()
+              : (bTime is DateTime ? bTime : DateTime.now());
+          return bDate.compareTo(aDate); // Descending
+        });
+        return filtered;
+      },
+    );
   }
 
   // Get glucose readings for date range
@@ -57,19 +72,43 @@ class GlucoseService {
     try {
       if (_auth.currentUser == null) throw Exception('No user logged in');
 
-      QuerySnapshot snapshot = await _firestore
-          .collection('glucose_readings')
-          .where('userId', isEqualTo: _auth.currentUser!.uid)
-          .where('timestamp', isGreaterThanOrEqualTo: startDate)
-          .where('timestamp', isLessThanOrEqualTo: endDate)
-          .orderBy('timestamp', descending: true)
-          .get();
+      QuerySnapshot snapshot =
+          await _firestore.collection('glucose_readings').get();
+      final userId = _auth.currentUser!.uid;
 
-      return snapshot.docs.map((doc) {
+      final allReadings = snapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         data['id'] = doc.id;
         return data;
       }).toList();
+
+      // Filter by userId and date range, then sort
+      final filtered = allReadings.where((r) {
+        if (r['userId'] != userId) return false;
+        final timestamp = r['timestamp'];
+        if (timestamp == null) return false;
+        final date = timestamp is Timestamp
+            ? timestamp.toDate()
+            : (timestamp is DateTime ? timestamp : null);
+        if (date == null) return false;
+        return date.isAfter(startDate.subtract(const Duration(seconds: 1))) &&
+            date.isBefore(endDate.add(const Duration(days: 1)));
+      }).toList();
+
+      filtered.sort((a, b) {
+        final aTime = a['timestamp'];
+        final bTime = b['timestamp'];
+        if (aTime == null || bTime == null) return 0;
+        final aDate = aTime is Timestamp
+            ? aTime.toDate()
+            : (aTime is DateTime ? aTime : DateTime.now());
+        final bDate = bTime is Timestamp
+            ? bTime.toDate()
+            : (bTime is DateTime ? bTime : DateTime.now());
+        return bDate.compareTo(aDate); // Descending
+      });
+
+      return filtered;
     } catch (e) {
       throw Exception('Failed to get glucose readings: ${e.toString()}');
     }
@@ -115,17 +154,27 @@ class GlucoseService {
     try {
       if (_auth.currentUser == null) throw Exception('No user logged in');
 
-      DateTime endDate = DateTime.now();
-      DateTime startDate = endDate.subtract(Duration(days: days));
+      QuerySnapshot snapshot =
+          await _firestore.collection('glucose_readings').get();
+      final userId = _auth.currentUser!.uid;
 
-      QuerySnapshot snapshot = await _firestore
-          .collection('glucose_readings')
-          .where('userId', isEqualTo: _auth.currentUser!.uid)
-          .where('timestamp', isGreaterThanOrEqualTo: startDate)
-          .where('timestamp', isLessThanOrEqualTo: endDate)
-          .get();
+      // Filter by userId and date range
+      final filteredDocs = snapshot.docs.where((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        if (data['userId'] != userId) return false;
+        final timestamp = data['timestamp'];
+        if (timestamp == null) return false;
+        final date = timestamp is Timestamp
+            ? timestamp.toDate()
+            : (timestamp is DateTime ? timestamp : null);
+        if (date == null) return false;
+        final endDate = DateTime.now();
+        final startDate = endDate.subtract(Duration(days: days));
+        return date.isAfter(startDate.subtract(const Duration(seconds: 1))) &&
+            date.isBefore(endDate.add(const Duration(days: 1)));
+      }).toList();
 
-      List<double> values = snapshot.docs
+      List<double> values = filteredDocs
           .map((doc) => (doc.data() as Map<String, dynamic>)['value'] as double)
           .toList();
 
@@ -213,7 +262,7 @@ class GlucoseService {
       // Analyze patterns
       double average =
           readings.map((r) => r['value'] as double).reduce((a, b) => a + b) /
-          readings.length;
+              readings.length;
 
       if (average > 150) {
         recommendations.add(

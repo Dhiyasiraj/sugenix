@@ -24,9 +24,6 @@ class AppointmentService {
       // Check if slot is available
       final existingAppointment = await _firestore
           .collection('appointments')
-          .where('doctorId', isEqualTo: doctorId)
-          .where('dateTime', isEqualTo: Timestamp.fromDate(dateTime))
-          .where('status', whereIn: ['scheduled', 'confirmed'])
           .get();
 
       if (existingAppointment.docs.isNotEmpty) {
@@ -118,13 +115,12 @@ class AppointmentService {
   Stream<List<Map<String, dynamic>>> getUserAppointments() {
     if (_auth.currentUser == null) return Stream.value([]);
 
+    final userId = _auth.currentUser!.uid;
     return _firestore
         .collection('appointments')
-        .where('patientId', isEqualTo: _auth.currentUser!.uid)
-        .orderBy('dateTime', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
+      final allAppointments = snapshot.docs.map((doc) {
         final data = doc.data();
         final timestamp = data['dateTime'] as Timestamp?;
         return {
@@ -133,6 +129,15 @@ class AppointmentService {
           'dateTime': timestamp?.toDate() ?? DateTime.now(),
         };
       }).toList();
+      
+      // Filter by patientId and sort by dateTime
+      final filtered = allAppointments.where((a) => a['patientId'] == userId).toList();
+      filtered.sort((a, b) {
+        final aDate = a['dateTime'] as DateTime;
+        final bDate = b['dateTime'] as DateTime;
+        return bDate.compareTo(aDate); // Descending
+      });
+      return filtered;
     });
   }
 
@@ -193,7 +198,6 @@ class AppointmentService {
     try {
       final snapshot = await _firestore
           .collection('shared_records')
-          .where('appointmentId', isEqualTo: appointmentId)
           .limit(1)
           .get();
 
@@ -211,15 +215,8 @@ class AppointmentService {
   Future<List<String>> getAvailableTimeSlots(String doctorId, DateTime date) async {
     try {
       // Get all appointments for this doctor on this date
-      final startOfDay = DateTime(date.year, date.month, date.day);
-      final endOfDay = startOfDay.add(const Duration(days: 1));
-
       final appointments = await _firestore
           .collection('appointments')
-          .where('doctorId', isEqualTo: doctorId)
-          .where('dateTime', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-          .where('dateTime', isLessThan: Timestamp.fromDate(endOfDay))
-          .where('status', whereIn: ['scheduled', 'confirmed'])
           .get();
 
       final bookedSlots = appointments.docs

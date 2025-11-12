@@ -63,15 +63,8 @@ class EmergencyService {
     try {
       if (_auth.currentUser == null) return [];
 
-      DateTime endDate = DateTime.now();
-      DateTime startDate = endDate.subtract(const Duration(hours: 24));
-
       QuerySnapshot snapshot = await _firestore
           .collection('glucose_readings')
-          .where('userId', isEqualTo: _auth.currentUser!.uid)
-          .where('timestamp', isGreaterThanOrEqualTo: startDate)
-          .where('timestamp', isLessThanOrEqualTo: endDate)
-          .orderBy('timestamp', descending: true)
           .limit(5)
           .get();
 
@@ -178,11 +171,16 @@ Please check on the user immediately!
 
       QuerySnapshot activeAlerts = await _firestore
           .collection('emergency_alerts')
-          .where('userId', isEqualTo: _auth.currentUser!.uid)
-          .where('status', isEqualTo: 'active')
           .get();
+      final userId = _auth.currentUser!.uid;
 
-      for (var doc in activeAlerts.docs) {
+      // Filter by userId and status
+      final filteredDocs = activeAlerts.docs.where((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return data['userId'] == userId && data['status'] == 'active';
+      }).toList();
+
+      for (var doc in filteredDocs) {
         await doc.reference.update({
           'status': 'cancelled',
           'cancelledAt': FieldValue.serverTimestamp(),
@@ -197,17 +195,30 @@ Please check on the user immediately!
   Stream<List<Map<String, dynamic>>> getEmergencyHistory() {
     if (_auth.currentUser == null) return Stream.value([]);
 
+    final userId = _auth.currentUser!.uid;
     return _firestore
         .collection('emergency_alerts')
-        .where('userId', isEqualTo: _auth.currentUser!.uid)
-        .orderBy('timestamp', descending: true)
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs.map((doc) {
-            Map<String, dynamic> data = doc.data();
-            data['id'] = doc.id;
-            return data;
-          }).toList(),
+          (snapshot) {
+            final allAlerts = snapshot.docs.map((doc) {
+              Map<String, dynamic> data = doc.data();
+              data['id'] = doc.id;
+              return data;
+            }).toList();
+            
+            // Filter by userId and sort by timestamp
+            final filtered = allAlerts.where((a) => a['userId'] == userId).toList();
+            filtered.sort((a, b) {
+              final aTime = a['timestamp'];
+              final bTime = b['timestamp'];
+              if (aTime == null || bTime == null) return 0;
+              final aDate = aTime is Timestamp ? aTime.toDate() : (aTime is DateTime ? aTime : DateTime.now());
+              final bDate = bTime is Timestamp ? bTime.toDate() : (bTime is DateTime ? bTime : DateTime.now());
+              return bDate.compareTo(aDate); // Descending
+            });
+            return filtered;
+          },
         );
   }
 
@@ -218,8 +229,6 @@ Please check on the user immediately!
 
       QuerySnapshot activeAlerts = await _firestore
           .collection('emergency_alerts')
-          .where('userId', isEqualTo: _auth.currentUser!.uid)
-          .where('status', isEqualTo: 'active')
           .get();
 
       return activeAlerts.docs.isNotEmpty;

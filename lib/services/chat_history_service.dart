@@ -28,14 +28,12 @@ class ChatHistoryService {
   Stream<List<Map<String, dynamic>>> getChatHistory({int limit = 50}) {
     if (_auth.currentUser == null) return Stream.value([]);
 
+    final userId = _auth.currentUser!.uid;
     return _firestore
         .collection('chat_history')
-        .where('userId', isEqualTo: _auth.currentUser!.uid)
-        .orderBy('timestamp', descending: true)
-        .limit(limit)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
+      final allMessages = snapshot.docs.map((doc) {
         final data = doc.data();
         final timestamp = data['timestamp'];
         return {
@@ -45,7 +43,17 @@ class ChatHistoryService {
               ? timestamp.toDate() 
               : (timestamp is DateTime ? timestamp : DateTime.now()),
         };
-      }).toList().reversed.toList(); // Reverse to show oldest first
+      }).toList();
+      
+      // Filter by userId and sort by timestamp
+      final filtered = allMessages.where((m) => m['userId'] == userId).toList();
+      filtered.sort((a, b) {
+        final aTime = a['timestamp'] as DateTime;
+        final bTime = b['timestamp'] as DateTime;
+        return aTime.compareTo(bTime); // Ascending (oldest first)
+      });
+      
+      return filtered.take(limit).toList();
     });
   }
 
@@ -56,11 +64,17 @@ class ChatHistoryService {
 
       QuerySnapshot snapshot = await _firestore
           .collection('chat_history')
-          .where('userId', isEqualTo: _auth.currentUser!.uid)
           .get();
+      final userId = _auth.currentUser!.uid;
+
+      // Filter by userId
+      final filteredDocs = snapshot.docs.where((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return data['userId'] == userId;
+      }).toList();
 
       WriteBatch batch = _firestore.batch();
-      for (var doc in snapshot.docs) {
+      for (var doc in filteredDocs) {
         batch.delete(doc.reference);
       }
       await batch.commit();

@@ -141,8 +141,6 @@ class RevenueService {
   }) {
     return _firestore
         .collection('revenue')
-        .where('type', isEqualTo: 'platform_fee')
-        .orderBy('createdAt', descending: true)
         .limit(limit)
         .snapshots()
         .map((snapshot) {
@@ -162,18 +160,7 @@ class RevenueService {
     DateTime? endDate,
   }) async {
     try {
-      Query query = _firestore
-          .collection('revenue')
-          .where('type', isEqualTo: 'platform_fee');
-
-      if (startDate != null) {
-        query = query.where('createdAt', isGreaterThanOrEqualTo: startDate);
-      }
-      if (endDate != null) {
-        query = query.where('createdAt', isLessThanOrEqualTo: endDate);
-      }
-
-      final snapshot = await query.get();
+      final snapshot = await _firestore.collection('revenue').get();
       
       double totalRevenue = 0.0;
       int transactionCount = snapshot.docs.length;

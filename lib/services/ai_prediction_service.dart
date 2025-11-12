@@ -11,15 +11,8 @@ class AIPredictionService {
       if (_auth.currentUser == null) throw Exception('No user logged in');
 
       // Get recent glucose readings
-      DateTime endDate = DateTime.now();
-      DateTime startDate = endDate.subtract(const Duration(days: 7));
-
       QuerySnapshot snapshot = await _firestore
           .collection('glucose_readings')
-          .where('userId', isEqualTo: _auth.currentUser!.uid)
-          .where('timestamp', isGreaterThanOrEqualTo: startDate)
-          .where('timestamp', isLessThanOrEqualTo: endDate)
-          .orderBy('timestamp', descending: true)
           .get();
 
       List<double> values = snapshot.docs
@@ -88,15 +81,8 @@ class AIPredictionService {
       if (_auth.currentUser == null) throw Exception('No user logged in');
 
       // Get recent glucose readings
-      DateTime endDate = DateTime.now();
-      DateTime startDate = endDate.subtract(const Duration(days: 7));
-
       QuerySnapshot snapshot = await _firestore
           .collection('glucose_readings')
-          .where('userId', isEqualTo: _auth.currentUser!.uid)
-          .where('timestamp', isGreaterThanOrEqualTo: startDate)
-          .where('timestamp', isLessThanOrEqualTo: endDate)
-          .orderBy('timestamp', descending: true)
           .get();
 
       List<double> values = snapshot.docs
@@ -201,15 +187,8 @@ class AIPredictionService {
     try {
       if (_auth.currentUser == null) throw Exception('No user logged in');
 
-      DateTime endDate = DateTime.now();
-      DateTime startDate = endDate.subtract(const Duration(days: 14));
-
       QuerySnapshot snapshot = await _firestore
           .collection('glucose_readings')
-          .where('userId', isEqualTo: _auth.currentUser!.uid)
-          .where('timestamp', isGreaterThanOrEqualTo: startDate)
-          .where('timestamp', isLessThanOrEqualTo: endDate)
-          .orderBy('timestamp', descending: false)
           .get();
 
       List<double> values = snapshot.docs

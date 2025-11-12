@@ -19,9 +19,6 @@ class WellnessService {
       // Fetch recommendations from Firestore
       QuerySnapshot snapshot = await _firestore
           .collection('wellness_recommendations')
-          .where('category', isEqualTo: category)
-          .where('isActive', isEqualTo: true)
-          .orderBy('priority', descending: false)
           .limit(10)
           .get();
 

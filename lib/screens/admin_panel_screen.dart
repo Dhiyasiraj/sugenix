@@ -29,15 +29,24 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
   Future<void> _loadStats() async {
     try {
       final usersSnap = await _firestore.collection('users').get();
-      final doctorSnap = await _firestore.collection('users').where('role', isEqualTo: 'doctor').get();
-      final pharmacySnap = await _firestore.collection('users').where('role', isEqualTo: 'pharmacy').get();
       final ordersSnap = await _firestore.collection('orders').get();
+
+      // Filter by role client-side
+      final doctors = usersSnap.docs.where((doc) {
+        final data = doc.data();
+        return data['role'] == 'doctor';
+      }).length;
+
+      final pharmacies = usersSnap.docs.where((doc) {
+        final data = doc.data();
+        return data['role'] == 'pharmacy';
+      }).length;
 
       if (mounted) {
         setState(() {
           _totalUsers = usersSnap.size;
-          _doctors = doctorSnap.size;
-          _pharmacies = pharmacySnap.size;
+          _doctors = doctors;
+          _pharmacies = pharmacies;
           _orders = ordersSnap.size;
           _loadingStats = false;
         });
@@ -103,8 +112,10 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
       runSpacing: 12,
       children: [
         _summaryCard(Icons.people, Colors.blue, 'Total Users', '$_totalUsers'),
-        _summaryCard(Icons.medical_services, Colors.green, 'Doctors', '$_doctors'),
-        _summaryCard(Icons.local_pharmacy, Colors.orange, 'Pharmacies', '$_pharmacies'),
+        _summaryCard(
+            Icons.medical_services, Colors.green, 'Doctors', '$_doctors'),
+        _summaryCard(
+            Icons.local_pharmacy, Colors.orange, 'Pharmacies', '$_pharmacies'),
         _summaryCard(Icons.receipt_long, Colors.purple, 'Orders', '$_orders'),
       ],
     );
@@ -167,7 +178,7 @@ class _RevenueTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final revenueService = RevenueService();
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -248,7 +259,7 @@ class _RevenueTab extends StatelessWidget {
                   final txn = transactions[index];
                   final amount = (txn['amount'] as num?)?.toDouble() ?? 0.0;
                   final createdAt = txn['createdAt'] as Timestamp?;
-                  
+
                   return Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -327,20 +338,36 @@ class _AllMedicalRecordsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
       stream: FirebaseFirestore.instance
           .collection('medical_records')
-          .orderBy('recordDate', descending: true)
-          .limit(100)
-          .snapshots(),
+          .snapshots()
+          .map((snapshot) {
+        // Sort by recordDate descending
+        final sorted = snapshot.docs.toList();
+        sorted.sort((a, b) {
+          final aTime = a.data()['recordDate'];
+          final bTime = b.data()['recordDate'];
+          if (aTime == null || bTime == null) return 0;
+          final aDate = aTime is Timestamp
+              ? aTime.toDate()
+              : (aTime is DateTime ? aTime : DateTime.now());
+          final bDate = bTime is Timestamp
+              ? bTime.toDate()
+              : (bTime is DateTime ? bTime : DateTime.now());
+          return bDate.compareTo(aDate);
+        });
+        return sorted.take(100).toList();
+      }),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        final docs = snapshot.data?.docs ?? [];
+        final docs = snapshot.data ?? [];
         if (docs.isEmpty) {
           return const Center(
-            child: Text('No records found', style: TextStyle(color: Colors.grey)),
+            child:
+                Text('No records found', style: TextStyle(color: Colors.grey)),
           );
         }
         return ListView.separated(
@@ -350,8 +377,10 @@ class _AllMedicalRecordsTab extends StatelessWidget {
           itemBuilder: (context, i) {
             final data = docs[i].data();
             final title = (data['title'] as String?) ?? 'Record';
-            final type = (data['recordType'] as String?) ?? (data['type'] as String? ?? '');
-            final addedBy = (data['addedByName'] as String?) ?? (data['addedBy'] as String? ?? '');
+            final type = (data['recordType'] as String?) ??
+                (data['type'] as String? ?? '');
+            final addedBy = (data['addedByName'] as String?) ??
+                (data['addedBy'] as String? ?? '');
             return Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -365,7 +394,8 @@ class _AllMedicalRecordsTab extends StatelessWidget {
                 ],
               ),
               child: ListTile(
-                leading: const Icon(Icons.description, color: Color(0xFF0C4556)),
+                leading:
+                    const Icon(Icons.description, color: Color(0xFF0C4556)),
                 title: Text(title,
                     style: const TextStyle(
                         fontWeight: FontWeight.w600, color: Color(0xFF0C4556))),
@@ -385,20 +415,36 @@ class _AllOrdersTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
       stream: FirebaseFirestore.instance
           .collection('orders')
-          .orderBy('createdAt', descending: true)
-          .limit(100)
-          .snapshots(),
+          .snapshots()
+          .map((snapshot) {
+        // Sort by createdAt descending
+        final sorted = snapshot.docs.toList();
+        sorted.sort((a, b) {
+          final aTime = a.data()['createdAt'];
+          final bTime = b.data()['createdAt'];
+          if (aTime == null || bTime == null) return 0;
+          final aDate = aTime is Timestamp
+              ? aTime.toDate()
+              : (aTime is DateTime ? aTime : DateTime.now());
+          final bDate = bTime is Timestamp
+              ? bTime.toDate()
+              : (bTime is DateTime ? bTime : DateTime.now());
+          return bDate.compareTo(aDate);
+        });
+        return sorted.take(100).toList();
+      }),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        final docs = snapshot.data?.docs ?? [];
+        final docs = snapshot.data ?? [];
         if (docs.isEmpty) {
           return const Center(
-            child: Text('No orders found', style: TextStyle(color: Colors.grey)),
+            child:
+                Text('No orders found', style: TextStyle(color: Colors.grey)),
           );
         }
         return ListView.separated(
@@ -423,7 +469,8 @@ class _AllOrdersTab extends StatelessWidget {
                 ],
               ),
               child: ListTile(
-                leading: const Icon(Icons.receipt_long, color: Color(0xFF0C4556)),
+                leading:
+                    const Icon(Icons.receipt_long, color: Color(0xFF0C4556)),
                 title: Text('₹${total.toStringAsFixed(2)}',
                     style: const TextStyle(
                         fontWeight: FontWeight.w600, color: Color(0xFF0C4556))),
@@ -444,7 +491,7 @@ class _DoctorsApprovalTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final doctorService = DoctorService();
-    
+
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: doctorService.getPendingDoctors(),
       builder: (context, snapshot) {
@@ -474,7 +521,7 @@ class _DoctorsApprovalTab extends StatelessWidget {
             final hospital = doctor['hospital'] ?? 'N/A';
             final proofUrl = doctor['proofDocumentUrl'] as String?;
             final doctorId = doctor['id'] as String;
-            
+
             return Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -566,13 +613,16 @@ class _DoctorsApprovalTab extends StatelessWidget {
                                     child: Image.network(
                                       proofUrl,
                                       fit: BoxFit.contain,
-                                      loadingBuilder: (context, child, loadingProgress) {
-                                        if (loadingProgress == null) return child;
+                                      loadingBuilder:
+                                          (context, child, loadingProgress) {
+                                        if (loadingProgress == null)
+                                          return child;
                                         return const Center(
                                           child: CircularProgressIndicator(),
                                         );
                                       },
-                                      errorBuilder: (context, error, stackTrace) {
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
                                         return const Center(
                                           child: Text('Failed to load image'),
                                         );
@@ -623,14 +673,17 @@ class _DoctorsApprovalTab extends StatelessWidget {
                               context: context,
                               builder: (context) => AlertDialog(
                                 title: const Text('Reject Doctor'),
-                                content: const Text('Are you sure you want to reject this doctor?'),
+                                content: const Text(
+                                    'Are you sure you want to reject this doctor?'),
                                 actions: [
                                   TextButton(
-                                    onPressed: () => Navigator.pop(context, false),
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
                                     child: const Text('Cancel'),
                                   ),
                                   TextButton(
-                                    onPressed: () => Navigator.pop(context, true),
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
                                     style: TextButton.styleFrom(
                                       foregroundColor: Colors.red,
                                     ),
@@ -641,7 +694,8 @@ class _DoctorsApprovalTab extends StatelessWidget {
                             );
                             if (confirm == true) {
                               try {
-                                await doctorService.updateDoctorApprovalStatus(doctorId, 'rejected');
+                                await doctorService.updateDoctorApprovalStatus(
+                                    doctorId, 'rejected');
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -678,14 +732,17 @@ class _DoctorsApprovalTab extends StatelessWidget {
                               context: context,
                               builder: (context) => AlertDialog(
                                 title: const Text('Approve Doctor'),
-                                content: const Text('Are you sure you want to approve this doctor?'),
+                                content: const Text(
+                                    'Are you sure you want to approve this doctor?'),
                                 actions: [
                                   TextButton(
-                                    onPressed: () => Navigator.pop(context, false),
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
                                     child: const Text('Cancel'),
                                   ),
                                   ElevatedButton(
-                                    onPressed: () => Navigator.pop(context, true),
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.green,
                                     ),
@@ -696,11 +753,13 @@ class _DoctorsApprovalTab extends StatelessWidget {
                             );
                             if (confirm == true) {
                               try {
-                                await doctorService.updateDoctorApprovalStatus(doctorId, 'approved');
+                                await doctorService.updateDoctorApprovalStatus(
+                                    doctorId, 'approved');
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Doctor approved successfully'),
+                                      content:
+                                          Text('Doctor approved successfully'),
                                       backgroundColor: Colors.green,
                                     ),
                                   );
@@ -736,4 +795,3 @@ class _DoctorsApprovalTab extends StatelessWidget {
     );
   }
 }
-

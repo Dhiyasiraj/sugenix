@@ -37,7 +37,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     try {
       final snap = await _firestore
           .collection('appointments')
-          .where('doctorId', isEqualTo: id)
           .get();
 
       final now = DateTime.now();
@@ -83,26 +82,56 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     }
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _appointments() {
+  Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>> _appointments() {
     final id = _uid;
-    if (id == null) return const Stream.empty();
+    if (id == null) return Stream.value([]);
     return _firestore
         .collection('appointments')
-        .where('doctorId', isEqualTo: id)
-        .orderBy('dateTime', descending: false)
-        .limit(50)
-        .snapshots();
+        .snapshots()
+        .map((snapshot) {
+      // Filter by doctorId and sort by dateTime
+      final filtered = snapshot.docs.where((doc) {
+        final data = doc.data();
+        return data['doctorId'] == id;
+      }).toList();
+      
+      filtered.sort((a, b) {
+        final aTime = a.data()['dateTime'];
+        final bTime = b.data()['dateTime'];
+        if (aTime == null || bTime == null) return 0;
+        final aDate = aTime is Timestamp ? aTime.toDate() : (aTime is DateTime ? aTime : DateTime.now());
+        final bDate = bTime is Timestamp ? bTime.toDate() : (bTime is DateTime ? bTime : DateTime.now());
+        return aDate.compareTo(bDate); // Ascending
+      });
+      
+      return filtered.take(50).toList();
+    });
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _records() {
+  Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>> _records() {
     final id = _uid;
-    if (id == null) return const Stream.empty();
+    if (id == null) return Stream.value([]);
     return _firestore
         .collection('medical_records')
-        .where('doctorId', isEqualTo: id)
-        .orderBy('recordDate', descending: true)
-        .limit(50)
-        .snapshots();
+        .snapshots()
+        .map((snapshot) {
+      // Filter by doctorId and sort by recordDate
+      final filtered = snapshot.docs.where((doc) {
+        final data = doc.data();
+        return data['doctorId'] == id;
+      }).toList();
+      
+      filtered.sort((a, b) {
+        final aTime = a.data()['recordDate'];
+        final bTime = b.data()['recordDate'];
+        if (aTime == null || bTime == null) return 0;
+        final aDate = aTime is Timestamp ? aTime.toDate() : (aTime is DateTime ? aTime : DateTime.now());
+        final bDate = bTime is Timestamp ? bTime.toDate() : (bTime is DateTime ? bTime : DateTime.now());
+        return bDate.compareTo(aDate); // Descending
+      });
+      
+      return filtered.take(50).toList();
+    });
   }
 
   @override
@@ -243,10 +272,10 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   }
 
   Widget _buildAppointmentsTab() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
       stream: _appointments(),
         builder: (context, snapshot) {
-          final docs = snapshot.data?.docs ?? [];
+          final docs = snapshot.data ?? [];
         if (docs.isEmpty) {
           return const Center(
             child: Text(
@@ -329,10 +358,10 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   }
 
   Widget _buildRecordsTab() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
       stream: _records(),
         builder: (context, snapshot) {
-          final docs = snapshot.data?.docs ?? [];
+          final docs = snapshot.data ?? [];
         if (docs.isEmpty) {
           return const Center(
             child: Text(

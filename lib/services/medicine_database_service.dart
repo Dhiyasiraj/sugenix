@@ -17,8 +17,6 @@ class MedicineDatabaseService {
       // Search in medicines collection
       QuerySnapshot snapshot = await _firestore
           .collection('medicines')
-          .where('name', isGreaterThanOrEqualTo: queryLower)
-          .where('name', isLessThan: queryLower + 'z')
           .limit(20)
           .get();
 
@@ -42,8 +40,6 @@ class MedicineDatabaseService {
       if (results.isEmpty) {
         final descSnapshot = await _firestore
             .collection('medicines')
-            .where('description', isGreaterThanOrEqualTo: queryLower)
-            .where('description', isLessThan: queryLower + 'z')
             .limit(20)
             .get();
 
@@ -88,7 +84,6 @@ class MedicineDatabaseService {
     try {
       QuerySnapshot snapshot = await _firestore
           .collection('medicines')
-          .where('barcode', isEqualTo: barcode)
           .limit(1)
           .get();
 
@@ -148,19 +143,30 @@ class MedicineDatabaseService {
   Stream<List<Map<String, dynamic>>> getScannedMedicinesHistory() {
     if (_auth.currentUser == null) return Stream.value([]);
 
+    final userId = _auth.currentUser!.uid;
     return _firestore
         .collection('scanned_medicines')
-        .where('userId', isEqualTo: _auth.currentUser!.uid)
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
+      final allScanned = snapshot.docs.map((doc) {
         final data = doc.data();
         return {
           'id': doc.id,
           ...data,
         };
       }).toList();
+      
+      // Filter by userId and sort by createdAt
+      final filtered = allScanned.where((s) => s['userId'] == userId).toList();
+      filtered.sort((a, b) {
+        final aTime = a['createdAt'];
+        final bTime = b['createdAt'];
+        if (aTime == null || bTime == null) return 0;
+        final aDate = aTime is Timestamp ? aTime.toDate() : (aTime is DateTime ? aTime : DateTime.now());
+        final bDate = bTime is Timestamp ? bTime.toDate() : (bTime is DateTime ? bTime : DateTime.now());
+        return bDate.compareTo(aDate); // Descending
+      });
+      return filtered;
     });
   }
 }

@@ -20,7 +20,7 @@ class MedicineCartService {
       _db.collection('orders');
 
   Stream<List<Map<String, dynamic>>> streamCartItems() {
-    return _cartCol.orderBy('createdAt', descending: false).snapshots().map(
+    return _cartCol.snapshots().map(
       (snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList(),
     );
   }

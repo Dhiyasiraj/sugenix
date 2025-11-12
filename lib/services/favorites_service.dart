@@ -54,24 +54,14 @@ class FavoritesService {
       final ids = favSnap.docs.map((d) => d.id).toList();
       if (ids.isEmpty) return <Doctor>[];
 
-      // Firestore whereIn supports up to 10 elements; if larger, batch
       final List<Doctor> doctors = [];
-      const int batchSize = 10;
-      for (var i = 0; i < ids.length; i += batchSize) {
-        final batchIds = ids.sublist(i, i + batchSize > ids.length ? ids.length : i + batchSize);
-        final snap = await _db
-            .collection('doctors')
-            .where(FieldPath.documentId, whereIn: batchIds)
-            .get();
-        doctors.addAll(snap.docs.map((doc) {
-          final data = doc.data();
-          return Doctor.fromJson({'id': doc.id, ...data});
-        }));
-      }
+      final snap = await _db.collection('doctors').get();
+      doctors.addAll(snap.docs.map((doc) {
+        final data = doc.data();
+        return Doctor.fromJson({'id': doc.id, ...data});
+      }));
 
       return doctors;
     });
   }
 }
-
-
