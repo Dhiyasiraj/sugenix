@@ -228,9 +228,6 @@ class FavoritesScreen extends StatelessWidget {
       body: StreamBuilder<List<Doctor>>(
         stream: favoritesService.streamFavoriteDoctors(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
           final doctors = snapshot.data ?? [];
           if (doctors.isEmpty) {
             return const Center(

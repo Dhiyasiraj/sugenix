@@ -200,9 +200,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
           Expanded(
             child: Container(
               color: Colors.grey[50],
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _messages.isEmpty
+              child: _messages.isEmpty
                       ? _buildEmptyState()
                       : ListView.builder(
                           controller: _scrollController,

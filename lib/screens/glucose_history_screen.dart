@@ -530,9 +530,7 @@ class _GlucoseHistoryScreenState extends State<GlucoseHistoryScreen> {
             ),
           SizedBox(height: ResponsiveHelper.isMobile(context) ? 12 : 16),
           Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _readings.isEmpty
+            child: _readings.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,

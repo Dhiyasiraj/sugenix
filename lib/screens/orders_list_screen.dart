@@ -46,9 +46,6 @@ class OrdersListScreen extends StatelessWidget {
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _ordersService.getUserOrders(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
           final orders = snapshot.data ?? [];
           if (orders.isEmpty) {
             return _buildEmptyState(context);

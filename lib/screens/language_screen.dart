@@ -10,7 +10,6 @@ class LanguageScreen extends StatefulWidget {
 
 class _LanguageScreenState extends State<LanguageScreen> {
   String _selected = 'en';
-  bool _loading = true;
 
   @override
   void initState() {
@@ -23,7 +22,6 @@ class _LanguageScreenState extends State<LanguageScreen> {
     if (mounted) {
       setState(() {
         _selected = code;
-        _loading = false;
       });
     }
   }
@@ -36,9 +34,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF0C4556),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.separated(
+      body: ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: LanguageService.getSupportedLanguages().length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),

@@ -25,7 +25,6 @@ class MedicalRecordsScreen extends StatefulWidget {
 class _MedicalRecordsScreenState extends State<MedicalRecordsScreen> {
   final MedicalRecordsService _medicalRecordsService = MedicalRecordsService();
   List<Map<String, dynamic>> _records = [];
-  bool _isLoading = true;
 
   @override
   void initState() {
@@ -38,7 +37,6 @@ class _MedicalRecordsScreenState extends State<MedicalRecordsScreen> {
       if (mounted) {
         setState(() {
           _records = records;
-          _isLoading = false;
         });
       }
     });
@@ -91,11 +89,7 @@ class _MedicalRecordsScreenState extends State<MedicalRecordsScreen> {
         children: [
           const OfflineBanner(),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _records.isEmpty
-                    ? _buildEmptyState()
-                    : _buildRecordsList(),
+            child: _records.isEmpty ? _buildEmptyState() : _buildRecordsList(),
           ),
         ],
       ),
@@ -542,7 +536,6 @@ class _AddRecordScreenState extends State<AddRecordScreen> {
   final AuthService _authService = AuthService();
   List<XFile> _selectedImages = [];
   DateTime _selectedDate = DateTime.now();
-  bool _isLoading = false;
 
   @override
   void initState() {
@@ -938,35 +931,26 @@ class _AddRecordScreenState extends State<AddRecordScreen> {
       width: double.infinity,
       height: ResponsiveHelper.isMobile(context) ? 50 : 55,
       child: ElevatedButton(
-        onPressed: _isLoading ? null : _handleUpload,
+        onPressed: _handleUpload,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF0C4556),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
         ),
-        child: _isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
-              )
-            : Text(
-                "Upload record",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: ResponsiveHelper.getResponsiveFontSize(
-                    context,
-                    mobile: 14,
-                    tablet: 16,
-                    desktop: 18,
-                  ),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+        child: Text(
+          "Upload record",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: ResponsiveHelper.getResponsiveFontSize(
+              context,
+              mobile: 14,
+              tablet: 16,
+              desktop: 18,
+            ),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
@@ -991,10 +975,6 @@ class _AddRecordScreenState extends State<AddRecordScreen> {
       );
       return;
     }
-
-    setState(() {
-      _isLoading = true;
-    });
 
     try {
       await _medicalRecordsService.addMedicalRecord(
@@ -1027,11 +1007,7 @@ class _AddRecordScreenState extends State<AddRecordScreen> {
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      // Upload complete
     }
   }
 }
@@ -1046,7 +1022,6 @@ class AllRecordsScreen extends StatefulWidget {
 class _AllRecordsScreenState extends State<AllRecordsScreen> {
   final MedicalRecordsService _medicalRecordsService = MedicalRecordsService();
   List<Map<String, dynamic>> _records = [];
-  bool _isLoading = true;
 
   @override
   void initState() {
@@ -1059,7 +1034,6 @@ class _AllRecordsScreenState extends State<AllRecordsScreen> {
       if (mounted) {
         setState(() {
           _records = records;
-          _isLoading = false;
         });
       }
     });
@@ -1083,7 +1057,7 @@ class _AllRecordsScreenState extends State<AllRecordsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: _isLoading
+      body: _records.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [

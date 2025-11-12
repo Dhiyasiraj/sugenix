@@ -371,10 +371,6 @@ class _WellnessScreenState extends State<WellnessScreen> {
   }
 
   Widget _buildRecommendations() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
     if (_recommendations.isEmpty) {
       return Center(
         child: Padding(

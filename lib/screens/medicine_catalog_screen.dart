@@ -16,7 +16,6 @@ class _MedicineCatalogScreenState extends State<MedicineCatalogScreen> {
   final MedicineCartService _cart = MedicineCartService();
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _results = [];
-  bool _loading = true;
   bool _searching = false;
 
   @override
@@ -26,7 +25,6 @@ class _MedicineCatalogScreenState extends State<MedicineCatalogScreen> {
   }
 
   Future<void> _loadInitial() async {
-    setState(() => _loading = true);
     try {
       final list = await _db.searchMedicines('');
       setState(() {
@@ -35,7 +33,6 @@ class _MedicineCatalogScreenState extends State<MedicineCatalogScreen> {
     } catch (_) {
       setState(() => _results = []);
     } finally {
-      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -88,9 +85,7 @@ class _MedicineCatalogScreenState extends State<MedicineCatalogScreen> {
           ),
           if (_searching) const LinearProgressIndicator(minHeight: 2),
           Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _results.isEmpty
+            child: _results.isEmpty && !_searching
                     ? const Center(
                         child: Text('No medicines found', style: TextStyle(color: Colors.grey)),
                       )

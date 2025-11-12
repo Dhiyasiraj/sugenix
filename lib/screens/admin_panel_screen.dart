@@ -95,18 +95,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
 
   Widget _buildSummary() {
     if (_loadingStats) {
-      return Row(
-        children: const [
-          Expanded(
-            child: SizedBox(
-              height: 90,
-              child: Card(
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            ),
-          ),
-        ],
-      );
+      return const SizedBox.shrink();
     }
 
     return Wrap(

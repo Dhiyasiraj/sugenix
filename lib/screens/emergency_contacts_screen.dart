@@ -18,7 +18,6 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _relationshipController = TextEditingController();
   List<Map<String, dynamic>> _contacts = [];
-  bool _isLoading = true;
   bool _isAdding = false;
 
   @override
@@ -40,7 +39,6 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
       if (mounted) {
         setState(() {
           _contacts = contacts;
-          _isLoading = false;
         });
       }
     });
@@ -262,9 +260,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
+      body: Column(
               children: [
                 Expanded(
                   child: _contacts.isEmpty

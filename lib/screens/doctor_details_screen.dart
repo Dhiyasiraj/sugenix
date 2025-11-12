@@ -639,7 +639,10 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
 
   Widget _buildTimeSlots() {
     if (_availableTimeSlots.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: Text('No time slots available',
+            style: TextStyle(color: Colors.grey)),
+      );
     }
 
     // Group slots by period

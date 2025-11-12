@@ -33,11 +33,8 @@ class _CartScreenState extends State<CartScreen> {
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: _cartService.streamCartItems(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final items = snapshot.data ?? [];
+        builder: (context, snapshot) {
+          final items = snapshot.data ?? [];
                 if (items.isEmpty) {
                   return const Center(
                     child: Text('Your cart is empty', style: TextStyle(color: Colors.grey)),

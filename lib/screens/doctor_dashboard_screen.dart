@@ -245,11 +245,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   Widget _buildAppointmentsTab() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _appointments(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final docs = snapshot.data?.docs ?? [];
+        builder: (context, snapshot) {
+          final docs = snapshot.data?.docs ?? [];
         if (docs.isEmpty) {
           return const Center(
             child: Text(
@@ -334,11 +331,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   Widget _buildRecordsTab() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _records(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final docs = snapshot.data?.docs ?? [];
+        builder: (context, snapshot) {
+          final docs = snapshot.data?.docs ?? [];
         if (docs.isEmpty) {
           return const Center(
             child: Text(

@@ -12,7 +12,6 @@ class OrderDetailsScreen extends StatefulWidget {
 class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   final MedicineOrdersService _ordersService = MedicineOrdersService();
   Map<String, dynamic>? _order;
-  bool _loading = true;
   bool _cancelling = false;
 
   @override
@@ -22,7 +21,6 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
     try {
       final data = await _ordersService.getOrderById(widget.orderId);
       if (mounted) setState(() => _order = data);
@@ -31,8 +29,6 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to load order: ${e.toString()}')),
       );
-    } finally {
-      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -82,9 +78,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         ),
       ),
       backgroundColor: const Color(0xFFF5F6F8),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _order == null
+      body: _order == null
               ? const Center(child: Text('Order not found'))
               : Column(
                   children: [

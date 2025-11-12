@@ -102,14 +102,7 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
 
   Widget _buildCurrentReading() {
     if (_isLoading) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: const Center(child: CircularProgressIndicator()),
-      );
+      return const SizedBox.shrink();
     }
 
     final latestRecord = _glucoseRecords.isNotEmpty
