@@ -596,6 +596,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ],
               ),
+              const SizedBox(height: 15),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildActionCard(
+                      'Dashboard',
+                      Icons.dashboard_customize,
+                      const Color(0xFF3F51B5),
+                      () {
+                        Navigator.pushNamed(context, '/patient-dashboard');
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: _buildActionCard(
+                      'Records',
+                      Icons.assignment,
+                      const Color(0xFF4CAF50),
+                      () {
+                        Navigator.pushNamed(context, '/medical-records');
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),

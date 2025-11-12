@@ -227,10 +227,65 @@ class _LoginState extends State<Login> {
     });
 
     try {
+      // Hardcoded admin credentials
+      const String adminEmail = 'admin@sugenix.com';
+      const String adminPassword = 'admin123';
+      
+      if (_emailController.text.trim() == adminEmail && 
+          _passwordController.text == adminPassword) {
+        // Admin login - create or sign in admin user
+        try {
+          await _authService.signInWithEmailAndPassword(
+            email: adminEmail,
+            password: adminPassword,
+          );
+        } catch (e) {
+          // If admin doesn't exist, create it
+          await _authService.signUpWithEmailAndPassword(
+            email: adminEmail,
+            password: adminPassword,
+            name: 'Admin',
+            phone: '',
+            dateOfBirth: DateTime.now().subtract(const Duration(days: 365 * 30)),
+            gender: 'Other',
+            diabetesType: 'N/A',
+          );
+          // Set admin role
+          await _authService.setUserRole('admin');
+        }
+        
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+          );
+        }
+        return;
+      }
+
+      // Regular user login
       await _authService.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+
+      // Check if user is a doctor and verify approval status
+      final userProfile = await _authService.getUserProfile();
+      final userRole = userProfile?['role'];
+      
+      if (userRole == 'doctor') {
+        final approvalStatus = userProfile?['approvalStatus'] ?? 'pending';
+        
+        if (approvalStatus != 'approved') {
+          // Sign out the doctor if not approved
+          await _authService.signOut();
+          
+          if (mounted) {
+            _showSnackBar('Your doctor account is pending admin approval. Please wait for approval before logging in.');
+          }
+          return;
+        }
+      }
 
       if (mounted) {
         Navigator.pushReplacement(

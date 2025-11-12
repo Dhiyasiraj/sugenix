@@ -24,6 +24,7 @@ import 'package:sugenix/models/doctor.dart';
 import 'package:sugenix/screens/doctor_registration_screen.dart';
 import 'package:sugenix/screens/pharmacy_registration_screen.dart';
 import 'package:sugenix/screens/medicine_catalog_screen.dart';
+import 'package:sugenix/screens/patient_dashboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -87,6 +88,7 @@ class SugenixApp extends StatelessWidget {
         '/medical-records': (context) => const MedicalRecordsScreen(),
         '/medicine-orders': (context) => const MedicineOrdersScreen(),
         '/medicine-catalog': (context) => const MedicineCatalogScreen(),
+        '/patient-dashboard': (context) => const PatientDashboardScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/emergency': (context) => const EmergencyScreen(),
         '/glucose-monitoring': (context) => const GlucoseMonitoringScreen(),

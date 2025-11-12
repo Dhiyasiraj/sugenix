@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class BluetoothDeviceScreen extends StatefulWidget {
   const BluetoothDeviceScreen({super.key});
@@ -11,35 +13,16 @@ class BluetoothDeviceScreen extends StatefulWidget {
 }
 
 class _BluetoothDeviceScreenState extends State<BluetoothDeviceScreen> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isScanning = false;
   bool _isConnected = false;
   String? _connectedDeviceName;
-  List<Map<String, dynamic>> _availableDevices = [];
+  String? _connectedDeviceId;
 
   @override
   void initState() {
     super.initState();
-    _loadSavedDevices();
-  }
-
-  void _loadSavedDevices() {
-    // Placeholder: Load saved devices from storage
-    setState(() {
-      _availableDevices = [
-        {
-          'name': 'Glucose Meter Pro',
-          'address': '00:11:22:33:44:55',
-          'type': 'glucose_meter',
-          'isPaired': false,
-        },
-        {
-          'name': 'Smart Monitor X1',
-          'address': '00:11:22:33:44:56',
-          'type': 'glucose_meter',
-          'isPaired': true,
-        },
-      ];
-    });
   }
 
   Future<void> _scanForDevices() async {
@@ -47,60 +30,190 @@ class _BluetoothDeviceScreenState extends State<BluetoothDeviceScreen> {
       _isScanning = true;
     });
 
-    // Placeholder: Simulate device scanning
-    await Future.delayed(const Duration(seconds: 3));
+    // Simulate scanning delay
+    await Future.delayed(const Duration(seconds: 2));
 
     setState(() {
       _isScanning = false;
-      _availableDevices = [
-        {
-          'name': 'Glucose Meter Pro',
-          'address': '00:11:22:33:44:55',
-          'type': 'glucose_meter',
-          'isPaired': false,
-        },
-        {
-          'name': 'Smart Monitor X1',
-          'address': '00:11:22:33:44:56',
-          'type': 'glucose_meter',
-          'isPaired': true,
-        },
-        {
-          'name': 'Diabetes Tracker 2024',
-          'address': '00:11:22:33:44:57',
-          'type': 'glucose_meter',
-          'isPaired': false,
-        },
-      ];
-    });
-  }
-
-  Future<void> _connectToDevice(Map<String, dynamic> device) async {
-    setState(() {
-      _isConnected = true;
-      _connectedDeviceName = device['name'];
     });
 
+    // Note: Actual Bluetooth scanning would require flutter_blue or similar package
+    // This is a placeholder that shows the UI is ready for integration
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Connected to ${device['name']}'),
-        backgroundColor: Colors.green,
+      const SnackBar(
+        content: Text(
+            'Bluetooth scanning requires additional setup. Please pair devices manually.'),
+        duration: Duration(seconds: 3),
       ),
     );
+  }
+
+  Future<void> _connectToDevice(
+      String deviceId, Map<String, dynamic> device) async {
+    try {
+      if (_auth.currentUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Please login to connect devices'),
+              backgroundColor: Colors.red),
+        );
+        return;
+      }
+
+      // Update device connection status in Firebase
+      await _firestore
+          .collection('users')
+          .doc(_auth.currentUser!.uid)
+          .collection('bluetooth_devices')
+          .doc(deviceId)
+          .update({
+        'isConnected': true,
+        'connectedAt': FieldValue.serverTimestamp(),
+      });
+
+      setState(() {
+        _isConnected = true;
+        _connectedDeviceName = device['name'];
+        _connectedDeviceId = deviceId;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Connected to ${device['name']}'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to connect: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _disconnectDevice() async {
-    setState(() {
-      _isConnected = false;
-      _connectedDeviceName = null;
-    });
+    try {
+      if (_auth.currentUser == null || _connectedDeviceId == null) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Device disconnected'),
-        backgroundColor: Colors.orange,
+      // Update device connection status in Firebase
+      await _firestore
+          .collection('users')
+          .doc(_auth.currentUser!.uid)
+          .collection('bluetooth_devices')
+          .doc(_connectedDeviceId)
+          .update({
+        'isConnected': false,
+        'disconnectedAt': FieldValue.serverTimestamp(),
+      });
+
+      setState(() {
+        _isConnected = false;
+        _connectedDeviceName = null;
+        _connectedDeviceId = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Device disconnected'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to disconnect: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _addDeviceManually() async {
+    final nameController = TextEditingController();
+    final addressController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Bluetooth Device'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Device Name',
+                hintText: 'e.g., Glucose Meter Pro',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: addressController,
+              decoration: const InputDecoration(
+                labelText: 'Device Address (MAC)',
+                hintText: 'e.g., 00:11:22:33:44:55',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Add'),
+          ),
+        ],
       ),
     );
+
+    if (result == true && nameController.text.isNotEmpty) {
+      try {
+        if (_auth.currentUser == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Please login to add devices'),
+                backgroundColor: Colors.red),
+          );
+          return;
+        }
+
+        await _firestore
+            .collection('users')
+            .doc(_auth.currentUser!.uid)
+            .collection('bluetooth_devices')
+            .add({
+          'name': nameController.text.trim(),
+          'address': addressController.text.trim(),
+          'type': 'glucose_meter',
+          'isPaired': true,
+          'isConnected': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Device added successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to add device: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   @override
@@ -148,7 +261,8 @@ class _BluetoothDeviceScreenState extends State<BluetoothDeviceScreen> {
           if (_isConnected)
             Container(
               width: double.infinity,
-              padding: EdgeInsets.all(ResponsiveHelper.isMobile(context) ? 15 : 20),
+              padding:
+                  EdgeInsets.all(ResponsiveHelper.isMobile(context) ? 15 : 20),
               color: Colors.green.withOpacity(0.1),
               child: Row(
                 children: [
@@ -171,7 +285,8 @@ class _BluetoothDeviceScreenState extends State<BluetoothDeviceScreen> {
                             color: Colors.green,
                           ),
                         ),
-                        SizedBox(height: ResponsiveHelper.isMobile(context) ? 4 : 5),
+                        SizedBox(
+                            height: ResponsiveHelper.isMobile(context) ? 4 : 5),
                         Text(
                           'Device is ready to sync glucose readings',
                           style: TextStyle(
@@ -231,19 +346,71 @@ class _BluetoothDeviceScreenState extends State<BluetoothDeviceScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: _addDeviceManually,
+                  icon: const Icon(Icons.add),
+                  label: Text(
+                    'Add',
+                    style: TextStyle(
+                      fontSize: ResponsiveHelper.getResponsiveFontSize(
+                        context,
+                        mobile: 14,
+                        tablet: 16,
+                        desktop: 18,
+                      ),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    padding: EdgeInsets.symmetric(
+                      vertical: ResponsiveHelper.isMobile(context) ? 12 : 15,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
           Expanded(
-            child: _availableDevices.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: ResponsiveHelper.getResponsivePadding(context),
-                    itemCount: _availableDevices.length,
-                    itemBuilder: (context, index) {
-                      return _buildDeviceCard(_availableDevices[index]);
-                    },
-                  ),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _auth.currentUser != null
+                  ? _firestore
+                      .collection('users')
+                      .doc(_auth.currentUser!.uid)
+                      .collection('bluetooth_devices')
+                      .snapshots()
+                  : null,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error: ${snapshot.error}'),
+                  );
+                }
+
+                final devices = snapshot.data?.docs ?? [];
+                if (devices.isEmpty) {
+                  return _buildEmptyState();
+                }
+
+                return ListView.builder(
+                  padding: ResponsiveHelper.getResponsivePadding(context),
+                  itemCount: devices.length,
+                  itemBuilder: (context, index) {
+                    final device = devices[index];
+                    final data = device.data() as Map<String, dynamic>;
+                    return _buildDeviceCard(device.id, data);
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -304,9 +471,9 @@ class _BluetoothDeviceScreenState extends State<BluetoothDeviceScreen> {
     );
   }
 
-  Widget _buildDeviceCard(Map<String, dynamic> device) {
+  Widget _buildDeviceCard(String deviceId, Map<String, dynamic> device) {
     final isPaired = device['isPaired'] as bool? ?? false;
-    final isConnected = _isConnected && _connectedDeviceName == device['name'];
+    final isConnected = _isConnected && _connectedDeviceId == deviceId;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
@@ -362,7 +529,8 @@ class _BluetoothDeviceScreenState extends State<BluetoothDeviceScreen> {
                       ),
                     ),
                     if (isPaired) ...[
-                      SizedBox(width: ResponsiveHelper.isMobile(context) ? 8 : 10),
+                      SizedBox(
+                          width: ResponsiveHelper.isMobile(context) ? 8 : 10),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -412,7 +580,7 @@ class _BluetoothDeviceScreenState extends State<BluetoothDeviceScreen> {
             )
           else
             ElevatedButton(
-              onPressed: () => _connectToDevice(device),
+              onPressed: () => _connectToDevice(deviceId, device),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0C4556),
                 padding: EdgeInsets.symmetric(
@@ -440,4 +608,3 @@ class _BluetoothDeviceScreenState extends State<BluetoothDeviceScreen> {
     );
   }
 }
-

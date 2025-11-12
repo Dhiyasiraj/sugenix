@@ -181,4 +181,17 @@ class AuthService {
       throw Exception('Failed to delete emergency contact: ${e.toString()}');
     }
   }
+
+  // Set user role
+  Future<void> setUserRole(String role) async {
+    try {
+      if (currentUser == null) throw Exception('No user logged in');
+      
+      await _firestore.collection('users').doc(currentUser!.uid).update({
+        'role': role,
+      });
+    } catch (e) {
+      throw Exception('Failed to set user role: ${e.toString()}');
+    }
+  }
 }

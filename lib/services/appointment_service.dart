@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:sugenix/services/revenue_service.dart';
 
 class AppointmentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final RevenueService _revenueService = RevenueService();
 
   // Book an appointment
   Future<String> bookAppointment({
@@ -31,6 +33,13 @@ class AppointmentService {
         throw Exception('This time slot is already booked');
       }
 
+      // Calculate fees
+      double consultationFee = fee ?? 0.0;
+      final fees = RevenueService.calculateFees(consultationFee);
+      final totalFee = fees['totalFee']!;
+      final platformFee = fees['platformFee']!;
+      final doctorFee = fees['doctorFee']!;
+
       // Create appointment
       final appointmentRef = await _firestore.collection('appointments').add({
         'doctorId': doctorId,
@@ -42,7 +51,11 @@ class AppointmentService {
         'patientMobile': patientMobile,
         'patientType': patientType,
         'notes': notes,
-        'fee': fee,
+        'fee': consultationFee,
+        'totalFee': totalFee,
+        'platformFee': platformFee,
+        'doctorFee': doctorFee,
+        'paymentStatus': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -55,6 +68,49 @@ class AppointmentService {
       return appointmentRef.id;
     } catch (e) {
       throw Exception('Failed to book appointment: ${e.toString()}');
+    }
+  }
+
+  // Process payment for appointment
+  Future<void> processPayment({
+    required String appointmentId,
+    required String paymentMethod,
+  }) async {
+    try {
+      final appointmentDoc = await _firestore
+          .collection('appointments')
+          .doc(appointmentId)
+          .get();
+      
+      if (!appointmentDoc.exists) {
+        throw Exception('Appointment not found');
+      }
+
+      final data = appointmentDoc.data()!;
+      final consultationFee = (data['fee'] as num?)?.toDouble() ?? 0.0;
+      final doctorId = data['doctorId'] as String;
+      final patientId = data['patientId'] as String;
+
+      // Record revenue
+      await _revenueService.recordRevenue(
+        appointmentId: appointmentId,
+        doctorId: doctorId,
+        patientId: patientId,
+        consultationFee: consultationFee,
+        platformFee: (data['platformFee'] as num?)?.toDouble() ?? 0.0,
+        doctorFee: (data['doctorFee'] as num?)?.toDouble() ?? 0.0,
+        paymentMethod: paymentMethod,
+      );
+
+      // Update appointment payment status
+      await _firestore.collection('appointments').doc(appointmentId).update({
+        'paymentStatus': 'paid',
+        'paymentMethod': paymentMethod,
+        'paidAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Failed to process payment: ${e.toString()}');
     }
   }
 

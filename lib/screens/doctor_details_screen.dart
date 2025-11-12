@@ -4,6 +4,8 @@ import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:intl/intl.dart';
 import 'package:sugenix/services/appointment_service.dart';
 import 'package:sugenix/services/auth_service.dart';
+import 'package:sugenix/services/revenue_service.dart';
+import 'package:sugenix/services/razorpay_service.dart';
 
 class DoctorDetailsScreen extends StatelessWidget {
   final Doctor doctor;
@@ -147,7 +149,8 @@ class DoctorDetailsScreen extends StatelessWidget {
             "${doctor.totalBookings} Booking",
             Icons.calendar_today,
           ),
-          _buildStatItem(context, "${doctor.totalPatients} Patient", Icons.people),
+          _buildStatItem(
+              context, "${doctor.totalPatients} Patient", Icons.people),
           _buildStatItem(context, "${doctor.likes} Likes", Icons.favorite),
         ],
       ),
@@ -285,7 +288,8 @@ class AppointmentBookingScreen extends StatefulWidget {
 class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
   final AppointmentService _appointmentService = AppointmentService();
   final AuthService _authService = AuthService();
-  
+  final RazorpayService _razorpayService = RazorpayService();
+
   DateTime _selectedDate = DateTime.now();
   String _selectedTime = "15:00";
   final _patientNameController = TextEditingController();
@@ -294,18 +298,84 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
   String _selectedPatient = "My Self";
   bool _isLoading = false;
   List<String> _availableTimeSlots = [];
+  String? _lastAppointmentId;
+  Map<String, dynamic>? _userProfile;
 
   @override
   void initState() {
     super.initState();
     _loadUserProfile();
     _loadAvailableSlots();
+    _setupRazorpayCallbacks();
+  }
+
+  void _setupRazorpayCallbacks() {
+    _razorpayService.onPaymentSuccess = (paymentId) async {
+      if (_lastAppointmentId != null) {
+        try {
+          await _appointmentService.processPayment(
+            appointmentId: _lastAppointmentId!,
+            paymentMethod: 'razorpay',
+          );
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+            Navigator.pop(context); // Close payment dialog if open
+            _showSuccessDialog(context, _selectedDate);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Payment successful!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                    'Payment recorded but failed to update: ${e.toString()}'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      }
+    };
+
+    _razorpayService.onPaymentError = (error) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment failed: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    };
+  }
+
+  @override
+  void dispose() {
+    _razorpayService.dispose();
+    _patientNameController.dispose();
+    _mobileController.dispose();
+    _notesController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUserProfile() async {
     try {
       final profile = await _authService.getUserProfile();
       setState(() {
+        _userProfile = profile;
         _patientNameController.text = profile?['name'] ?? '';
         _mobileController.text = profile?['phone'] ?? '';
       });
@@ -330,21 +400,33 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
       // Use default slots
       setState(() {
         _availableTimeSlots = [
-          '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-          '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
-          '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
-          '18:00', '18:30', '19:00', '19:30', '20:00', '20:30'
+          '09:00',
+          '09:30',
+          '10:00',
+          '10:30',
+          '11:00',
+          '11:30',
+          '12:00',
+          '12:30',
+          '13:00',
+          '13:30',
+          '14:00',
+          '14:30',
+          '15:00',
+          '15:30',
+          '16:00',
+          '16:30',
+          '17:00',
+          '17:30',
+          '18:00',
+          '18:30',
+          '19:00',
+          '19:30',
+          '20:00',
+          '20:30'
         ];
       });
     }
-  }
-
-  @override
-  void dispose() {
-    _patientNameController.dispose();
-    _mobileController.dispose();
-    _notesController.dispose();
-    super.dispose();
   }
 
   @override
@@ -385,6 +467,10 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
             _buildAppointmentFor(),
             const SizedBox(height: 20),
             _buildPatientSelection(),
+            if (widget.doctor.consultationFee > 0) ...[
+              const SizedBox(height: 20),
+              _buildFeeBreakdown(),
+            ],
             const SizedBox(height: 30),
             _buildNextButton(context),
           ],
@@ -494,8 +580,10 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
             final isToday = date.year == today.year &&
                 date.month == today.month &&
                 date.day == today.day;
-            final isYesterday = date.day == today.subtract(const Duration(days: 1)).day;
-            final isTomorrow = date.day == today.add(const Duration(days: 1)).day;
+            final isYesterday =
+                date.day == today.subtract(const Duration(days: 1)).day;
+            final isTomorrow =
+                date.day == today.add(const Duration(days: 1)).day;
 
             String dateLabel;
             if (isToday) {
@@ -522,9 +610,8 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                     vertical: ResponsiveHelper.isMobile(context) ? 10 : 12,
                   ),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFF0C4556)
-                        : Colors.grey[100],
+                    color:
+                        isSelected ? const Color(0xFF0C4556) : Colors.grey[100],
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -595,7 +682,8 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
           _buildTimeSlotSection("Afternoon", afternoonSlots),
         ],
         if (eveningSlots.isNotEmpty) ...[
-          if (afternoonSlots.isNotEmpty || morningSlots.isNotEmpty) const SizedBox(height: 15),
+          if (afternoonSlots.isNotEmpty || morningSlots.isNotEmpty)
+            const SizedBox(height: 15),
           _buildTimeSlotSection("Evening", eveningSlots),
         ],
       ],
@@ -630,7 +718,8 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
             final minute = int.parse(timeParts[1]);
             final period = hour >= 12 ? 'PM' : 'AM';
             final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
-            final displayTime = '$displayHour:${minute.toString().padLeft(2, '0')} $period';
+            final displayTime =
+                '$displayHour:${minute.toString().padLeft(2, '0')} $period';
 
             return GestureDetector(
               onTap: () {
@@ -644,9 +733,8 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
                   vertical: ResponsiveHelper.isMobile(context) ? 6 : 8,
                 ),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? const Color(0xFF0C4556)
-                      : Colors.grey[100],
+                  color:
+                      isSelected ? const Color(0xFF0C4556) : Colors.grey[100],
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -816,6 +904,249 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
     );
   }
 
+  Widget _buildFeeBreakdown() {
+    final consultationFee = widget.doctor.consultationFee;
+    final fees = RevenueService.calculateFees(consultationFee);
+    final totalFee = fees['totalFee']!;
+    final platformFee = fees['platformFee']!;
+
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF0C4556).withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Fee Breakdown',
+            style: TextStyle(
+              fontSize: ResponsiveHelper.getResponsiveFontSize(
+                context,
+                mobile: 16,
+                tablet: 18,
+                desktop: 20,
+              ),
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF0C4556),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildFeeRow('Consultation Fee', consultationFee),
+          _buildFeeRow('Platform Fee', platformFee, isSecondary: true),
+          const Divider(),
+          _buildFeeRow('Total Amount', totalFee, isTotal: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeeRow(String label, double amount,
+      {bool isSecondary = false, bool isTotal = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: ResponsiveHelper.getResponsiveFontSize(
+                context,
+                mobile: 13,
+                tablet: 14,
+                desktop: 15,
+              ),
+              color: isSecondary
+                  ? Colors.grey
+                  : (isTotal ? const Color(0xFF0C4556) : Colors.black87),
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          Text(
+            '₹${amount.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: ResponsiveHelper.getResponsiveFontSize(
+                context,
+                mobile: 13,
+                tablet: 14,
+                desktop: 15,
+              ),
+              color: isTotal ? const Color(0xFF0C4556) : Colors.black87,
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPaymentDialog(BuildContext context, DateTime appointmentDateTime,
+      String appointmentId) {
+    final consultationFee = widget.doctor.consultationFee;
+    final fees = RevenueService.calculateFees(consultationFee);
+    final totalFee = fees['totalFee']!;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Payment Required',
+          style:
+              TextStyle(color: Color(0xFF0C4556), fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0C4556).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Total Amount:',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    '₹${totalFee.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0C4556),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Select Payment Method:',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 10),
+            _buildPaymentOption(context, 'UPI / Wallet', 'razorpay',
+                Icons.account_balance_wallet),
+            _buildPaymentOption(
+                context, 'Credit/Debit Card', 'razorpay', Icons.credit_card),
+            _buildPaymentOption(
+                context, 'Net Banking', 'razorpay', Icons.account_balance),
+            const Divider(),
+            _buildPaymentOption(
+                context, 'Cash on Delivery', 'cod', Icons.money),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentOption(
+      BuildContext context, String label, String method, IconData icon) {
+    return InkWell(
+      onTap: () => _handlePaymentMethod(context, method),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF0C4556).withOpacity(0.2)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: const Color(0xFF0C4556), size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF0C4556),
+                ),
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Color(0xFF0C4556)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handlePaymentMethod(BuildContext context, String method) async {
+    if (_lastAppointmentId == null) return;
+
+    Navigator.pop(context); // Close dialog
+
+    if (method == 'cod') {
+      // Cash on Delivery - no Razorpay needed
+      setState(() {
+        _isLoading = true;
+      });
+      try {
+        await _appointmentService.processPayment(
+          appointmentId: _lastAppointmentId!,
+          paymentMethod: 'cod',
+        );
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          _showSuccessDialog(context, _selectedDate);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Appointment booked! Pay on delivery.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } else {
+      // Razorpay payment
+      final consultationFee = widget.doctor.consultationFee;
+      final fees = RevenueService.calculateFees(consultationFee);
+      final totalFee = fees['totalFee']!;
+
+      setState(() {
+        _isLoading = true;
+      });
+
+      // Open Razorpay checkout
+      _razorpayService.openCheckout(
+        amount: totalFee,
+        appointmentId: _lastAppointmentId!,
+        patientName: _patientNameController.text.trim(),
+        patientEmail: _userProfile?['email'] ?? 'patient@sugenix.com',
+        patientPhone: _mobileController.text.trim(),
+        description: 'Appointment with ${widget.doctor.name}',
+      );
+    }
+  }
+
   Widget _buildNextButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
@@ -893,7 +1224,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
       );
 
       // Book appointment
-      await _appointmentService.bookAppointment(
+      final appointmentId = await _appointmentService.bookAppointment(
         doctorId: widget.doctor.id,
         doctorName: widget.doctor.name,
         dateTime: appointmentDateTime,
@@ -903,14 +1234,21 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
         notes: _notesController.text.trim().isNotEmpty
             ? _notesController.text.trim()
             : null,
-        fee: widget.doctor.consultationFee > 0 ? widget.doctor.consultationFee : null,
+        fee: widget.doctor.consultationFee > 0
+            ? widget.doctor.consultationFee
+            : null,
       );
 
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _lastAppointmentId = appointmentId;
         });
-        _showSuccessDialog(context, appointmentDateTime);
+        if (widget.doctor.consultationFee > 0) {
+          _showPaymentDialog(context, appointmentDateTime, appointmentId);
+        } else {
+          _showSuccessDialog(context, appointmentDateTime);
+        }
       }
     } catch (e) {
       if (mounted) {

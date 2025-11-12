@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
 class GlucoseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -237,5 +238,24 @@ class GlucoseService {
     } catch (e) {
       return ["Unable to generate recommendations at this time."];
     }
+  }
+
+  Map<String, dynamic> classifyReading(double value) {
+    if (value < 70) {
+      return {
+        'label': 'Low',
+        'color': Colors.red,
+      };
+    }
+    if (value > 180) {
+      return {
+        'label': 'High',
+        'color': Colors.orange,
+      };
+    }
+    return {
+      'label': 'In Range',
+      'color': Colors.green,
+    };
   }
 }

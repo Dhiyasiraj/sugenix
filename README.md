@@ -28,6 +28,13 @@ A comprehensive Flutter application for diabetes management with Firebase backen
 - Prescription upload
 - Order tracking
 
+### 💳 Payment Integration
+- Razorpay payment gateway (Test Mode)
+- UPI, Cards, Net Banking support
+- Cash on Delivery option
+- Platform fee tracking for admin
+- Revenue management dashboard
+
 ### 🚨 Emergency Features
 - SOS emergency alerts
 - Location tracking and sharing
@@ -91,7 +98,20 @@ flutter pub get
 3. Create an unsigned upload preset named: `sugenix`
 4. The app is already configured with these settings
 
-### 5. Platform-Specific Configuration
+### 5. Razorpay Payment Setup
+1. Create a Razorpay account at [Razorpay Dashboard](https://dashboard.razorpay.com/)
+2. Go to **Settings** → **API Keys**
+3. Copy your **Test Key ID** (starts with `rzp_test_`)
+4. Update `lib/services/razorpay_service.dart`:
+   ```dart
+   static const String _testKeyId = 'rzp_test_YOUR_KEY_HERE';
+   ```
+5. **Note**: Use Test Mode keys (no KYC required). Production keys require KYC verification.
+6. Test cards for testing:
+   - Success: `4111 1111 1111 1111` (any CVV, any future expiry)
+   - Failure: `4000 0000 0000 0002`
+
+### 6. Platform-Specific Configuration
 
 #### Android
 - Update `android/app/build.gradle` with Firebase dependencies
@@ -161,7 +181,10 @@ lib/
 │   ├── emergency_service.dart
 │   ├── cloudinary_service.dart
 │   ├── platform_image_service.dart
-│   └── platform_location_service.dart
+│   ├── platform_location_service.dart
+│   ├── razorpay_service.dart
+│   ├── revenue_service.dart
+│   └── appointment_service.dart
 ├── screens/                  # UI screens
 │   ├── home_screen.dart
 │   ├── glucose_monitoring_screen.dart
