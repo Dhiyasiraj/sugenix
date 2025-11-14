@@ -14,6 +14,8 @@ import 'package:sugenix/screens/admin_panel_screen.dart';
 import 'package:sugenix/screens/doctor_dashboard_screen.dart';
 import 'package:sugenix/screens/pharmacy_dashboard_screen.dart';
 import 'package:sugenix/screens/settings_screen.dart';
+import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -33,7 +35,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _mobileController = TextEditingController();
   final _emailController = TextEditingController();
   final _diabetesTypeController = TextEditingController();
+  final _heightController = TextEditingController();
+  final _weightController = TextEditingController();
   String? _selectedGender;
+  DateTime? _selectedDateOfBirth;
 
   @override
   void initState() {
@@ -52,6 +57,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _emailController.text = profile['email'] ?? '';
           _diabetesTypeController.text = profile['diabetesType'] ?? '';
           _selectedGender = profile['gender'] ?? 'Male';
+
+          // Load date of birth
+          if (profile['dateOfBirth'] != null) {
+            if (profile['dateOfBirth'] is Timestamp) {
+              _selectedDateOfBirth =
+                  (profile['dateOfBirth'] as Timestamp).toDate();
+            } else if (profile['dateOfBirth'] is DateTime) {
+              _selectedDateOfBirth = profile['dateOfBirth'] as DateTime;
+            }
+          }
+
+          // Load height and weight
+          if (profile['height'] != null) {
+            _heightController.text = profile['height'].toString();
+          }
+          if (profile['weight'] != null) {
+            _weightController.text = profile['weight'].toString();
+          }
+
           _isLoading = false;
         });
       } else {
@@ -68,11 +92,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _updateProfile() async {
     try {
+      // Parse height and weight
+      double? height;
+      double? weight;
+
+      if (_heightController.text.isNotEmpty) {
+        height = double.tryParse(_heightController.text);
+        if (height == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please enter a valid height'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
+
+      if (_weightController.text.isNotEmpty) {
+        weight = double.tryParse(_weightController.text);
+        if (weight == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please enter a valid weight'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
+
       await _authService.updateUserProfile(
         name: _nameController.text,
         phone: _mobileController.text,
         diabetesType: _diabetesTypeController.text,
         gender: _selectedGender,
+        dateOfBirth: _selectedDateOfBirth,
+        height: height,
+        weight: weight,
       );
 
       setState(() {
@@ -104,7 +161,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _mobileController.dispose();
     _emailController.dispose();
     _diabetesTypeController.dispose();
+    _heightController.dispose();
+    _weightController.dispose();
     super.dispose();
+  }
+
+  int? _calculateAge(DateTime? dateOfBirth) {
+    if (dateOfBirth == null) return null;
+    final now = DateTime.now();
+    int age = now.year - dateOfBirth.year;
+    if (now.month < dateOfBirth.month ||
+        (now.month == dateOfBirth.month && now.day < dateOfBirth.day)) {
+      age--;
+    }
+    return age;
+  }
+
+  Future<void> _selectDateOfBirth() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDateOfBirth ??
+          DateTime.now().subtract(const Duration(days: 365 * 25)),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF0C4556),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF0C4556),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedDateOfBirth) {
+      setState(() {
+        _selectedDateOfBirth = picked;
+      });
+    }
   }
 
   @override
@@ -426,11 +523,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 15),
           _buildGenderDropdown(),
           const SizedBox(height: 15),
+          _buildDateOfBirthField(),
+          const SizedBox(height: 15),
           _buildTextField(
             'Diabetes Type',
             _diabetesTypeController,
             Icons.medical_services,
             enabled: _isEditing,
+          ),
+          const SizedBox(height: 15),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTextField(
+                  'Height (cm)',
+                  _heightController,
+                  Icons.height,
+                  enabled: _isEditing,
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: _buildTextField(
+                  'Weight (kg)',
+                  _weightController,
+                  Icons.monitor_weight,
+                  enabled: _isEditing,
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+            ],
           ),
           if (_isEditing) ...[
             const SizedBox(height: 25),
@@ -563,15 +686,116 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildDateOfBirthField() {
+    final age = _calculateAge(_selectedDateOfBirth);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.calendar_today,
+              color: Colors.grey[600],
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Date of Birth',
+              style: TextStyle(
+                fontSize: ResponsiveHelper.getResponsiveFontSize(
+                  context,
+                  mobile: 14,
+                  tablet: 15,
+                  desktop: 16,
+                ),
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            if (age != null) ...[
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0C4556).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Age: $age years',
+                  style: TextStyle(
+                    fontSize: ResponsiveHelper.getResponsiveFontSize(
+                      context,
+                      mobile: 12,
+                      tablet: 13,
+                      desktop: 14,
+                    ),
+                    color: const Color(0xFF0C4556),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: _isEditing ? _selectDateOfBirth : null,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+            decoration: BoxDecoration(
+              color: _isEditing ? Colors.grey[100] : Colors.grey[200],
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: Colors.grey[300]!,
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _selectedDateOfBirth != null
+                        ? DateFormat('dd MMM yyyy')
+                            .format(_selectedDateOfBirth!)
+                        : 'Select Date of Birth',
+                    style: TextStyle(
+                      fontSize: ResponsiveHelper.getResponsiveFontSize(
+                        context,
+                        mobile: 14,
+                        tablet: 15,
+                        desktop: 16,
+                      ),
+                      color: _selectedDateOfBirth != null
+                          ? (_isEditing ? Colors.black87 : Colors.grey[600])
+                          : Colors.grey[500],
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.calendar_today,
+                  color:
+                      _isEditing ? const Color(0xFF0C4556) : Colors.grey[400],
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildTextField(
     String label,
     TextEditingController controller,
     IconData icon, {
     bool enabled = true,
+    TextInputType? keyboardType,
   }) {
     return TextField(
       controller: controller,
       enabled: enabled,
+      keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: const Color(0xFF0C4556)),

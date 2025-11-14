@@ -122,6 +122,8 @@ class AuthService {
     DateTime? dateOfBirth,
     String? gender,
     String? diabetesType,
+    double? height,
+    double? weight,
   }) async {
     try {
       if (currentUser == null) throw Exception('No user logged in');
@@ -132,6 +134,8 @@ class AuthService {
       if (dateOfBirth != null) updateData['dateOfBirth'] = dateOfBirth;
       if (gender != null) updateData['gender'] = gender;
       if (diabetesType != null) updateData['diabetesType'] = diabetesType;
+      if (height != null) updateData['height'] = height;
+      if (weight != null) updateData['weight'] = weight;
 
       await _firestore
           .collection('users')
