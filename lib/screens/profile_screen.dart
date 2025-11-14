@@ -7,7 +7,6 @@ import 'package:sugenix/screens/emergency_contacts_screen.dart';
 import 'package:sugenix/services/auth_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/services/role_service.dart';

@@ -10,7 +10,6 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:intl/intl.dart';
 import 'package:sugenix/services/doctor_service.dart';
 import 'package:sugenix/services/favorites_service.dart';
-import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/screens/emergency_screen.dart';

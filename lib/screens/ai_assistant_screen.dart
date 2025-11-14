@@ -3,6 +3,7 @@ import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:sugenix/services/chat_history_service.dart';
 import 'package:sugenix/services/gemini_service.dart';
 import 'package:sugenix/services/glucose_service.dart';
+import 'package:sugenix/services/user_context_service.dart';
 import 'package:intl/intl.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
@@ -19,6 +20,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   final ScrollController _scrollController = ScrollController();
   final ChatHistoryService _chatService = ChatHistoryService();
   final GlucoseService _glucoseService = GlucoseService();
+  final UserContextService _userContextService = UserContextService();
   final List<ChatMessage> _messages = [];
   bool _isLoading = true;
   bool _isGenerating = false;
@@ -42,8 +44,8 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                 _messages.add(ChatMessage(
                   text: msg['text'] as String? ?? '',
                   isUser: msg['isUser'] as bool? ?? false,
-                  timestamp: msg['timestamp'] is DateTime 
-                      ? msg['timestamp'] as DateTime 
+                  timestamp: msg['timestamp'] is DateTime
+                      ? msg['timestamp'] as DateTime
                       : DateTime.now(),
                 ));
               }
@@ -64,7 +66,8 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   void _addWelcomeMessage() {
     if (_messages.isEmpty) {
       _messages.add(ChatMessage(
-        text: "Hello! I'm your AI health assistant. I can help you with diabetes-related questions, medication information, dietary advice, and general health guidance. How can I assist you today?",
+        text:
+            "Hello! I'm your AI health assistant. I can help you with diabetes-related questions, medication information, dietary advice, and general health guidance. How can I assist you today?",
         isUser: false,
         timestamp: DateTime.now(),
       ));
@@ -75,10 +78,10 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
     if (_messageController.text.trim().isEmpty || _isGenerating) return;
 
     final userMessage = _messageController.text.trim();
-    
+
     // Save user message to Firebase
     await _chatService.saveMessage(text: userMessage, isUser: true);
-    
+
     setState(() {
       _messages.add(ChatMessage(
         text: userMessage,
@@ -92,28 +95,40 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
     _scrollToBottom();
 
     try {
-      // Get context from recent glucose readings
-      String context = '';
+      // Get comprehensive user context from Firestore for personalized recommendations
+      String personalizedContext = '';
       try {
-        final readings = await _glucoseService.getGlucoseReadingsByDateRange(
-          startDate: DateTime.now().subtract(const Duration(days: 7)),
-          endDate: DateTime.now(),
-        );
-        if (readings.isNotEmpty) {
-          final latest = readings.first;
-          context = 'Recent glucose reading: ${latest['value']} mg/dL (${latest['type']})';
-        }
+        personalizedContext =
+            await _userContextService.buildPersonalizedContext();
+        print('User context loaded: ${personalizedContext.length} characters');
       } catch (e) {
-        // Ignore if glucose data unavailable
+        print('Error building user context: $e');
+        // Fallback to basic glucose context
+        try {
+          final readings = await _glucoseService.getGlucoseReadingsByDateRange(
+            startDate: DateTime.now().subtract(const Duration(days: 7)),
+            endDate: DateTime.now(),
+          );
+          if (readings.isNotEmpty) {
+            final latest = readings.first;
+            personalizedContext =
+                'Recent glucose reading: ${latest['value']} mg/dL (${latest['type']})';
+          }
+        } catch (e2) {
+          print('Error getting glucose readings: $e2');
+          // Continue without context if unavailable
+        }
       }
 
-      // Generate AI response using Gemini
-      final aiResponse = await GeminiService.chat(userMessage, context: context);
-      
+      // Generate AI response using Gemini with personalized context
+      // The AI will use this context to provide diet and exercise recommendations
+      final aiResponse =
+          await GeminiService.chat(userMessage, context: personalizedContext);
+
       if (mounted) {
         // Save AI response to Firebase
         await _chatService.saveMessage(text: aiResponse, isUser: false);
-        
+
         setState(() {
           _messages.add(ChatMessage(
             text: aiResponse,
@@ -129,7 +144,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
         // Fallback response
         final fallbackResponse = _getFallbackResponse(userMessage);
         await _chatService.saveMessage(text: fallbackResponse, isUser: false);
-        
+
         setState(() {
           _messages.add(ChatMessage(
             text: fallbackResponse,
@@ -139,10 +154,11 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
           _isGenerating = false;
         });
         _scrollToBottom();
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('AI service temporarily unavailable. Showing basic response.'),
+            content: Text(
+                'AI service temporarily unavailable. Showing basic response.'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -152,16 +168,26 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
 
   String _getFallbackResponse(String userMessage) {
     final lowerMessage = userMessage.toLowerCase();
-    
-    if (lowerMessage.contains('glucose') || lowerMessage.contains('sugar') || lowerMessage.contains('blood')) {
+
+    if (lowerMessage.contains('glucose') ||
+        lowerMessage.contains('sugar') ||
+        lowerMessage.contains('blood')) {
       return "For glucose management, monitor your levels regularly. Normal fasting glucose should be 70-99 mg/dL, and post-meal should be below 140 mg/dL. Make sure to take your medications as prescribed and maintain a balanced diet.";
-    } else if (lowerMessage.contains('medication') || lowerMessage.contains('medicine') || lowerMessage.contains('drug')) {
+    } else if (lowerMessage.contains('medication') ||
+        lowerMessage.contains('medicine') ||
+        lowerMessage.contains('drug')) {
       return "It's important to take your medications as prescribed by your doctor. Never skip doses and always check with your healthcare provider before making any changes. You can scan your medicine using the medicine scanner for detailed information.";
-    } else if (lowerMessage.contains('diet') || lowerMessage.contains('food') || lowerMessage.contains('eat')) {
+    } else if (lowerMessage.contains('diet') ||
+        lowerMessage.contains('food') ||
+        lowerMessage.contains('eat')) {
       return "A balanced diet is crucial for diabetes management. Focus on whole grains, lean proteins, plenty of vegetables, and limit processed foods and sugars. Consider consulting the wellness recommendations section for personalized meal plans.";
-    } else if (lowerMessage.contains('exercise') || lowerMessage.contains('workout') || lowerMessage.contains('activity')) {
+    } else if (lowerMessage.contains('exercise') ||
+        lowerMessage.contains('workout') ||
+        lowerMessage.contains('activity')) {
       return "Regular physical activity helps control blood sugar levels. Aim for at least 150 minutes of moderate exercise per week, such as brisk walking. Always check your glucose before and after exercise, and stay hydrated.";
-    } else if (lowerMessage.contains('emergency') || lowerMessage.contains('help') || lowerMessage.contains('urgent')) {
+    } else if (lowerMessage.contains('emergency') ||
+        lowerMessage.contains('help') ||
+        lowerMessage.contains('urgent')) {
       return "If you're experiencing a medical emergency, please use the Emergency SOS feature in the app or call your local emergency services immediately. The app can share your health data with paramedics for better care.";
     } else {
       return "Thank you for your question. I'm here to help with diabetes management, medication information, dietary advice, and general health guidance. Would you like more specific information about any of these topics?";
@@ -246,15 +272,15 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
             child: Container(
               color: Colors.grey[50],
               child: _messages.isEmpty
-                      ? _buildEmptyState()
-                      : ListView.builder(
-                          controller: _scrollController,
-                          padding: ResponsiveHelper.getResponsivePadding(context),
-                          itemCount: _messages.length,
-                          itemBuilder: (context, index) {
-                            return _buildMessageBubble(_messages[index]);
-                          },
-                        ),
+                  ? _buildEmptyState()
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: ResponsiveHelper.getResponsivePadding(context),
+                      itemCount: _messages.length,
+                      itemBuilder: (context, index) {
+                        return _buildMessageBubble(_messages[index]);
+                      },
+                    ),
             ),
           ),
           _buildInputArea(),
@@ -344,9 +370,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: message.isUser
-                    ? const Color(0xFF0C4556)
-                    : Colors.white,
+                color: message.isUser ? const Color(0xFF0C4556) : Colors.white,
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
@@ -377,9 +401,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                     DateFormat('HH:mm').format(message.timestamp),
                     style: TextStyle(
                       fontSize: 11,
-                      color: message.isUser
-                          ? Colors.white70
-                          : Colors.grey,
+                      color: message.isUser ? Colors.white70 : Colors.grey,
                     ),
                   ),
                 ],
@@ -450,7 +472,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
               shape: BoxShape.circle,
             ),
             child: IconButton(
-              icon: _isGenerating 
+              icon: _isGenerating
                   ? const SizedBox(
                       width: 20,
                       height: 20,
@@ -480,4 +502,3 @@ class ChatMessage {
     required this.timestamp,
   });
 }
-

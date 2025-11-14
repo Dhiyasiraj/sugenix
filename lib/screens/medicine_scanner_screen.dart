@@ -6,7 +6,6 @@ import 'package:sugenix/services/platform_image_service.dart';
 import 'package:sugenix/services/medicine_database_service.dart';
 import 'package:sugenix/services/gemini_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
-import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/services/medicine_cart_service.dart';

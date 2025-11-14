@@ -6,6 +6,7 @@ import 'package:sugenix/services/appointment_service.dart';
 import 'package:sugenix/services/auth_service.dart';
 import 'package:sugenix/services/revenue_service.dart';
 import 'package:sugenix/services/razorpay_service.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 class DoctorDetailsScreen extends StatelessWidget {
   final Doctor doctor;
@@ -288,7 +289,6 @@ class AppointmentBookingScreen extends StatefulWidget {
 class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
   final AppointmentService _appointmentService = AppointmentService();
   final AuthService _authService = AuthService();
-  final RazorpayService _razorpayService = RazorpayService();
 
   DateTime _selectedDate = DateTime.now();
   String _selectedTime = "15:00";
@@ -310,61 +310,62 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
   }
 
   void _setupRazorpayCallbacks() {
-    _razorpayService.onPaymentSuccess = (paymentId) async {
-      if (_lastAppointmentId != null) {
-        try {
-          await _appointmentService.processPayment(
-            appointmentId: _lastAppointmentId!,
-            paymentMethod: 'razorpay',
-          );
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-            });
-            Navigator.pop(context); // Close payment dialog if open
-            _showSuccessDialog(context, _selectedDate);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Payment successful!'),
-                backgroundColor: Colors.green,
-              ),
+    RazorpayService.initialize(
+      onSuccessCallback: (PaymentSuccessResponse response) async {
+        if (_lastAppointmentId != null) {
+          try {
+            await _appointmentService.processPayment(
+              appointmentId: _lastAppointmentId!,
+              paymentMethod: 'razorpay',
             );
-          }
-        } catch (e) {
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                    'Payment recorded but failed to update: ${e.toString()}'),
-                backgroundColor: Colors.orange,
-              ),
-            );
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+              });
+              Navigator.pop(context); // Close payment dialog if open
+              _showSuccessDialog(context, _selectedDate);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Payment successful!'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      'Payment recorded but failed to update: ${e.toString()}'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
           }
         }
-      }
-    };
-
-    _razorpayService.onPaymentError = (error) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Payment failed: $error'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    };
+      },
+      onErrorCallback: (PaymentFailureResponse response) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Payment failed: ${response.message}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      },
+    );
   }
 
   @override
   void dispose() {
-    _razorpayService.dispose();
+    RazorpayService.dispose();
     _patientNameController.dispose();
     _mobileController.dispose();
     _notesController.dispose();
@@ -1139,13 +1140,16 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
       });
 
       // Open Razorpay checkout
-      _razorpayService.openCheckout(
+      await RazorpayService.openCheckout(
         amount: totalFee,
-        appointmentId: _lastAppointmentId!,
-        patientName: _patientNameController.text.trim(),
-        patientEmail: _userProfile?['email'] ?? 'patient@sugenix.com',
-        patientPhone: _mobileController.text.trim(),
+        name: _patientNameController.text.trim(),
+        email: _userProfile?['email'] ?? 'patient@sugenix.com',
+        phone: _mobileController.text.trim(),
         description: 'Appointment with ${widget.doctor.name}',
+        notes: {
+          'appointment_id': _lastAppointmentId!,
+          'order_type': 'appointment',
+        },
       );
     }
   }

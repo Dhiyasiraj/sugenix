@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sugenix/services/glucose_service.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
-import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';

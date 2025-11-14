@@ -4,7 +4,6 @@ import 'package:sugenix/services/gemini_service.dart';
 import 'package:sugenix/screens/glucose_history_screen.dart';
 import 'package:sugenix/widgets/offline_banner.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/widgets/translated_text.dart';
 

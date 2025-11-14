@@ -10,7 +10,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
-import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/widgets/offline_banner.dart';
 import 'package:sugenix/services/appointment_service.dart';
 import 'package:sugenix/services/doctor_service.dart';

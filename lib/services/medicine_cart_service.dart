@@ -1,28 +1,73 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class MedicineCartService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  static const String _guestCartKey = 'guest_cart_items';
 
-  String get _uid {
-    final user = _auth.currentUser;
-    if (user == null) {
-      throw Exception('No user logged in');
+  String? get _uid => _auth.currentUser?.uid;
+
+  // Get cart collection - supports both authenticated and guest users
+  CollectionReference<Map<String, dynamic>>? get _cartCol {
+    final uid = _uid;
+    if (uid != null) {
+      return _db.collection('users').doc(uid).collection('cart');
     }
-    return user.uid;
+    return null; // Guest user - use local storage
   }
-
-  CollectionReference<Map<String, dynamic>> get _cartCol =>
-      _db.collection('users').doc(_uid).collection('cart');
 
   CollectionReference<Map<String, dynamic>> get _ordersCol =>
       _db.collection('orders');
 
   Stream<List<Map<String, dynamic>>> streamCartItems() {
-    return _cartCol.snapshots().map(
-      (snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList(),
-    );
+    final cartCol = _cartCol;
+    if (cartCol != null) {
+      // Authenticated user - stream from Firestore
+      return cartCol.snapshots().map(
+        (snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList(),
+      );
+    } else {
+      // Guest user - stream from local storage
+      return Stream.periodic(const Duration(milliseconds: 500), (_) async {
+        final prefs = await SharedPreferences.getInstance();
+        final cartJson = prefs.getString(_guestCartKey);
+        if (cartJson == null) return <Map<String, dynamic>>[];
+        // Parse JSON and return list
+        try {
+          // Simple implementation - store as JSON string
+          // For now, return empty and use getCartItems() for guest
+          return <Map<String, dynamic>>[];
+        } catch (e) {
+          return <Map<String, dynamic>>[];
+        }
+      }).asyncMap((future) => future);
+    }
+  }
+
+  // Get cart items (works for both authenticated and guest users)
+  Future<List<Map<String, dynamic>>> getCartItems() async {
+    final cartCol = _cartCol;
+    if (cartCol != null) {
+      // Authenticated user
+      final snap = await cartCol.get();
+      return snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+    } else {
+      // Guest user - get from local storage
+      final prefs = await SharedPreferences.getInstance();
+      final cartJson = prefs.getString(_guestCartKey);
+      if (cartJson == null) return [];
+      
+      // Parse JSON string to list
+      try {
+        final List<dynamic> decoded = jsonDecode(cartJson);
+        return decoded.map((item) => Map<String, dynamic>.from(item)).toList();
+      } catch (e) {
+        return [];
+      }
+    }
   }
 
   Future<void> addToCart({
@@ -32,74 +77,179 @@ class MedicineCartService {
     int quantity = 1,
     String? manufacturer,
   }) async {
-    final doc = _cartCol.doc(medicineId);
-    final existing = await doc.get();
-    if (existing.exists) {
-      final q = (existing.data()!['quantity'] as int? ?? 1) + quantity;
-      await doc.update({'quantity': q});
+    final cartCol = _cartCol;
+    if (cartCol != null) {
+      // Authenticated user - store in Firestore
+      final doc = cartCol.doc(medicineId);
+      final existing = await doc.get();
+      if (existing.exists) {
+        final q = (existing.data()!['quantity'] as int? ?? 1) + quantity;
+        await doc.update({'quantity': q});
+      } else {
+        await doc.set({
+          'medicineId': medicineId,
+          'name': name,
+          'price': price,
+          'quantity': quantity,
+          'manufacturer': manufacturer,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
     } else {
-      await doc.set({
-        'medicineId': medicineId,
-        'name': name,
-        'price': price,
-        'quantity': quantity,
-        'manufacturer': manufacturer,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      // Guest user - store in local storage
+      final prefs = await SharedPreferences.getInstance();
+      final cartJson = prefs.getString(_guestCartKey);
+      List<Map<String, dynamic>> items = [];
+      
+      if (cartJson != null) {
+        try {
+          final List<dynamic> decoded = jsonDecode(cartJson);
+          items = decoded.map((item) => Map<String, dynamic>.from(item)).toList();
+        } catch (e) {
+          items = [];
+        }
+      }
+      
+      // Add or update item
+      bool found = false;
+      for (var item in items) {
+        if (item['medicineId'] == medicineId) {
+          item['quantity'] = (item['quantity'] as int? ?? 1) + quantity;
+          found = true;
+          break;
+        }
+      }
+      
+      if (!found) {
+        items.add({
+          'medicineId': medicineId,
+          'name': name,
+          'price': price,
+          'quantity': quantity,
+          'manufacturer': manufacturer,
+          'id': medicineId,
+        });
+      }
+      
+      // Save to local storage as JSON
+      await prefs.setString(_guestCartKey, jsonEncode(items));
     }
   }
 
   Future<void> updateQuantity(String medicineId, int quantity) async {
-    if (quantity <= 0) {
-      await removeFromCart(medicineId);
+    final cartCol = _cartCol;
+    if (cartCol != null) {
+      // Authenticated user
+      if (quantity <= 0) {
+        await removeFromCart(medicineId);
+      } else {
+        await cartCol.doc(medicineId).update({'quantity': quantity});
+      }
     } else {
-      await _cartCol.doc(medicineId).update({'quantity': quantity});
+      // Guest user - update in local storage
+      if (quantity <= 0) {
+        await removeFromCart(medicineId);
+      } else {
+        final prefs = await SharedPreferences.getInstance();
+        final cartJson = prefs.getString(_guestCartKey);
+        if (cartJson == null) return;
+        
+        try {
+          final List<dynamic> decoded = jsonDecode(cartJson);
+          List<Map<String, dynamic>> items = decoded.map((item) => Map<String, dynamic>.from(item)).toList();
+          
+          for (var item in items) {
+            if (item['medicineId'] == medicineId) {
+              item['quantity'] = quantity;
+              break;
+            }
+          }
+          
+          await prefs.setString(_guestCartKey, jsonEncode(items));
+        } catch (e) {
+          // Handle error
+        }
+      }
     }
   }
 
   Future<void> removeFromCart(String medicineId) async {
-    await _cartCol.doc(medicineId).delete();
+    final cartCol = _cartCol;
+    if (cartCol != null) {
+      // Authenticated user
+      await cartCol.doc(medicineId).delete();
+    } else {
+      // Guest user - remove from local storage
+      final prefs = await SharedPreferences.getInstance();
+      final cartJson = prefs.getString(_guestCartKey);
+      if (cartJson == null) return;
+      
+      try {
+        final List<dynamic> decoded = jsonDecode(cartJson);
+        List<Map<String, dynamic>> items = decoded.map((item) => Map<String, dynamic>.from(item)).toList();
+        items.removeWhere((item) => item['medicineId'] == medicineId);
+        await prefs.setString(_guestCartKey, jsonEncode(items));
+      } catch (e) {
+        // Handle error
+      }
+    }
   }
 
   Future<void> clearCart() async {
-    final snap = await _cartCol.get();
-    for (final d in snap.docs) {
-      await d.reference.delete();
+    final cartCol = _cartCol;
+    if (cartCol != null) {
+      // Authenticated user
+      final snap = await cartCol.get();
+      for (final d in snap.docs) {
+        await d.reference.delete();
+      }
+    } else {
+      // Guest user - clear local storage
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_guestCartKey);
+      await prefs.remove('${_guestCartKey}_count');
     }
   }
 
   Future<String> checkout({
     required String address,
+    required String customerName,
+    required String customerEmail,
+    required String customerPhone,
     String paymentMethod = 'COD',
     String? paymentId,
-    String? orderId,
+    String? razorpayOrderId,
   }) async {
-    final cartSnap = await _cartCol.get();
-    if (cartSnap.docs.isEmpty) {
+    // Get cart items (works for both authenticated and guest users)
+    final items = await getCartItems();
+    if (items.isEmpty) {
       throw Exception('Cart is empty');
     }
 
     double total = 0.0;
-    final items = cartSnap.docs.map((d) {
-      final data = d.data();
+    final processedItems = items.map((data) {
       final qty = (data['quantity'] as int? ?? 1);
       final price = (data['price'] as num?)?.toDouble() ?? 0.0;
       total += price * qty;
-      return {'id': d.id, ...data};
+      return {'id': data['id'] ?? data['medicineId'], ...data};
     }).toList();
 
     // Get pharmacy ID from first item (if available)
     String? pharmacyId;
-    if (items.isNotEmpty) {
+    if (processedItems.isNotEmpty) {
       // Try to get pharmacyId from medicine data
-      final firstItem = items.first;
+      final firstItem = processedItems.first;
       if (firstItem.containsKey('pharmacyId')) {
         pharmacyId = firstItem['pharmacyId'] as String?;
       }
     }
 
     final orderData = {
-      'userId': _uid,
+      'userId': _uid, // null for guest users
+      'isGuest': _uid == null,
+      'customerName': customerName,
+      'customerEmail': customerEmail,
+      'customerPhone': customerPhone,
       'status': paymentMethod == 'Razorpay' && paymentId != null ? 'confirmed' : 'placed',
       'total': total,
       'address': address,
@@ -107,19 +257,30 @@ class MedicineCartService {
       'paymentStatus': paymentMethod == 'Razorpay' ? 'paid' : 'pending',
       'createdAt': FieldValue.serverTimestamp(),
       if (paymentId != null) 'paymentId': paymentId,
-      if (orderId != null) 'razorpayOrderId': orderId,
+      if (razorpayOrderId != null) 'razorpayOrderId': razorpayOrderId,
       if (pharmacyId != null) 'pharmacyId': pharmacyId,
     };
 
     final orderRef = await _ordersCol.add(orderData);
 
     final batch = _db.batch();
-    for (final item in items) {
+    final cartCol = _cartCol;
+    
+    for (final item in processedItems) {
       final itemRef = orderRef.collection('orderItems').doc(item['id'] as String);
       batch.set(itemRef, item);
-      batch.delete(_cartCol.doc(item['id'] as String));
+      
+      // Remove from cart (if authenticated user)
+      if (cartCol != null) {
+        batch.delete(cartCol.doc(item['id'] as String));
+      }
     }
     await batch.commit();
+
+    // Clear guest cart if guest user
+    if (_uid == null) {
+      await clearCart();
+    }
 
     return orderRef.id;
   }

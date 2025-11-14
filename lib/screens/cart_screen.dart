@@ -3,7 +3,6 @@ import 'package:sugenix/services/medicine_cart_service.dart';
 import 'package:sugenix/services/razorpay_service.dart';
 import 'package:sugenix/services/auth_service.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
-import 'package:sugenix/widgets/translated_text.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -16,28 +15,58 @@ class _CartScreenState extends State<CartScreen> {
   final MedicineCartService _cartService = MedicineCartService();
   final AuthService _authService = AuthService();
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   String _selectedPaymentMethod = 'COD'; // 'COD' or 'Razorpay'
   bool _processingPayment = false;
   Map<String, dynamic>? _userProfile;
+  double _cartTotal = 0.0;
+  bool _isGuest = false;
+  int _refreshKey = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
+    _checkAuthStatus();
     _initializeRazorpay();
   }
 
   @override
   void dispose() {
     _addressController.dispose();
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
     RazorpayService.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkAuthStatus() async {
+    final user = _authService.currentUser;
+    if (user != null) {
+      // User is logged in
+      setState(() {
+        _isGuest = false;
+      });
+      await _loadUserProfile();
+    } else {
+      // Guest user
+      setState(() {
+        _isGuest = true;
+      });
+    }
   }
 
   Future<void> _loadUserProfile() async {
     final profile = await _authService.getUserProfile();
     setState(() {
       _userProfile = profile;
+      if (profile != null) {
+        _nameController.text = profile['name'] ?? '';
+        _emailController.text = profile['email'] ?? '';
+        _phoneController.text = profile['phone'] ?? '';
+      }
     });
   }
 
@@ -103,17 +132,35 @@ class _CartScreenState extends State<CartScreen> {
         return;
       }
 
-      final orderId = await _cartService.checkout(
+      // Get customer details
+      final name = _isGuest ? _nameController.text.trim() : (_userProfile?['name'] ?? 'User');
+      final email = _isGuest ? _emailController.text.trim() : (_userProfile?['email'] ?? _authService.currentUser?.email ?? '');
+      final phone = _isGuest ? _phoneController.text.trim() : (_userProfile?['phone'] ?? '');
+
+      if (name.isEmpty || email.isEmpty || phone.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please fill in all customer details')),
+          );
+        }
+        return;
+      }
+
+      final finalOrderId = await _cartService.checkout(
         address: address,
+        customerName: name,
+        customerEmail: email,
+        customerPhone: phone,
         paymentMethod: paymentMethod,
         paymentId: paymentId,
+        razorpayOrderId: orderId,
       );
 
       if (!mounted) return;
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Order placed successfully! Order ID: #$orderId'),
+          content: Text('Order placed successfully! Order ID: #$finalOrderId'),
           backgroundColor: Colors.green,
         ),
       );
@@ -139,13 +186,28 @@ class _CartScreenState extends State<CartScreen> {
       return;
     }
 
-    final name = _userProfile?['name'] ?? 'User';
-    final email = _userProfile?['email'] ?? _authService.currentUser?.email ?? '';
-    final phone = _userProfile?['phone'] ?? '';
+    // Get customer details (from profile if logged in, or from form if guest)
+    final name = _isGuest ? _nameController.text.trim() : (_userProfile?['name'] ?? 'User');
+    final email = _isGuest ? _emailController.text.trim() : (_userProfile?['email'] ?? _authService.currentUser?.email ?? '');
+    final phone = _isGuest ? _phoneController.text.trim() : (_userProfile?['phone'] ?? '');
+
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your name')),
+      );
+      return;
+    }
 
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Email is required for payment')),
+      );
+      return;
+    }
+
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Phone number is required')),
       );
       return;
     }
@@ -159,11 +221,12 @@ class _CartScreenState extends State<CartScreen> {
         amount: amount,
         name: name,
         email: email,
-        phone: phone.isNotEmpty ? phone : '9999999999',
+        phone: phone,
         description: 'Medicine Order Payment - Sugenix',
         notes: {
           'order_type': 'medicine',
-          'user_id': _authService.currentUser?.uid ?? '',
+          'user_id': _authService.currentUser?.uid ?? 'guest',
+          'is_guest': _isGuest.toString(),
         },
       );
     } catch (e) {
@@ -200,11 +263,18 @@ class _CartScreenState extends State<CartScreen> {
       body: Column(
         children: [
           Expanded(
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _cartService.streamCartItems(),
-        builder: (context, snapshot) {
-          final items = snapshot.data ?? [];
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              key: ValueKey(_refreshKey),
+              future: _cartService.getCartItems(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final items = snapshot.data ?? [];
                 if (items.isEmpty) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) setState(() => _cartTotal = 0.0);
+                  });
                   return const Center(
                     child: Text('Your cart is empty', style: TextStyle(color: Colors.grey)),
                   );
@@ -215,6 +285,12 @@ class _CartScreenState extends State<CartScreen> {
                   final qty = (i['quantity'] as int?) ?? 1;
                   total += price * qty;
                 }
+                // Update cart total
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted && _cartTotal != total) {
+                    setState(() => _cartTotal = total);
+                  }
+                });
                 return ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: items.length + 1,
@@ -237,6 +313,39 @@ class _CartScreenState extends State<CartScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            if (_isGuest) ...[
+                              const Text('Customer Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: _nameController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Full Name',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.person),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: _emailController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Email Address',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.email),
+                                ),
+                                keyboardType: TextInputType.emailAddress,
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: _phoneController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Phone Number',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.phone),
+                                ),
+                                keyboardType: TextInputType.phone,
+                              ),
+                              const SizedBox(height: 16),
+                            ],
                             const Text('Delivery Address', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                             const SizedBox(height: 8),
                             TextField(
@@ -329,12 +438,18 @@ class _CartScreenState extends State<CartScreen> {
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.remove_circle_outline),
-                                onPressed: () => _cartService.updateQuantity(item['id'] as String, qty - 1),
+                                onPressed: () async {
+                                  await _cartService.updateQuantity(item['id'] as String, qty - 1);
+                                  setState(() => _refreshKey++);
+                                },
                               ),
                               Text(qty.toString()),
                               IconButton(
                                 icon: const Icon(Icons.add_circle_outline),
-                                onPressed: () => _cartService.updateQuantity(item['id'] as String, qty + 1),
+                                onPressed: () async {
+                                  await _cartService.updateQuantity(item['id'] as String, qty + 1);
+                                  setState(() => _refreshKey++);
+                                },
                               ),
                             ],
                           ),
@@ -370,7 +485,7 @@ class _CartScreenState extends State<CartScreen> {
                   onPressed: _processingPayment ? null : () async {
                     if (_selectedPaymentMethod == 'Razorpay') {
                       // Process Razorpay payment
-                      await _processPayment(total);
+                      await _processPayment(_cartTotal);
                     } else {
                       // Process COD order
                       await _completeOrder(paymentMethod: 'COD');

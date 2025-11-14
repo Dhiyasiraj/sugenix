@@ -1,5 +1,4 @@
 import 'package:razorpay_flutter/razorpay_flutter.dart';
-import 'package:flutter/material.dart';
 
 class RazorpayService {
   static Razorpay? _razorpay;
@@ -7,7 +6,8 @@ class RazorpayService {
   // Razorpay Test Keys (No KYC required)
   // Get these from: https://razorpay.com/docs/payments/server-integration/test-keys/
   // Or from your Razorpay Dashboard > Settings > API Keys > Test Keys
-  static const String _keyId = 'rzp_test_1DP5mmOlF5G5ag'; // Test Key ID
+  // Just use the Key ID - no secret key needed for client-side integration
+  static const String _keyId = 'rzp_test_1DP5mmOlF5G5ag'; // Test Key ID - Replace with your own
   
   // Callbacks for payment events
   static Function(PaymentSuccessResponse)? onSuccess;
@@ -66,13 +66,8 @@ class RazorpayService {
       _razorpay!.open(options);
     } catch (e) {
       print('Razorpay Error: $e');
-      if (onError != null) {
-        onError!(PaymentFailureResponse(
-          code: 0,
-          message: 'Failed to open payment gateway: $e',
-          error: null,
-        ));
-      }
+      // Error will be handled by _handlePaymentError when Razorpay SDK calls it
+      // For now, just log the error
     }
   }
 

@@ -286,16 +286,46 @@ Return only valid JSON, no additional text.
     }
   }
 
-  // Chat with AI assistant
+  // Chat with AI assistant with personalized context
   static Future<String> chat(String userMessage, {String? context}) async {
     try {
-      String prompt = userMessage;
-      if (context != null) {
-        prompt =
-            'Context: $context\n\nUser: $userMessage\n\nProvide helpful, accurate medical advice for diabetes management.';
+      String systemPrompt =
+          '''You are a specialized AI health assistant for diabetes management. You provide personalized, evidence-based advice on diet, exercise, medication, and lifestyle management.
+
+IMPORTANT GUIDELINES:
+- Always provide personalized recommendations based on the user's specific health data
+- For diet recommendations, consider the user's diabetes type, age, gender, allergies, and current glucose levels
+- For exercise recommendations, consider the user's glucose trends, age, and any medical conditions
+- Always mention safety precautions and when to consult a doctor
+- Be encouraging and supportive
+- Provide specific, actionable advice
+- If glucose levels are high (>180 mg/dL), recommend immediate actions
+- If glucose levels are low (<70 mg/dL), recommend emergency measures
+- Consider the user's diabetes type (Type 1 vs Type 2) in all recommendations''';
+
+      String prompt;
+      if (context != null && context.isNotEmpty) {
+        prompt = '''$systemPrompt
+
+USER HEALTH DATA:
+$context
+
+USER QUESTION: $userMessage
+
+Please provide a comprehensive, personalized response that:
+1. Addresses the user's specific question
+2. Uses their health data to personalize diet and exercise recommendations
+3. Provides specific meal suggestions based on their glucose levels and diabetes type
+4. Suggests appropriate exercise routines considering their current health status
+5. Includes safety tips and when to consult healthcare providers
+
+Format your response in a clear, easy-to-read manner with specific recommendations.''';
       } else {
-        prompt =
-            'You are a helpful AI assistant for diabetes management. Answer this question: $userMessage';
+        prompt = '''$systemPrompt
+
+USER QUESTION: $userMessage
+
+Please provide helpful, accurate medical advice for diabetes management. If the question is about diet or exercise, provide general recommendations and mention that personalized advice would be better with access to their health data.''';
       }
 
       return await generateText(prompt);
