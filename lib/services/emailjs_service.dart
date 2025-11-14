@@ -9,9 +9,9 @@ class EmailJSService {
   // 2. Create an email service (Gmail, Outlook, etc.)
   // 3. Create ONE email template (see EMAILJS_SETUP.md for template content)
   // 4. Get your Public Key from Account > API Keys
-  static const String _serviceId = 'service_sugenix'; // Your EmailJS Service ID
-  static const String _templateId = 'template_approval'; // Your Single Template ID
-  static const String _publicKey = 'YOUR_EMAILJS_PUBLIC_KEY'; // Your EmailJS Public Key
+  static const String _serviceId = 'service_f6ka8jm'; // Your EmailJS Service ID
+  static const String _templateId = 'template_u50mo7i'; // Your Single Template ID
+  static const String _publicKey = 'CHxG3ZYeXEUuvz1MA'; // Your EmailJS Public Key
   static const String _baseUrl = 'https://api.emailjs.com/api/v1.0/email/send';
 
   /// Send approval email to pharmacy or doctor
