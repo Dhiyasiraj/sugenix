@@ -10,9 +10,17 @@ class OfflineBanner extends StatelessWidget {
     return StreamBuilder<Map<String, bool>>(
       stream: sync.networkStatusStream(),
       builder: (context, snapshot) {
+        // Only show if we have data and there's actually an issue
+        if (!snapshot.hasData) return const SizedBox.shrink();
+        
         final isFromCache = snapshot.data?['isFromCache'] ?? false;
         final hasPending = snapshot.data?['hasPendingWrites'] ?? false;
+        
+        // Don't show if we're online and have no pending writes
         if (!isFromCache && !hasPending) return const SizedBox.shrink();
+        
+        // Don't show if snapshot has errors (collection doesn't exist)
+        if (snapshot.hasError) return const SizedBox.shrink();
 
         String text = '';
         Color bg = Colors.orange;

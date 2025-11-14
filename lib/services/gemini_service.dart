@@ -15,28 +15,44 @@ class GeminiService {
     try {
       final url = Uri.parse('$_textUrl?key=$_apiKey');
 
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'contents': [
-            {
-              'parts': [
-                {'text': prompt}
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'contents': [
+                {
+                  'parts': [
+                    {'text': prompt}
+                  ]
+                }
               ]
-            }
-          ]
-        }),
-      );
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['candidates'][0]['content']['parts'][0]['text'] ??
-            'No response';
+        if (data['candidates'] != null &&
+            data['candidates'].isNotEmpty &&
+            data['candidates'][0]['content'] != null &&
+            data['candidates'][0]['content']['parts'] != null &&
+            data['candidates'][0]['content']['parts'].isNotEmpty) {
+          return data['candidates'][0]['content']['parts'][0]['text'] ??
+              'No response';
+        } else {
+          throw Exception('Invalid response format from Gemini API');
+        }
       } else {
-        throw Exception('Failed to generate text: ${response.statusCode}');
+        final errorBody = response.body;
+        throw Exception(
+            'Failed to generate text: ${response.statusCode} - $errorBody');
       }
     } catch (e) {
+      if (e.toString().contains('timeout')) {
+        throw Exception(
+            'Request timeout. Please check your internet connection.');
+      }
       throw Exception('Error calling Gemini API: ${e.toString()}');
     }
   }

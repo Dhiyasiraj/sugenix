@@ -93,6 +93,28 @@ class AuthService {
     }
   }
 
+  // Change password
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      if (currentUser == null) throw Exception('No user logged in');
+      
+      // Re-authenticate user
+      final credential = EmailAuthProvider.credential(
+        email: currentUser!.email!,
+        password: currentPassword,
+      );
+      await currentUser!.reauthenticateWithCredential(credential);
+      
+      // Update password
+      await currentUser!.updatePassword(newPassword);
+    } catch (e) {
+      throw Exception('Password change failed: ${e.toString()}');
+    }
+  }
+
   // Update user profile
   Future<void> updateUserProfile({
     String? name,

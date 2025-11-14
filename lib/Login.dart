@@ -47,11 +47,12 @@ class _LoginState extends State<Login> {
           ),
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 const SizedBox(height: 40),
                 Text(
                   "Welcome back",
@@ -209,6 +210,7 @@ class _LoginState extends State<Login> {
                   ),
                 ),
               ],
+              ),
             ),
           ),
         ),

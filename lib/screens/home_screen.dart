@@ -13,6 +13,7 @@ import 'package:sugenix/services/favorites_service.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/widgets/translated_text.dart';
+import 'package:sugenix/screens/emergency_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -577,7 +578,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       'Emergency',
                       Icons.emergency,
                       const Color(0xFFF44336),
-                      () {},
+                      () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const EmergencyScreen(),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 15),

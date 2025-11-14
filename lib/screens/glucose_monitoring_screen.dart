@@ -636,9 +636,10 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text("Add Glucose Reading"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               TextField(
                 controller: glucoseController,
                 keyboardType: TextInputType.number,
@@ -678,7 +679,8 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
                 ),
                 maxLines: 2,
               ),
-            ],
+              ],
+            ),
           ),
           actions: [
             TextButton(
