@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sugenix/services/glucose_service.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
+import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
@@ -366,11 +367,13 @@ class _GlucoseHistoryScreenState extends State<GlucoseHistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: FutureBuilder<String>(
-          future: LanguageService.getTranslated('glucose_history'),
+        title: StreamBuilder<String>(
+          stream: LanguageService.currentLanguageStream,
           builder: (context, snapshot) {
+            final languageCode = snapshot.data ?? 'en';
+            final title = LanguageService.translate('glucose_history', languageCode);
             return Text(
-              snapshot.data ?? 'Glucose History',
+              title == 'glucose_history' ? 'Glucose History' : title,
               style: TextStyle(
                 color: const Color(0xFF0C4556),
                 fontWeight: FontWeight.bold,

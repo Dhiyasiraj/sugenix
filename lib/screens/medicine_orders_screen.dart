@@ -5,6 +5,7 @@ import 'package:sugenix/services/medicine_database_service.dart';
 import 'package:sugenix/services/medicine_cart_service.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
+import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/widgets/offline_banner.dart';
 import 'package:sugenix/screens/prescription_upload_screen.dart';
 import 'package:sugenix/screens/orders_list_screen.dart';
@@ -132,19 +133,7 @@ class _MedicineOrdersScreenState extends State<MedicineOrdersScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: FutureBuilder<String>(
-          future: LanguageService.getTranslated('medicine'),
-          builder: (context, snapshot) {
-            final title = snapshot.data ?? 'Medicine';
-            return Text(
-              title,
-              style: const TextStyle(
-                color: Color(0xFF0C4556),
-                fontWeight: FontWeight.bold,
-              ),
-            );
-          },
-        ),
+        title: TranslatedAppBarTitle('medicine', fallback: 'Medicine'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
           onPressed: () => Navigator.pop(context),
@@ -334,11 +323,142 @@ class _MedicineOrdersScreenState extends State<MedicineOrdersScreen> {
       case "Order history":
         Navigator.push(context, MaterialPageRoute(builder: (_) => OrdersListScreen()));
         break;
+      case "Help & Support":
+        _showHelpSupportDialog(context);
+        break;
       default:
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("$service feature coming soon!")),
         );
     }
+  }
+  
+  void _showHelpSupportDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Help & Support'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Need help? We\'re here for you!',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              _buildSupportOption(
+                context,
+                Icons.phone,
+                'Call Support',
+                '+91-XXXX-XXXXXX',
+                () {
+                  // Implement phone call
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Calling support...')),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              _buildSupportOption(
+                context,
+                Icons.email,
+                'Email Support',
+                'support@sugenix.com',
+                () {
+                  // Implement email
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Opening email client...')),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              _buildSupportOption(
+                context,
+                Icons.chat,
+                'Live Chat',
+                'Available 24/7',
+                () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Opening live chat...')),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              _buildSupportOption(
+                context,
+                Icons.help_outline,
+                'FAQs',
+                'Frequently Asked Questions',
+                () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Opening FAQs...')),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildSupportOption(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String subtitle,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: const Color(0xFF0C4556)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0C4556),
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
   }
 }
 

@@ -216,13 +216,17 @@ class GlucoseService {
   bool _shouldFlagReading(double value, String type) {
     switch (type) {
       case 'fasting':
-        return value < 70 || value > 130;
+        // Normal: 70-99, Prediabetes: 100-125, Diabetes: 126+
+        return value < 70 || value >= 100;
       case 'post_meal':
-        return value < 70 || value > 180;
+        // Normal: <140, Prediabetes: 140-199, Diabetes: 200+
+        return value >= 140;
       case 'random':
-        return value < 70 || value > 200;
+        // Normal: 80-140, Diabetes: 200+ with symptoms
+        return value < 80 || value >= 200;
       case 'bedtime':
-        return value < 70 || value > 150;
+        // Normal: 90-150
+        return value < 90 || value > 150;
       default:
         return value < 70 || value > 180;
     }

@@ -22,11 +22,15 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: FutureBuilder<String>(
-          future: LanguageService.getTranslated('home'),
+        title: StreamBuilder<String>(
+          stream: LanguageService.currentLanguageStream,
           builder: (context, snapshot) {
-            final title = snapshot.data ?? 'Emergency';
-            return Text(title, style: const TextStyle(color: Colors.white));
+            final languageCode = snapshot.data ?? 'en';
+            final title = LanguageService.translate('home', languageCode);
+            return Text(
+              title == 'home' ? 'Emergency' : title,
+              style: const TextStyle(color: Colors.white),
+            );
           },
         ),
         actions: [

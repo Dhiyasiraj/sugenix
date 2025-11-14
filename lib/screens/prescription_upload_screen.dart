@@ -2,6 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sugenix/services/medicine_orders_service.dart';
+import 'package:sugenix/services/gemini_service.dart';
+import 'package:sugenix/services/medicine_database_service.dart';
+import 'package:sugenix/screens/medicine_catalog_screen.dart';
 
 class PrescriptionUploadScreen extends StatefulWidget {
   const PrescriptionUploadScreen({super.key});
@@ -12,10 +15,15 @@ class PrescriptionUploadScreen extends StatefulWidget {
 
 class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
   final MedicineOrdersService _ordersService = MedicineOrdersService();
+  final MedicineDatabaseService _medicineService = MedicineDatabaseService();
   final ImagePicker _picker = ImagePicker();
   final List<XFile> _selectedImages = [];
   bool _uploading = false;
+  bool _analyzing = false;
   String? _uploadedPrescriptionId;
+  List<Map<String, dynamic>> _suggestedMedicines = [];
+  List<Map<String, dynamic>> _availableMedicines = [];
+  List<Map<String, dynamic>> _unavailableMedicines = [];
 
   Future<void> _pickImages() async {
     final images = await _picker.pickMultiImage(imageQuality: 80);
@@ -44,20 +52,80 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
       );
       return;
     }
-    setState(() => _uploading = true);
+    setState(() {
+      _uploading = true;
+      _analyzing = true;
+      _suggestedMedicines.clear();
+      _availableMedicines.clear();
+      _unavailableMedicines.clear();
+    });
+    
     try {
+      // Step 1: Upload prescription
       final id = await _ordersService.uploadPrescription(_selectedImages);
+      
+      // Step 2: Analyze prescription using Gemini
+      if (_selectedImages.isNotEmpty) {
+        final extractedText = await GeminiService.extractTextFromImage(_selectedImages.first);
+        final medicines = await GeminiService.analyzePrescription(extractedText);
+        
+        // Step 3: Check availability in pharmacy
+        for (var medicine in medicines) {
+          final medicineName = medicine['name'] ?? '';
+          if (medicineName.isNotEmpty) {
+            try {
+              final pharmacyMedicines = await _medicineService.searchMedicines(medicineName);
+              if (pharmacyMedicines.isNotEmpty) {
+                _availableMedicines.add({
+                  ...medicine,
+                  'pharmacyData': pharmacyMedicines.first,
+                });
+              } else {
+                // Get info from Gemini for unavailable medicines
+                final geminiInfo = await GeminiService.getMedicineInfo(medicineName);
+                _unavailableMedicines.add({
+                  ...medicine,
+                  'geminiInfo': geminiInfo,
+                });
+              }
+            } catch (e) {
+              // If search fails, mark as unavailable
+              _unavailableMedicines.add(medicine);
+            }
+          }
+        }
+        
+        setState(() {
+          _suggestedMedicines = medicines;
+        });
+      }
+      
       if (!mounted) return;
       setState(() {
         _uploadedPrescriptionId = id;
+        _analyzing = false;
       });
+      
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Prescription uploaded successfully')),
+        SnackBar(
+          content: Text(_suggestedMedicines.isNotEmpty 
+              ? 'Prescription analyzed! ${_availableMedicines.length} medicines available.'
+              : 'Prescription uploaded successfully'),
+          backgroundColor: Colors.green,
+        ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: ${e.toString()}')),
-      );
+      if (mounted) {
+        setState(() {
+          _analyzing = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Upload failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -215,7 +283,73 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
                     ),
             ),
           ),
-          if (_uploadedPrescriptionId != null)
+          if (_analyzing)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(
+                child: Column(
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 12),
+                    Text('Analyzing prescription with AI...'),
+                  ],
+                ),
+              ),
+            ),
+          if (_suggestedMedicines.isNotEmpty && !_analyzing)
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Suggested Medicines',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0C4556),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (_availableMedicines.isNotEmpty) ...[
+                      const Text(
+                        'Available in Pharmacy',
+                        style: TextStyle(fontWeight: FontWeight.w600, color: Colors.green),
+                      ),
+                      const SizedBox(height: 8),
+                      ..._availableMedicines.map((medicine) => _buildMedicineCard(medicine, true)),
+                      const SizedBox(height: 16),
+                    ],
+                    if (_unavailableMedicines.isNotEmpty) ...[
+                      const Text(
+                        'Not Available in Pharmacy',
+                        style: TextStyle(fontWeight: FontWeight.w600, color: Colors.orange),
+                      ),
+                      const SizedBox(height: 8),
+                      ..._unavailableMedicines.map((medicine) => _buildMedicineCard(medicine, false)),
+                    ],
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const MedicineCatalogScreen()),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0C4556),
+                        ),
+                        child: const Text('View All Medicines', style: TextStyle(color: Colors.white)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (_uploadedPrescriptionId != null && _suggestedMedicines.isEmpty)
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -276,6 +410,77 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
             style: TextStyle(color: Colors.grey),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMedicineCard(Map<String, dynamic> medicine, bool available) {
+    final pharmacyData = medicine['pharmacyData'];
+    final geminiInfo = medicine['geminiInfo'];
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      color: available ? Colors.green.withOpacity(0.05) : Colors.orange.withOpacity(0.05),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  available ? Icons.check_circle : Icons.info,
+                  color: available ? Colors.green : Colors.orange,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    medicine['name'] ?? 'Unknown',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+            if (medicine['dosage'] != null) ...[
+              const SizedBox(height: 4),
+              Text('Dosage: ${medicine['dosage']}'),
+            ],
+            if (available && pharmacyData != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Price: ₹${(pharmacyData['price'] ?? 0.0).toStringAsFixed(2)}',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MedicineCatalogScreen()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0C4556),
+                ),
+                child: const Text('Add to Cart', style: TextStyle(color: Colors.white)),
+              ),
+            ] else if (geminiInfo != null) ...[
+              const SizedBox(height: 8),
+              if (geminiInfo['priceRange'] != null)
+                Text('Estimated Price: ${geminiInfo['priceRange']}'),
+              if (geminiInfo['uses'] != null && geminiInfo['uses'] is List) ...[
+                const SizedBox(height: 8),
+                const Text('Uses:', style: TextStyle(fontWeight: FontWeight.w600)),
+                ...(geminiInfo['uses'] as List).take(3).map((use) => Text('• $use')),
+              ],
+              if (geminiInfo['sideEffects'] != null && geminiInfo['sideEffects'] is List) ...[
+                const SizedBox(height: 8),
+                const Text('Side Effects:', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red)),
+                ...(geminiInfo['sideEffects'] as List).take(3).map((effect) => Text('• $effect', style: const TextStyle(color: Colors.red))),
+              ],
+            ],
+          ],
+        ),
       ),
     );
   }

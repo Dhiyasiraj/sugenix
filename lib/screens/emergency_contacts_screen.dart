@@ -226,11 +226,13 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: FutureBuilder<String>(
-          future: LanguageService.getTranslated('emergency_contacts'),
+        title: StreamBuilder<String>(
+          stream: LanguageService.currentLanguageStream,
           builder: (context, snapshot) {
+            final languageCode = snapshot.data ?? 'en';
+            final title = LanguageService.translate('emergency_contacts', languageCode);
             return Text(
-              snapshot.data ?? 'Emergency Contacts',
+              title == 'emergency_contacts' ? 'Emergency Contacts' : title,
               style: TextStyle(
                 color: const Color(0xFF0C4556),
                 fontWeight: FontWeight.bold,

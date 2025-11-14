@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:sugenix/services/glucose_service.dart';
+import 'package:sugenix/services/gemini_service.dart';
 import 'package:sugenix/screens/glucose_history_screen.dart';
 import 'package:sugenix/widgets/offline_banner.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
+import 'package:sugenix/widgets/translated_text.dart';
 
 class GlucoseMonitoringScreen extends StatefulWidget {
   const GlucoseMonitoringScreen({super.key});
@@ -18,6 +20,7 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
   final GlucoseService _glucoseService = GlucoseService();
   List<Map<String, dynamic>> _glucoseRecords = [];
   bool _isLoading = true;
+  Map<String, dynamic>? _aiRecommendations;
 
   @override
   void initState() {
@@ -32,6 +35,10 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
           _glucoseRecords = records;
           _isLoading = false;
         });
+        // Load AI recommendations when records are available
+        if (records.isNotEmpty) {
+          _loadAIRecommendations();
+        }
       }
     });
   }
@@ -42,19 +49,7 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: FutureBuilder<String>(
-          future: LanguageService.getTranslated('glucose'),
-          builder: (context, snapshot) {
-            final title = snapshot.data ?? 'Glucose';
-            return Text(
-              title,
-              style: const TextStyle(
-                color: Color(0xFF0C4556),
-                fontWeight: FontWeight.bold,
-              ),
-            );
-          },
-        ),
+        title: TranslatedAppBarTitle('glucose', fallback: 'Glucose'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
           onPressed: () => Navigator.pop(context),
@@ -111,7 +106,10 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
     final glucoseLevel = latestRecord != null
         ? (latestRecord['value'] as double)
         : 0.0;
-    final status = _getGlucoseStatus(glucoseLevel);
+    final readingType = latestRecord != null
+        ? (latestRecord['type'] as String?)
+        : null;
+    final status = _getGlucoseStatus(glucoseLevel, readingType);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -162,8 +160,9 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
   }
 
   Widget _buildAIAnalysis() {
-    // Calculate AI predictions based on recent data (UI only - no actual AI)
+    // Calculate AI predictions based on recent data
     final prediction = _calculateAIPrediction();
+    final recommendations = _aiRecommendations;
     
     return Container(
       padding: const EdgeInsets.all(20),
@@ -272,9 +271,29 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          ...(prediction['recommendations'] as List<String>)
-              .map((rec) => _buildRecommendationItem(rec))
-              .toList(),
+          if (recommendations != null) ...[
+            if (recommendations['dietPlan'] != null) ...[
+              _buildSectionTitle('Diet Plan', Icons.restaurant),
+              const SizedBox(height: 8),
+              _buildDietPlan(recommendations['dietPlan']),
+              const SizedBox(height: 12),
+            ],
+            if (recommendations['exercise'] != null) ...[
+              _buildSectionTitle('Exercise', Icons.fitness_center),
+              const SizedBox(height: 8),
+              _buildExercisePlan(recommendations['exercise']),
+              const SizedBox(height: 12),
+            ],
+            if (recommendations['tips'] != null && recommendations['tips'] is List) ...[
+              _buildSectionTitle('Tips', Icons.lightbulb),
+              const SizedBox(height: 8),
+              ...(recommendations['tips'] as List).map((tip) => _buildRecommendationItem(tip.toString())).toList(),
+            ],
+          ] else ...[
+            ...(prediction['recommendations'] as List<String>)
+                .map((rec) => _buildRecommendationItem(rec))
+                .toList(),
+          ],
         ],
       ),
     );
@@ -411,7 +430,8 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
 
   Widget _buildReadingCard(Map<String, dynamic> record) {
     final value = record['value'] as double;
-    final status = _getGlucoseStatus(value);
+    final readingType = record['type'] as String?;
+    final status = _getGlucoseStatus(value, readingType);
     final timestamp = record['timestamp'] as Timestamp;
     final timeAgo = _getTimeAgo(timestamp.toDate());
 
@@ -695,17 +715,111 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
     );
   }
 
-  Map<String, dynamic> _getGlucoseStatus(double value) {
-    const statusColor = Color(0xFF0C4556);
-    if (value < 70) {
-      return {
-        'color': statusColor,
-        'message': 'Low - Consider immediate action',
-      };
-    } else if (value > 180) {
-      return {'color': statusColor, 'message': 'High - Monitor closely'};
-    } else {
-      return {'color': statusColor, 'message': 'Normal - Good control'};
+  Map<String, dynamic> _getGlucoseStatus(double value, [String? type]) {
+    // Get status based on reading type with proper ranges
+    final readingType = type ?? 'random';
+    
+    switch (readingType) {
+      case 'fasting':
+        if (value < 70) {
+          return {
+            'color': Colors.red,
+            'message': 'Low - Consider immediate action',
+          };
+        } else if (value >= 70 && value <= 99) {
+          return {
+            'color': Colors.green,
+            'message': 'Normal (70-99 mg/dL)',
+          };
+        } else if (value >= 100 && value <= 125) {
+          return {
+            'color': Colors.orange,
+            'message': 'Prediabetes (100-125 mg/dL)',
+          };
+        } else {
+          return {
+            'color': Colors.red,
+            'message': 'Diabetes (126+ mg/dL) - Consult doctor',
+          };
+        }
+      case 'post_meal':
+        if (value < 70) {
+          return {
+            'color': Colors.red,
+            'message': 'Low - Consider immediate action',
+          };
+        } else if (value < 140) {
+          return {
+            'color': Colors.green,
+            'message': 'Normal (<140 mg/dL)',
+          };
+        } else if (value >= 140 && value <= 199) {
+          return {
+            'color': Colors.orange,
+            'message': 'Prediabetes (140-199 mg/dL)',
+          };
+        } else {
+          return {
+            'color': Colors.red,
+            'message': 'Diabetes (200+ mg/dL) - Consult doctor',
+          };
+        }
+      case 'random':
+        if (value < 80) {
+          return {
+            'color': Colors.red,
+            'message': 'Low - Consider immediate action',
+          };
+        } else if (value >= 80 && value <= 140) {
+          return {
+            'color': Colors.green,
+            'message': 'Normal (80-140 mg/dL)',
+          };
+        } else if (value >= 200) {
+          return {
+            'color': Colors.red,
+            'message': 'Diabetes (200+ mg/dL) - Consult doctor',
+          };
+        } else {
+          return {
+            'color': Colors.orange,
+            'message': 'Elevated - Monitor closely',
+          };
+        }
+      case 'bedtime':
+        if (value < 90) {
+          return {
+            'color': Colors.red,
+            'message': 'Low - Consider immediate action',
+          };
+        } else if (value >= 90 && value <= 150) {
+          return {
+            'color': Colors.green,
+            'message': 'Normal (90-150 mg/dL)',
+          };
+        } else {
+          return {
+            'color': Colors.orange,
+            'message': 'High - Monitor closely',
+          };
+        }
+      default:
+        if (value < 70) {
+          return {
+            'color': Colors.red,
+            'message': 'Low - Consider immediate action',
+          };
+        } else if (value > 180) {
+          return {
+            'color': Colors.orange,
+            'message': 'High - Monitor closely',
+          };
+        } else {
+          return {
+            'color': Colors.green,
+            'message': 'Normal - Good control',
+          };
+        }
     }
   }
 
@@ -734,6 +848,126 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
       return '${difference.inHours}h ago';
     } else {
       return '${difference.inDays}d ago';
+    }
+  }
+
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: const Color(0xFF0C4556)),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF0C4556),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDietPlan(Map<String, dynamic> dietPlan) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (dietPlan['breakfast'] != null)
+            _buildMealItem('Breakfast', dietPlan['breakfast'].toString()),
+          if (dietPlan['lunch'] != null)
+            _buildMealItem('Lunch', dietPlan['lunch'].toString()),
+          if (dietPlan['dinner'] != null)
+            _buildMealItem('Dinner', dietPlan['dinner'].toString()),
+          if (dietPlan['snacks'] != null && dietPlan['snacks'] is List)
+            _buildMealItem('Snacks', (dietPlan['snacks'] as List).join(', ')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMealItem(String meal, String content) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$meal: ',
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+          ),
+          Expanded(
+            child: Text(
+              content,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExercisePlan(Map<String, dynamic> exercise) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.green.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (exercise['type'] != null)
+            Text('Type: ${exercise['type']}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          if (exercise['duration'] != null)
+            Text('Duration: ${exercise['duration']}', style: const TextStyle(fontSize: 13)),
+          if (exercise['frequency'] != null)
+            Text('Frequency: ${exercise['frequency']}', style: const TextStyle(fontSize: 13)),
+          if (exercise['tips'] != null && exercise['tips'] is List) ...[
+            const SizedBox(height: 8),
+            ...(exercise['tips'] as List).map((tip) => Text('• $tip', style: const TextStyle(fontSize: 12))).toList(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _loadAIRecommendations() async {
+    if (_glucoseRecords.isEmpty) return;
+    
+    try {
+      final latestRecord = _glucoseRecords.first;
+      final glucoseLevel = latestRecord['value'] as double;
+      final readingType = latestRecord['type'] as String? ?? 'random';
+      final recentReadings = _glucoseRecords.take(7).map((r) => {
+        'value': r['value'],
+        'type': r['type'],
+      }).toList();
+      
+      final recommendations = await GeminiService.getGlucoseRecommendations(
+        glucoseLevel: glucoseLevel,
+        readingType: readingType,
+        recentReadings: recentReadings,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _aiRecommendations = recommendations;
+        });
+      }
+    } catch (e) {
+      // Silently fail - fallback recommendations will be shown
+      if (mounted) {
+        setState(() {
+          _aiRecommendations = null;
+        });
+      }
     }
   }
 }

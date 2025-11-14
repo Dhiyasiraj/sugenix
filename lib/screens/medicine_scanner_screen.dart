@@ -4,10 +4,13 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:sugenix/services/platform_image_service.dart';
 import 'package:sugenix/services/medicine_database_service.dart';
-import 'package:sugenix/services/cloudinary_service.dart';
+import 'package:sugenix/services/gemini_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
+import 'package:sugenix/widgets/translated_text.dart';
+import 'package:sugenix/services/medicine_cart_service.dart';
+import 'package:sugenix/screens/medicine_catalog_screen.dart';
 
 class MedicineScannerScreen extends StatefulWidget {
   const MedicineScannerScreen({super.key});
@@ -18,9 +21,12 @@ class MedicineScannerScreen extends StatefulWidget {
 
 class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
   final MedicineDatabaseService _medicineService = MedicineDatabaseService();
+  final MedicineCartService _cartService = MedicineCartService();
   XFile? _scannedImage;
   bool _isProcessing = false;
   Map<String, dynamic>? _medicineInfo;
+  bool _medicineFoundInPharmacy = false;
+  Map<String, dynamic>? _pharmacyMedicine;
 
   Future<void> _pickImage() async {
     try {
@@ -45,75 +51,130 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
   Future<void> _processImage(XFile image) async {
     setState(() {
       _isProcessing = true;
+      _medicineInfo = null;
+      _medicineFoundInPharmacy = false;
+      _pharmacyMedicine = null;
     });
 
     try {
-      // Upload image to Cloudinary
-      final imageUrl = await CloudinaryService.uploadImage(image);
+      // Step 1: Extract text from image using Gemini Vision
+      final extractedText = await GeminiService.extractTextFromImage(image);
 
-      // Try to search for medicine by image or get a common medicine
-      // In real implementation, you would use OCR to extract medicine name/barcode
-      // For now, we'll try to search for common diabetes medicines
-      List<Map<String, dynamic>> medicines = [];
-      
-      try {
-        medicines = await _medicineService.searchMedicines('metformin');
-        if (medicines.isEmpty) {
-          medicines = await _medicineService.searchMedicines('diabetes');
-        }
-      } catch (e) {
-        // If search fails, continue with fallback
+      // Step 2: Extract medicine name from text
+      String medicineName = _extractMedicineName(extractedText);
+
+      if (medicineName.isEmpty) {
+        // Try to get medicine name from Gemini analysis
+        final analysis = await GeminiService.generateText(
+            'From this text extracted from a medicine label, identify the medicine name: $extractedText\n\nReturn only the medicine name.');
+        medicineName = analysis.trim();
       }
 
-      // Use found medicine or show message to user
-      if (medicines.isNotEmpty) {
-        final medicine = medicines.first;
-        
-        // Save scanned medicine
-        await _medicineService.saveScannedMedicine(
-          imageUrl: imageUrl,
-          medicineInfo: medicine,
-        );
+      if (medicineName.isEmpty) {
+        throw Exception('Could not identify medicine name from image');
+      }
 
-        // Convert Firestore data to display format
-        setState(() {
-          _isProcessing = false;
-          _medicineInfo = {
-            'name': medicine['name'] ?? 'Unknown Medicine',
-            'manufacturer': medicine['manufacturer'] ?? '',
-            'type': medicine['type'] ?? medicine['description'] ?? '',
-            'activeIngredient': medicine['activeIngredient'] ?? '',
-            'strength': medicine['strength'] ?? '',
-            'form': medicine['form'] ?? '',
-            'uses': medicine['uses'] is List ? (medicine['uses'] as List).map((e) => e.toString()).toList() : [],
-            'dosage': medicine['dosage'] ?? '',
-            'precautions': medicine['precautions'] is List ? (medicine['precautions'] as List).map((e) => e.toString()).toList() : [],
-            'sideEffects': medicine['sideEffects'] is List ? (medicine['sideEffects'] as List).map((e) => e.toString()).toList() : [],
-            'storage': medicine['storage'] ?? '',
-            'expiryDate': medicine['expiryDate'] ?? '',
-            'batchNumber': medicine['batchNumber'] ?? '',
-          };
-        });
+      // Step 3: Check if medicine exists in pharmacy database
+      List<Map<String, dynamic>> pharmacyMedicines = [];
+      try {
+        pharmacyMedicines =
+            await _medicineService.searchMedicines(medicineName);
+      } catch (e) {
+        // Continue even if search fails
+      }
+
+      // Step 4: Get medicine information from Gemini
+      final geminiInfo = await GeminiService.getMedicineInfo(medicineName);
+
+      // Step 5: If found in pharmacy, use pharmacy data; otherwise use Gemini data
+      Map<String, dynamic> medicineData;
+      if (pharmacyMedicines.isNotEmpty) {
+        _medicineFoundInPharmacy = true;
+        _pharmacyMedicine = pharmacyMedicines.first;
+        medicineData = {
+          'name': pharmacyMedicines.first['name'] ?? medicineName,
+          'manufacturer': pharmacyMedicines.first['manufacturer'] ??
+              geminiInfo['manufacturer'] ??
+              '',
+          'type': pharmacyMedicines.first['type'] ?? geminiInfo['form'] ?? '',
+          'activeIngredient': pharmacyMedicines.first['activeIngredient'] ?? '',
+          'strength': pharmacyMedicines.first['strength'] ??
+              geminiInfo['strength'] ??
+              '',
+          'form': pharmacyMedicines.first['form'] ?? geminiInfo['form'] ?? '',
+          'uses': pharmacyMedicines.first['uses'] is List
+              ? (pharmacyMedicines.first['uses'] as List)
+                  .map((e) => e.toString())
+                  .toList()
+              : (geminiInfo['uses'] is List
+                  ? List<String>.from(geminiInfo['uses'])
+                  : []),
+          'dosage':
+              pharmacyMedicines.first['dosage'] ?? geminiInfo['dosage'] ?? '',
+          'precautions': pharmacyMedicines.first['precautions'] is List
+              ? (pharmacyMedicines.first['precautions'] as List)
+                  .map((e) => e.toString())
+                  .toList()
+              : (geminiInfo['precautions'] is List
+                  ? List<String>.from(geminiInfo['precautions'])
+                  : []),
+          'sideEffects': pharmacyMedicines.first['sideEffects'] is List
+              ? (pharmacyMedicines.first['sideEffects'] as List)
+                  .map((e) => e.toString())
+                  .toList()
+              : (geminiInfo['sideEffects'] is List
+                  ? List<String>.from(geminiInfo['sideEffects'])
+                  : []),
+          'price': pharmacyMedicines.first['price'] ?? 0.0,
+          'priceRange': geminiInfo['priceRange'] ?? '',
+          'available': true,
+        };
       } else {
-        // Show message that medicine was not found
-        setState(() {
-          _isProcessing = false;
-        });
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Medicine not found in database. Please try searching manually or consult your doctor.'),
-              duration: Duration(seconds: 4),
-            ),
-          );
-        }
+        _medicineFoundInPharmacy = false;
+        medicineData = {
+          'name': medicineName,
+          'manufacturer': geminiInfo['manufacturer'] ?? '',
+          'type': geminiInfo['form'] ?? '',
+          'activeIngredient': '',
+          'strength': geminiInfo['strength'] ?? '',
+          'form': geminiInfo['form'] ?? '',
+          'uses': geminiInfo['uses'] is List
+              ? List<String>.from(geminiInfo['uses'])
+              : [],
+          'dosage': geminiInfo['dosage'] ?? '',
+          'precautions': geminiInfo['precautions'] is List
+              ? List<String>.from(geminiInfo['precautions'])
+              : [],
+          'sideEffects': geminiInfo['sideEffects'] is List
+              ? List<String>.from(geminiInfo['sideEffects'])
+              : [],
+          'price': 0.0,
+          'priceRange': geminiInfo['priceRange'] ?? '',
+          'available': false,
+        };
+      }
+
+      setState(() {
+        _isProcessing = false;
+        _medicineInfo = medicineData;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_medicineFoundInPharmacy
+                ? 'Medicine found in pharmacy! You can add it to cart.'
+                : 'Medicine information retrieved. Not available in pharmacy.'),
+            backgroundColor:
+                _medicineFoundInPharmacy ? Colors.green : Colors.orange,
+          ),
+        );
       }
     } catch (e) {
       setState(() {
         _isProcessing = false;
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -125,25 +186,29 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
     }
   }
 
+  String _extractMedicineName(String text) {
+    // Simple extraction - look for common medicine name patterns
+    final lines = text.split('\n');
+    for (var line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.isNotEmpty &&
+          trimmed.length > 3 &&
+          trimmed.length < 50 &&
+          !trimmed.toLowerCase().contains('mg') &&
+          !trimmed.toLowerCase().contains('ml')) {
+        return trimmed;
+      }
+    }
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: FutureBuilder<String>(
-          future: LanguageService.getTranslated('medicine'),
-          builder: (context, snapshot) {
-            final title = snapshot.data ?? 'Medicine Scanner';
-            return Text(
-              title,
-              style: const TextStyle(
-                color: Color(0xFF0C4556),
-                fontWeight: FontWeight.bold,
-              ),
-            );
-          },
-        ),
+        title: TranslatedAppBarTitle('medicine', fallback: 'Medicine Scanner'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
           onPressed: () => Navigator.pop(context),
@@ -234,7 +299,8 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return const Center(
-                            child: Icon(Icons.image, size: 60, color: Colors.grey),
+                            child:
+                                Icon(Icons.image, size: 60, color: Colors.grey),
                           );
                         },
                       )
@@ -243,7 +309,8 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return const Center(
-                            child: Icon(Icons.image, size: 60, color: Colors.grey),
+                            child:
+                                Icon(Icons.image, size: 60, color: Colors.grey),
                           );
                         },
                       ),
@@ -403,7 +470,8 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
           ),
           const SizedBox(height: 20),
           _buildInfoSection('Type', info['type'] as String),
-          _buildInfoSection('Active Ingredient', info['activeIngredient'] as String),
+          _buildInfoSection(
+              'Active Ingredient', info['activeIngredient'] as String),
           _buildInfoSection('Strength', info['strength'] as String),
           _buildInfoSection('Form', info['form'] as String),
           const Divider(height: 30),
@@ -424,9 +492,130 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
           ),
           const SizedBox(height: 20),
           _buildInfoSection('Dosage', info['dosage'] as String),
-          _buildInfoSection('Storage', info['storage'] as String),
-          _buildInfoSection('Expiry Date', info['expiryDate'] as String),
-          _buildInfoSection('Batch Number', info['batchNumber'] as String),
+          if (info['priceRange'] != null &&
+              (info['priceRange'] as String).isNotEmpty)
+            _buildInfoSection('Estimated Price', info['priceRange'] as String),
+          if (_medicineFoundInPharmacy && _pharmacyMedicine != null) ...[
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.green),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Available in Pharmacy',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Price: ₹${(_pharmacyMedicine!['price'] ?? 0.0).toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0C4556),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        try {
+                          await _cartService.addToCart(
+                            medicineId: _pharmacyMedicine!['id'] ?? '',
+                            name: _pharmacyMedicine!['name'] ??
+                                info['name'] ??
+                                'Medicine',
+                            price:
+                                (_pharmacyMedicine!['price'] ?? 0.0).toDouble(),
+                            quantity: 1,
+                            manufacturer: _pharmacyMedicine!['manufacturer'],
+                          );
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Added to cart!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const MedicineCatalogScreen(),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'Failed to add to cart: ${e.toString()}'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.shopping_cart),
+                      label: const Text('Add to Cart'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0C4556),
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.info, color: Colors.orange),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Not Available in Pharmacy',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'This medicine is not currently available in our pharmacy. Please consult your doctor or visit a local pharmacy.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -537,4 +726,3 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
     );
   }
 }
-

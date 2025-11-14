@@ -12,6 +12,7 @@ import 'package:sugenix/services/doctor_service.dart';
 import 'package:sugenix/services/favorites_service.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
+import 'package:sugenix/widgets/translated_text.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -111,15 +112,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: FutureBuilder<String>(
-          future: LanguageService.getTranslated('home'),
-          builder: (context, snapshot) {
-            final title = snapshot.data ?? 'Home';
-            return Text(title,
-                style: const TextStyle(
-                    color: Color(0xFF0C4556), fontWeight: FontWeight.bold));
-          },
-        ),
+        title: TranslatedAppBarTitle('home', fallback: 'Home'),
         actions: [
           IconButton(
             icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
@@ -522,7 +515,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       'Add Reading',
                       Icons.add_circle,
                       const Color(0xFF4CAF50),
-                      () {},
+                      () {
+                        Navigator.pushNamed(context, '/glucose-monitoring');
+                      },
                     ),
                   ),
                   const SizedBox(width: 15),
@@ -531,7 +526,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       'View History',
                       Icons.history,
                       const Color(0xFF2196F3),
-                      () {},
+                      () {
+                        Navigator.pushNamed(context, '/glucose-history');
+                      },
                     ),
                   ),
                 ],

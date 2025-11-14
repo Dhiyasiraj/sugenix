@@ -64,12 +64,13 @@ class _WellnessScreenState extends State<WellnessScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: FutureBuilder<String>(
-          future: LanguageService.getTranslated('home'),
+        title: StreamBuilder<String>(
+          stream: LanguageService.currentLanguageStream,
           builder: (context, snapshot) {
-            final title = snapshot.data ?? 'Wellness';
+            final languageCode = snapshot.data ?? 'en';
+            final title = LanguageService.translate('home', languageCode);
             return Text(
-              title,
+              title == 'home' ? 'Wellness' : title,
               style: const TextStyle(
                 color: Color(0xFF0C4556),
                 fontWeight: FontWeight.bold,

@@ -1,8 +1,25 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 
 class LanguageService {
   static const String _languageKey = 'selected_language';
   static const String _defaultLanguage = 'en';
+
+  // Stream controller for language changes
+  static final _languageController = StreamController<String>.broadcast();
+
+  // Stream to listen for language changes
+  static Stream<String> get languageStream => _languageController.stream;
+
+  // Stream that emits current language immediately and on changes
+  static Stream<String> get currentLanguageStream async* {
+    // Emit current language immediately
+    yield await getSelectedLanguage();
+    // Then listen for changes
+    yield* _languageController.stream.asyncMap((_) async {
+      return await getSelectedLanguage();
+    });
+  }
 
   static final Map<String, Map<String, String>> _translations = {
     'en': {
@@ -89,9 +106,29 @@ class LanguageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_languageKey, languageCode);
+      // Notify listeners about language change - this will trigger rebuilds
+      _languageController.add(languageCode);
     } catch (e) {
       // Handle error
     }
+  }
+
+  // Get current language code synchronously (for initial load)
+  static String? _currentLanguage;
+
+  // Initialize current language
+  static Future<void> initialize() async {
+    _currentLanguage = await getSelectedLanguage();
+  }
+
+  // Get current language (cached)
+  static String getCurrentLanguage() {
+    return _currentLanguage ?? _defaultLanguage;
+  }
+
+  // Dispose stream controller (call this when app closes)
+  static void dispose() {
+    _languageController.close();
   }
 
   static String translate(String key, String languageCode) {
@@ -104,5 +141,12 @@ class LanguageService {
     final languageCode = await getSelectedLanguage();
     return translate(key, languageCode);
   }
-}
 
+  // Get translated text stream that updates when language changes
+  static Stream<String> getTranslatedStream(String key) {
+    return languageStream.map((_) async {
+      final lang = await getSelectedLanguage();
+      return translate(key, lang);
+    }).asyncMap((future) => future);
+  }
+}

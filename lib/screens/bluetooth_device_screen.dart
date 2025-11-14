@@ -222,11 +222,13 @@ class _BluetoothDeviceScreenState extends State<BluetoothDeviceScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: FutureBuilder<String>(
-          future: LanguageService.getTranslated('bluetooth_devices'),
+        title: StreamBuilder<String>(
+          stream: LanguageService.currentLanguageStream,
           builder: (context, snapshot) {
+            final languageCode = snapshot.data ?? 'en';
+            final title = LanguageService.translate('bluetooth_devices', languageCode);
             return Text(
-              snapshot.data ?? 'Bluetooth Devices',
+              title == 'bluetooth_devices' ? 'Bluetooth Devices' : title,
               style: TextStyle(
                 color: const Color(0xFF0C4556),
                 fontWeight: FontWeight.bold,

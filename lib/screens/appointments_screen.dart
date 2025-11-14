@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
+import 'package:sugenix/widgets/translated_text.dart';
 
 class AppointmentsScreen extends StatefulWidget {
   const AppointmentsScreen({super.key});
@@ -61,12 +62,13 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: FutureBuilder<String>(
-          future: LanguageService.getTranslated('home'),
+        title: StreamBuilder<String>(
+          stream: LanguageService.currentLanguageStream,
           builder: (context, snapshot) {
-            final title = snapshot.data ?? 'My Appointments';
+            final languageCode = snapshot.data ?? 'en';
+            final title = LanguageService.translate('home', languageCode);
             return Text(
-              title,
+              title == 'home' ? 'My Appointments' : title,
               style: TextStyle(
                 color: const Color(0xFF0C4556),
                 fontWeight: FontWeight.bold,

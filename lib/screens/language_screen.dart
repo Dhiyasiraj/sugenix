@@ -63,6 +63,8 @@ class _LanguageScreenState extends State<LanguageScreen> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Language updated')),
                       );
+                      // Return the selected language code
+                      Navigator.pop(context, v);
                     },
                   ),
                   onTap: () async {
@@ -72,6 +74,8 @@ class _LanguageScreenState extends State<LanguageScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Language updated')),
                     );
+                    // Return the selected language code
+                    Navigator.pop(context, code);
                   },
                 );
               },

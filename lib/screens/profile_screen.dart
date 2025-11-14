@@ -9,9 +9,12 @@ import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
+import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/services/role_service.dart';
 import 'package:sugenix/screens/admin_panel_screen.dart';
 import 'package:sugenix/screens/doctor_dashboard_screen.dart';
+import 'package:sugenix/screens/pharmacy_dashboard_screen.dart';
+import 'package:sugenix/screens/settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -105,19 +108,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: FutureBuilder<String>(
-          future: LanguageService.getTranslated('profile'),
-          builder: (context, snapshot) {
-            final title = snapshot.data ?? 'Profile';
-            return Text(
-              title,
-              style: const TextStyle(
-                color: Color(0xFF0C4556),
-                fontWeight: FontWeight.bold,
-              ),
-            );
-          },
-        ),
+        title: TranslatedAppBarTitle('profile', fallback: 'Profile'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
           onPressed: () => Navigator.pop(context),
@@ -129,22 +120,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
               final role = snapshot.data ?? 'user';
               if (role == 'admin') {
                 return IconButton(
-                  icon: const Icon(Icons.admin_panel_settings, color: Color(0xFF0C4556)),
+                  icon: const Icon(Icons.admin_panel_settings,
+                      color: Color(0xFF0C4556)),
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const AdminPanelScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const AdminPanelScreen()),
                     );
                   },
                 );
               }
               if (role == 'doctor') {
                 return IconButton(
-                  icon: const Icon(Icons.medical_information, color: Color(0xFF0C4556)),
+                  icon: const Icon(Icons.medical_information,
+                      color: Color(0xFF0C4556)),
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const DoctorDashboardScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const DoctorDashboardScreen()),
+                    );
+                  },
+                );
+              }
+              if (role == 'pharmacy') {
+                return IconButton(
+                  icon: const Icon(Icons.local_pharmacy,
+                      color: Color(0xFF0C4556)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const PharmacyDashboardScreen()),
                     );
                   },
                 );
@@ -599,7 +607,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Icons.settings,
             const Color(0xFF9C27B0),
             () {
-              // Navigate to settings
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
             },
           ),
         ],

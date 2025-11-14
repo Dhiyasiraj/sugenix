@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:sugenix/services/chat_history_service.dart';
+import 'package:sugenix/services/gemini_service.dart';
+import 'package:sugenix/services/glucose_service.dart';
 import 'package:intl/intl.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
@@ -16,8 +18,10 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ChatHistoryService _chatService = ChatHistoryService();
+  final GlucoseService _glucoseService = GlucoseService();
   final List<ChatMessage> _messages = [];
   bool _isLoading = true;
+  bool _isGenerating = false;
 
   @override
   void initState() {
@@ -68,7 +72,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   }
 
   Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isEmpty) return;
+    if (_messageController.text.trim().isEmpty || _isGenerating) return;
 
     final userMessage = _messageController.text.trim();
     
@@ -81,15 +85,31 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
         isUser: true,
         timestamp: DateTime.now(),
       ));
+      _isGenerating = true;
     });
 
     _messageController.clear();
     _scrollToBottom();
 
-    // Generate and save AI response (UI only - no actual AI implementation)
-    final aiResponse = _getAIResponse(userMessage);
-    
-    Future.delayed(const Duration(milliseconds: 1500), () async {
+    try {
+      // Get context from recent glucose readings
+      String context = '';
+      try {
+        final readings = await _glucoseService.getGlucoseReadingsByDateRange(
+          startDate: DateTime.now().subtract(const Duration(days: 7)),
+          endDate: DateTime.now(),
+        );
+        if (readings.isNotEmpty) {
+          final latest = readings.first;
+          context = 'Recent glucose reading: ${latest['value']} mg/dL (${latest['type']})';
+        }
+      } catch (e) {
+        // Ignore if glucose data unavailable
+      }
+
+      // Generate AI response using Gemini
+      final aiResponse = await GeminiService.chat(userMessage, context: context);
+      
       if (mounted) {
         // Save AI response to Firebase
         await _chatService.saveMessage(text: aiResponse, isUser: false);
@@ -100,17 +120,41 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
             isUser: false,
             timestamp: DateTime.now(),
           ));
+          _isGenerating = false;
         });
         _scrollToBottom();
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        // Fallback response
+        final fallbackResponse = _getFallbackResponse(userMessage);
+        await _chatService.saveMessage(text: fallbackResponse, isUser: false);
+        
+        setState(() {
+          _messages.add(ChatMessage(
+            text: fallbackResponse,
+            isUser: false,
+            timestamp: DateTime.now(),
+          ));
+          _isGenerating = false;
+        });
+        _scrollToBottom();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('AI service temporarily unavailable. Showing basic response.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
   }
 
-  String _getAIResponse(String userMessage) {
+  String _getFallbackResponse(String userMessage) {
     final lowerMessage = userMessage.toLowerCase();
     
     if (lowerMessage.contains('glucose') || lowerMessage.contains('sugar') || lowerMessage.contains('blood')) {
-      return "For glucose management, monitor your levels regularly. Normal fasting glucose should be 70-100 mg/dL, and post-meal should be below 180 mg/dL. Make sure to take your medications as prescribed and maintain a balanced diet.";
+      return "For glucose management, monitor your levels regularly. Normal fasting glucose should be 70-99 mg/dL, and post-meal should be below 140 mg/dL. Make sure to take your medications as prescribed and maintain a balanced diet.";
     } else if (lowerMessage.contains('medication') || lowerMessage.contains('medicine') || lowerMessage.contains('drug')) {
       return "It's important to take your medications as prescribed by your doctor. Never skip doses and always check with your healthcare provider before making any changes. You can scan your medicine using the medicine scanner for detailed information.";
     } else if (lowerMessage.contains('diet') || lowerMessage.contains('food') || lowerMessage.contains('eat')) {
@@ -164,12 +208,13 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            FutureBuilder<String>(
-              future: LanguageService.getTranslated('home'),
+            StreamBuilder<String>(
+              stream: LanguageService.currentLanguageStream,
               builder: (context, snapshot) {
-                final title = snapshot.data ?? 'AI Assistant';
+                final languageCode = snapshot.data ?? 'en';
+                final title = LanguageService.translate('home', languageCode);
                 return Text(
-                  title,
+                  title == 'home' ? 'AI Assistant' : title,
                   style: const TextStyle(
                     color: Color(0xFF0C4556),
                     fontWeight: FontWeight.bold,
@@ -405,8 +450,17 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
               shape: BoxShape.circle,
             ),
             child: IconButton(
-              icon: const Icon(Icons.send, color: Colors.white),
-              onPressed: _sendMessage,
+              icon: _isGenerating 
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.send, color: Colors.white),
+              onPressed: _isGenerating ? null : _sendMessage,
             ),
           ),
         ],
