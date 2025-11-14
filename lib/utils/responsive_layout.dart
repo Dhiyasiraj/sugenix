@@ -95,4 +95,18 @@ class ResponsiveHelper {
       return mobile;
     }
   }
+
+  static double getResponsiveValue(BuildContext context, {
+    required double mobile,
+    required double tablet,
+    required double desktop,
+  }) {
+    if (isDesktop(context)) {
+      return desktop;
+    } else if (isTablet(context)) {
+      return tablet;
+    } else {
+      return mobile;
+    }
+  }
 }

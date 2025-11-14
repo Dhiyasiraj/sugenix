@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:sugenix/services/auth_service.dart';
 import 'package:sugenix/services/language_service.dart';
+import 'package:sugenix/services/glucose_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,9 +16,11 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final AuthService _authService = AuthService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool _notificationsEnabled = true;
   bool _biometricEnabled = false;
   String _selectedLanguage = 'en';
+  bool _loadingSettings = true;
 
   @override
   void initState() {
@@ -24,10 +29,96 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
-    final language = await LanguageService.getSelectedLanguage();
+    try {
+      // Load language
+      final language = await LanguageService.getSelectedLanguage();
+      
+      // Load preferences from Firestore
+      final userProfile = await _authService.getUserProfile();
+      final preferences = userProfile?['preferences'] as Map<String, dynamic>?;
+      
+      // Load from SharedPreferences as fallback
+      final prefs = await SharedPreferences.getInstance();
+      
+      setState(() {
+        _selectedLanguage = language;
+        _notificationsEnabled = preferences?['notifications'] as bool? ?? 
+                                prefs.getBool('notifications_enabled') ?? true;
+        _biometricEnabled = preferences?['biometric'] as bool? ?? 
+                           prefs.getBool('biometric_enabled') ?? false;
+        _loadingSettings = false;
+      });
+    } catch (e) {
+      // Fallback to SharedPreferences only
+      final prefs = await SharedPreferences.getInstance();
+      final language = await LanguageService.getSelectedLanguage();
+      setState(() {
+        _selectedLanguage = language;
+        _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
+        _biometricEnabled = prefs.getBool('biometric_enabled') ?? false;
+        _loadingSettings = false;
+      });
+    }
+  }
+
+  Future<void> _saveNotificationPreference(bool value) async {
     setState(() {
-      _selectedLanguage = language;
+      _notificationsEnabled = value;
     });
+    
+    try {
+      // Save to Firestore
+      final user = _authService.currentUser;
+      if (user != null) {
+        await _firestore.collection('users').doc(user.uid).update({
+          'preferences.notifications': value,
+        });
+      }
+      
+      // Also save to SharedPreferences as backup
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('notifications_enabled', value);
+    } catch (e) {
+      // If Firestore fails, at least save locally
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('notifications_enabled', value);
+    }
+  }
+
+  Future<void> _saveBiometricPreference(bool value) async {
+    setState(() {
+      _biometricEnabled = value;
+    });
+    
+    try {
+      // Save to Firestore
+      final user = _authService.currentUser;
+      if (user != null) {
+        await _firestore.collection('users').doc(user.uid).update({
+          'preferences.biometric': value,
+        });
+      }
+      
+      // Also save to SharedPreferences as backup
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('biometric_enabled', value);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(value 
+              ? 'Biometric login enabled' 
+              : 'Biometric login disabled'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // If Firestore fails, at least save locally
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('biometric_enabled', value);
+    }
   }
 
   @override
@@ -48,7 +139,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SingleChildScrollView(
+      body: _loadingSettings
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
         padding: ResponsiveHelper.getResponsivePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,11 +170,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Notifications',
                   subtitle: 'Enable push notifications',
                   value: _notificationsEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _notificationsEnabled = value;
-                    });
-                  },
+                  onChanged: _saveNotificationPreference,
                 ),
                 const Divider(),
                 _buildSwitchTile(
@@ -89,11 +178,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Biometric Login',
                   subtitle: 'Use fingerprint or face ID',
                   value: _biometricEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _biometricEnabled = value;
-                    });
-                  },
+                  onChanged: _saveBiometricPreference,
                 ),
               ],
             ),
@@ -138,33 +223,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.delete_outline,
                   title: 'Clear Cache',
                   subtitle: 'Clear app cache and temporary files',
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Clear Cache'),
-                        content: const Text('Are you sure you want to clear all cached data?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Cache cleared successfully'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            },
-                            child: const Text('Clear'),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                  onTap: () => _clearCache(context),
                 ),
               ],
             ),
@@ -211,6 +270,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       backgroundColor: const Color(0xFFF5F6F8),
     );
+  }
+
+  Future<void> _clearCache(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear Cache'),
+        content: const Text('Are you sure you want to clear all cached data? This will not delete your account data.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        // Clear SharedPreferences cache (except important settings)
+        final prefs = await SharedPreferences.getInstance();
+        final keys = prefs.getKeys();
+        
+        // Keep important settings
+        final keepKeys = [
+          'selected_language',
+          'notifications_enabled',
+          'biometric_enabled',
+          'guest_cart_items',
+        ];
+        
+        for (final key in keys) {
+          if (!keepKeys.contains(key)) {
+            await prefs.remove(key);
+          }
+        }
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cache cleared successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to clear cache: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   Widget _buildSectionTitle(String title) {
@@ -312,11 +432,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bool obscureCurrent = true;
     bool obscureNew = true;
     bool obscureConfirm = true;
+    bool isProcessing = false;
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+        builder: (context, setDialogState) => AlertDialog(
           title: const Text('Change Password'),
           content: SingleChildScrollView(
             child: Column(
@@ -369,45 +490,106 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () async {
-                if (newPasswordController.text != confirmPasswordController.text) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('New passwords do not match')),
-                  );
-                  return;
-                }
-                if (newPasswordController.text.length < 6) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Password must be at least 6 characters')),
-                  );
-                  return;
-                }
-                try {
-                  await _authService.changePassword(
-                    currentPassword: currentPasswordController.text,
-                    newPassword: newPasswordController.text,
-                  );
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Password changed successfully'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to change password: ${e.toString().split(': ').last}'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('Change Password'),
+              onPressed: isProcessing ? null : () async {
+                    // Validate inputs
+                    if (currentPasswordController.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter current password')),
+                      );
+                      return;
+                    }
+                    
+                    if (newPasswordController.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter new password')),
+                      );
+                      return;
+                    }
+                    
+                    if (newPasswordController.text != confirmPasswordController.text) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('New passwords do not match')),
+                      );
+                      return;
+                    }
+                    
+                    if (newPasswordController.text.length < 6) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Password must be at least 6 characters')),
+                      );
+                      return;
+                    }
+                    
+                    if (currentPasswordController.text == newPasswordController.text) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('New password must be different from current password')),
+                      );
+                      return;
+                    }
+
+                    // Show loading
+                    setDialogState(() {
+                      isProcessing = true;
+                    });
+
+                    try {
+                      await _authService.changePassword(
+                        currentPassword: currentPasswordController.text,
+                        newPassword: newPasswordController.text,
+                      );
+                      
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Password changed successfully'),
+                            backgroundColor: Colors.green,
+                            duration: Duration(seconds: 3),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      setDialogState(() {
+                        isProcessing = false;
+                      });
+                      if (context.mounted) {
+                        String errorMessage = 'Failed to change password';
+                        final errorStr = e.toString();
+                        if (errorStr.contains('wrong-password') || errorStr.contains('invalid-credential')) {
+                          errorMessage = 'Current password is incorrect';
+                        } else if (errorStr.contains('weak-password')) {
+                          errorMessage = 'New password is too weak. Please use a stronger password';
+                        } else if (errorStr.contains('requires-recent-login')) {
+                          errorMessage = 'Please login again to change password';
+                        } else {
+                          errorMessage = errorStr.split(': ').last;
+                        }
+                        
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(errorMessage),
+                            backgroundColor: Colors.red,
+                            duration: const Duration(seconds: 4),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0C4556),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey[300],
+                  ),
+                  child: isProcessing
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text('Change Password'),
             ),
           ],
         ),
@@ -495,26 +677,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _backupData(BuildContext context) async {
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Starting backup...'),
-          duration: Duration(seconds: 1),
+      final user = _authService.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please login to backup data'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
         ),
       );
 
-      // Simulate backup process
-      await Future.delayed(const Duration(seconds: 2));
+      // Backup user data to Firestore backup collection
+      final userProfile = await _authService.getUserProfile();
+      final glucoseService = GlucoseService();
+      final recentReadings = await glucoseService.getGlucoseReadingsByDateRange(
+        startDate: DateTime.now().subtract(const Duration(days: 365)),
+        endDate: DateTime.now(),
+      );
+
+      // Create backup document
+      await _firestore.collection('backups').doc(user.uid).set({
+        'userId': user.uid,
+        'userProfile': userProfile,
+        'glucoseReadings': recentReadings,
+        'backupDate': FieldValue.serverTimestamp(),
+        'backupType': 'manual',
+      }, SetOptions(merge: true));
 
       if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Data backed up successfully'),
+            content: Text('Data backed up successfully to cloud'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
           ),
         );
       }
     } catch (e) {
       if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog if still open
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Backup failed: ${e.toString()}'),
