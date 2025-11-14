@@ -94,21 +94,27 @@ class _WellnessScreenState extends State<WellnessScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? _buildShimmerLoading()
-          : SingleChildScrollView(
-              padding: ResponsiveHelper.getResponsivePadding(context),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildPersonalizedBanner(),
-                  const SizedBox(height: 30),
-                  _buildCategoryTabs(),
-                  const SizedBox(height: 20),
-                  _buildRecommendations(),
-                ],
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: _isLoading
+            ? _buildShimmerLoading()
+            : SingleChildScrollView(
+                padding: ResponsiveHelper.getResponsivePadding(context),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildPersonalizedBanner(),
+                    const SizedBox(height: 30),
+                    _buildCategoryTabs(),
+                    const SizedBox(height: 20),
+                    _buildRecommendations(),
+                    // Add bottom padding for Android navigation buttons
+                    SizedBox(height: MediaQuery.of(context).padding.bottom),
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
 

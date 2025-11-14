@@ -224,15 +224,21 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: ResponsiveHelper.getResponsivePadding(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildScannerSection(),
-            const SizedBox(height: 30),
-            if (_medicineInfo != null) _buildMedicineInfo(),
-          ],
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: SingleChildScrollView(
+          padding: ResponsiveHelper.getResponsivePadding(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildScannerSection(),
+              const SizedBox(height: 30),
+              if (_medicineInfo != null) _buildMedicineInfo(),
+              // Add bottom padding for Android navigation buttons
+              SizedBox(height: MediaQuery.of(context).padding.bottom),
+            ],
+          ),
         ),
       ),
     );

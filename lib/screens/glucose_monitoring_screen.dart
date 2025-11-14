@@ -69,27 +69,33 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          const OfflineBanner(),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildCurrentReading(),
-                  const SizedBox(height: 30),
-                  _buildAIAnalysis(),
-                  const SizedBox(height: 30),
-                  _buildRecentReadings(),
-                  const SizedBox(height: 30),
-                  _buildQuickActions(),
-                ],
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: Column(
+          children: [
+            const OfflineBanner(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildCurrentReading(),
+                    const SizedBox(height: 30),
+                    _buildAIAnalysis(),
+                    const SizedBox(height: 30),
+                    _buildRecentReadings(),
+                    const SizedBox(height: 30),
+                    _buildQuickActions(),
+                    // Add bottom padding for Android navigation buttons
+                    SizedBox(height: MediaQuery.of(context).padding.bottom),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -158,27 +158,33 @@ class _MedicineOrdersScreenState extends State<MedicineOrdersScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          const OfflineBanner(),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  _buildSearchBar(),
-                  const SizedBox(height: 30),
-                  if (_searching)
-                    const Center(child: CircularProgressIndicator())
-                  else if (_results.isNotEmpty)
-                    _buildSearchResults()
-                  else
-                    _buildMedicineServices(),
-                ],
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: Column(
+          children: [
+            const OfflineBanner(),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _buildSearchBar(),
+                    const SizedBox(height: 30),
+                    if (_searching)
+                      const Center(child: CircularProgressIndicator())
+                    else if (_results.isNotEmpty)
+                      _buildSearchResults()
+                    else
+                      _buildMedicineServices(),
+                    // Add bottom padding for Android navigation buttons
+                    SizedBox(height: MediaQuery.of(context).padding.bottom),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -38,7 +38,7 @@ class _ForgotPasswordModalState extends State<ForgotPasswordModal> {
         ),
       ),
       child: SingleChildScrollView(
-        padding: EdgeInsets.all(ResponsiveHelper.getResponsivePadding(context).horizontal),
+        padding: ResponsiveHelper.getResponsivePadding(context),
         child: Form(
           key: _formKey,
           child: Column(

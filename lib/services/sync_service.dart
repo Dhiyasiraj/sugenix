@@ -10,9 +10,15 @@ class SyncService {
         .limit(1)
         .snapshots(includeMetadataChanges: true)
         .map((snap) {
+      // isFromCache = true means we're offline or using cached data
+      // If isFromCache is false, we're online
+      final isFromCache = snap.metadata.isFromCache;
+      final hasPendingWrites = snap.metadata.hasPendingWrites;
+      
       return {
-        'isFromCache': snap.metadata.isFromCache,
-        'hasPendingWrites': snap.metadata.hasPendingWrites,
+        'isFromCache': isFromCache,
+        'hasPendingWrites': hasPendingWrites,
+        'isOnline': !isFromCache, // If not from cache, we're online
       };
     });
   }

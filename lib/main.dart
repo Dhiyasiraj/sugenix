@@ -263,32 +263,39 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final isTablet = screenWidth > 600;
 
     return Scaffold(
-      body: _screens[_selectedIndex],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          currentIndex: _selectedIndex,
-          onTap: (index) {
-            setState(() {
-              _selectedIndex = index;
-            });
-          },
-          selectedItemColor: const Color(0xFF0C4556),
-          unselectedItemColor: Colors.grey,
-          backgroundColor: Colors.white,
-          elevation: 0,
-          selectedFontSize: isTablet ? 16 : 12,
-          unselectedFontSize: isTablet ? 14 : 10,
-          items: _navItems,
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: _screens[_selectedIndex],
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, -5),
+              ),
+            ],
+          ),
+          child: BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            currentIndex: _selectedIndex,
+            onTap: (index) {
+              setState(() {
+                _selectedIndex = index;
+              });
+            },
+            selectedItemColor: const Color(0xFF0C4556),
+            unselectedItemColor: Colors.grey,
+            backgroundColor: Colors.white,
+            elevation: 0,
+            selectedFontSize: isTablet ? 16 : 12,
+            unselectedFontSize: isTablet ? 14 : 10,
+            items: _navItems,
+          ),
         ),
       ),
     );

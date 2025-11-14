@@ -86,13 +86,17 @@ class _MedicalRecordsScreenState extends State<MedicalRecordsScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          const OfflineBanner(),
-          Expanded(
-            child: _records.isEmpty ? _buildEmptyState() : _buildRecordsList(),
-          ),
-        ],
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: Column(
+          children: [
+            const OfflineBanner(),
+            Expanded(
+              child: _records.isEmpty ? _buildEmptyState() : _buildRecordsList(),
+            ),
+          ],
+        ),
       ),
     );
   }

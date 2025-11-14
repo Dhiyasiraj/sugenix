@@ -85,39 +85,49 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   }
 
   Widget _buildShimmerLoading() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: List.generate(5, (index) => Container(
-          height: 100,
-          margin: const EdgeInsets.only(bottom: 20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-        )),
+    return SafeArea(
+      top: false,
+      bottom: true,
+      child: Shimmer.fromColors(
+        baseColor: Colors.grey[300]!,
+        highlightColor: Colors.grey[100]!,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: List.generate(5, (index) => Container(
+            height: 100,
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          )),
+        ),
       ),
     );
   }
 
   Widget _buildContent(String userName, String currentTime) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildWelcomeCard(userName, currentTime),
-          const SizedBox(height: 20),
-          _buildGlucoseOverview(),
-          const SizedBox(height: 20),
-          _buildQuickActions(),
-          const SizedBox(height: 20),
-          _buildMedicineSection(),
-          const SizedBox(height: 20),
-          _buildDoctorsSection(),
-        ],
+    return SafeArea(
+      top: false,
+      bottom: true,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildWelcomeCard(userName, currentTime),
+            const SizedBox(height: 20),
+            _buildGlucoseOverview(),
+            const SizedBox(height: 20),
+            _buildQuickActions(),
+            const SizedBox(height: 20),
+            _buildMedicineSection(),
+            const SizedBox(height: 20),
+            _buildDoctorsSection(),
+            // Add bottom padding for Android navigation buttons
+            SizedBox(height: MediaQuery.of(context).padding.bottom),
+          ],
+        ),
       ),
     );
   }

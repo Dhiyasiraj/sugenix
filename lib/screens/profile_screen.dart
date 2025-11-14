@@ -33,6 +33,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _mobileController = TextEditingController();
   final _emailController = TextEditingController();
   final _diabetesTypeController = TextEditingController();
+  String? _selectedGender;
 
   @override
   void initState() {
@@ -50,6 +51,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _mobileController.text = profile['phone'] ?? '';
           _emailController.text = profile['email'] ?? '';
           _diabetesTypeController.text = profile['diabetesType'] ?? '';
+          _selectedGender = profile['gender'] ?? 'Male';
           _isLoading = false;
         });
       } else {
@@ -70,11 +72,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         name: _nameController.text,
         phone: _mobileController.text,
         diabetesType: _diabetesTypeController.text,
+        gender: _selectedGender,
       );
 
       setState(() {
         _isEditing = false;
       });
+
+      // Reload profile to reflect changes
+      await _loadUserProfile();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -179,13 +185,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
         ],
       ),
-      body: _isLoading
-          ? _buildShimmerLoading()
-          : ResponsiveLayout(
-              mobile: _buildMobileLayout(),
-              tablet: _buildTabletLayout(),
-              desktop: _buildDesktopLayout(),
-            ),
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: _isLoading
+            ? _buildShimmerLoading()
+            : ResponsiveLayout(
+                mobile: _buildMobileLayout(),
+                tablet: _buildTabletLayout(),
+                desktop: _buildDesktopLayout(),
+              ),
+      ),
     );
   }
 
@@ -217,6 +227,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ),
+          SizedBox(height: MediaQuery.of(context).padding.bottom),
         ],
       ),
     );
@@ -232,6 +243,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildProfileForm(),
           const SizedBox(height: 20),
           _buildActionButtons(),
+          SizedBox(height: MediaQuery.of(context).padding.bottom),
         ],
       ),
     );
@@ -412,6 +424,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             enabled: _isEditing,
           ),
           const SizedBox(height: 15),
+          _buildGenderDropdown(),
+          const SizedBox(height: 15),
           _buildTextField(
             'Diabetes Type',
             _diabetesTypeController,
@@ -470,6 +484,82 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildGenderDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.person_outline,
+              color: Colors.grey[600],
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Gender',
+              style: TextStyle(
+                fontSize: ResponsiveHelper.getResponsiveFontSize(
+                  context,
+                  mobile: 14,
+                  tablet: 15,
+                  desktop: 16,
+                ),
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: _isEditing ? Colors.grey[100] : Colors.grey[200],
+            borderRadius: BorderRadius.circular(10),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: DropdownButtonFormField<String>(
+            value: _selectedGender,
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(vertical: 12),
+            ),
+            items: ['Male', 'Female', 'Other'].map((String gender) {
+              return DropdownMenuItem<String>(
+                value: gender,
+                child: Text(
+                  gender,
+                  style: TextStyle(
+                    fontSize: ResponsiveHelper.getResponsiveFontSize(
+                      context,
+                      mobile: 14,
+                      tablet: 15,
+                      desktop: 16,
+                    ),
+                    color: _isEditing ? Colors.black87 : Colors.grey[600],
+                  ),
+                ),
+              );
+            }).toList(),
+            onChanged: _isEditing
+                ? (String? newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        _selectedGender = newValue;
+                      });
+                    }
+                  }
+                : null,
+            icon: Icon(
+              Icons.arrow_drop_down,
+              color: _isEditing ? const Color(0xFF0C4556) : Colors.grey[400],
+            ),
+          ),
+        ),
+      ],
     );
   }
 

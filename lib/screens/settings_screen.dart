@@ -139,13 +139,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: _loadingSettings
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-        padding: ResponsiveHelper.getResponsivePadding(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: _loadingSettings
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+          padding: ResponsiveHelper.getResponsivePadding(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             _buildSectionTitle('General'),
             _buildSettingsCard(
               children: [
@@ -265,8 +268,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 40),
+            // Add bottom padding for Android navigation buttons
+            SizedBox(height: MediaQuery.of(context).padding.bottom),
           ],
         ),
+      ),
       ),
       backgroundColor: const Color(0xFFF5F6F8),
     );
@@ -429,15 +435,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final currentPasswordController = TextEditingController();
     final newPasswordController = TextEditingController();
     final confirmPasswordController = TextEditingController();
-    bool obscureCurrent = true;
-    bool obscureNew = true;
-    bool obscureConfirm = true;
-    bool isProcessing = false;
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+      builder: (context) {
+        bool obscureCurrent = true;
+        bool obscureNew = true;
+        bool obscureConfirm = true;
+        bool isProcessing = false;
+        
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
           title: const Text('Change Password'),
           content: SingleChildScrollView(
             child: Column(
@@ -451,7 +459,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
                       icon: Icon(obscureCurrent ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () => setState(() => obscureCurrent = !obscureCurrent),
+                      onPressed: () => setDialogState(() => obscureCurrent = !obscureCurrent),
                     ),
                   ),
                 ),
@@ -464,7 +472,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
                       icon: Icon(obscureNew ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () => setState(() => obscureNew = !obscureNew),
+                      onPressed: () => setDialogState(() => obscureNew = !obscureNew),
                     ),
                   ),
                 ),
@@ -477,7 +485,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
                       icon: Icon(obscureConfirm ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () => setState(() => obscureConfirm = !obscureConfirm),
+                      onPressed: () => setDialogState(() => obscureConfirm = !obscureConfirm),
                     ),
                   ),
                 ),
@@ -593,7 +601,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ],
         ),
-      ),
+      );
+      },
     );
   }
 
