@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:sugenix/services/medicine_cart_service.dart';
+import 'package:sugenix/services/razorpay_service.dart';
+import 'package:sugenix/services/auth_service.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:sugenix/widgets/translated_text.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -10,7 +14,172 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
   final MedicineCartService _cartService = MedicineCartService();
-  String _address = '';
+  final AuthService _authService = AuthService();
+  final TextEditingController _addressController = TextEditingController();
+  String _selectedPaymentMethod = 'COD'; // 'COD' or 'Razorpay'
+  bool _processingPayment = false;
+  Map<String, dynamic>? _userProfile;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+    _initializeRazorpay();
+  }
+
+  @override
+  void dispose() {
+    _addressController.dispose();
+    RazorpayService.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadUserProfile() async {
+    final profile = await _authService.getUserProfile();
+    setState(() {
+      _userProfile = profile;
+    });
+  }
+
+  void _initializeRazorpay() {
+    RazorpayService.initialize(
+      onSuccessCallback: _handlePaymentSuccess,
+      onErrorCallback: _handlePaymentError,
+      onExternalWalletCallback: _handleExternalWallet,
+    );
+  }
+
+  void _handlePaymentSuccess(PaymentSuccessResponse response) {
+    setState(() {
+      _processingPayment = false;
+    });
+    
+    // Complete the order with payment details
+    _completeOrder(
+      paymentMethod: 'Razorpay',
+      paymentId: response.paymentId,
+      orderId: response.orderId,
+    );
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    setState(() {
+      _processingPayment = false;
+    });
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Payment failed: ${response.message}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('External wallet selected: ${response.walletName}'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _completeOrder({
+    required String paymentMethod,
+    String? paymentId,
+    String? orderId,
+  }) async {
+    try {
+      final address = _addressController.text.trim();
+      if (address.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please enter address')),
+          );
+        }
+        return;
+      }
+
+      final orderId = await _cartService.checkout(
+        address: address,
+        paymentMethod: paymentMethod,
+        paymentId: paymentId,
+      );
+
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Order placed successfully! Order ID: #$orderId'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Order failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _processPayment(double amount) async {
+    if (_addressController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter delivery address')),
+      );
+      return;
+    }
+
+    final name = _userProfile?['name'] ?? 'User';
+    final email = _userProfile?['email'] ?? _authService.currentUser?.email ?? '';
+    final phone = _userProfile?['phone'] ?? '';
+
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email is required for payment')),
+      );
+      return;
+    }
+
+    setState(() {
+      _processingPayment = true;
+    });
+
+    try {
+      await RazorpayService.openCheckout(
+        amount: amount,
+        name: name,
+        email: email,
+        phone: phone.isNotEmpty ? phone : '9999999999',
+        description: 'Medicine Order Payment - Sugenix',
+        notes: {
+          'order_type': 'medicine',
+          'user_id': _authService.currentUser?.uid ?? '',
+        },
+      );
+    } catch (e) {
+      setState(() {
+        _processingPayment = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to open payment: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,22 +237,59 @@ class _CartScreenState extends State<CartScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Delivery Address', style: TextStyle(fontWeight: FontWeight.bold)),
+                            const Text('Delivery Address', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                             const SizedBox(height: 8),
                             TextField(
+                              controller: _addressController,
                               decoration: const InputDecoration(
-                                hintText: 'Enter address',
+                                hintText: 'Enter delivery address',
                                 border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.location_on),
                               ),
-                              onChanged: (v) => _address = v,
+                              maxLines: 3,
                             ),
+                            const SizedBox(height: 16),
+                            const Text('Payment Method', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: RadioListTile<String>(
+                                    title: const Text('Cash on Delivery'),
+                                    value: 'COD',
+                                    groupValue: _selectedPaymentMethod,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedPaymentMethod = value!;
+                                      });
+                                    },
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: RadioListTile<String>(
+                                    title: const Text('Online Payment'),
+                                    value: 'Razorpay',
+                                    groupValue: _selectedPaymentMethod,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedPaymentMethod = value!;
+                                      });
+                                    },
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            const Divider(),
                             const SizedBox(height: 12),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                                const Text('Total Amount', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                                 Text('₹${total.toStringAsFixed(2)}',
-                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF0C4556))),
+                                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0C4556))),
                               ],
                             ),
                           ],
@@ -161,27 +367,28 @@ class _CartScreenState extends State<CartScreen> {
                     backgroundColor: const Color(0xFF0C4556),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  onPressed: () async {
-                    try {
-                      if (_address.trim().isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please enter address')),
-                        );
-                        return;
-                      }
-                      final orderId = await _cartService.checkout(address: _address.trim());
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Order placed: #$orderId')),
-                      );
-                      Navigator.pop(context);
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Checkout failed: ${e.toString()}')),
-                      );
+                  onPressed: _processingPayment ? null : () async {
+                    if (_selectedPaymentMethod == 'Razorpay') {
+                      // Process Razorpay payment
+                      await _processPayment(total);
+                    } else {
+                      // Process COD order
+                      await _completeOrder(paymentMethod: 'COD');
                     }
                   },
-                  child: const Text('Place Order', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  child: _processingPayment
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text(
+                          _selectedPaymentMethod == 'Razorpay' ? 'Pay Now' : 'Place Order (COD)',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                        ),
                 ),
               ),
             ),

@@ -87,32 +87,48 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                 _buildQtySelector(),
               ],
             ),
+            _buildStockInfo(m),
             const SizedBox(height: 16),
-            const Text(
-              'Description',
-              style: TextStyle(
-                color: Color(0xFF0C4556),
-                fontWeight: FontWeight.w700,
+            if (description.isNotEmpty) ...[
+              const Text(
+                'Description',
+                style: TextStyle(
+                  color: Color(0xFF0C4556),
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              description.isNotEmpty ? description : 'No description provided.',
-              style: const TextStyle(color: Colors.grey),
-            ),
+              const SizedBox(height: 8),
+              Text(
+                description,
+                style: const TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+            ],
+            _buildDetailSection('Uses', m['uses'], Icons.info, Colors.blue),
+            _buildDetailSection('Side Effects', m['sideEffects'], Icons.warning, Colors.red),
+            _buildDetailSection('Precautions', m['precautions'], Icons.health_and_safety, Colors.orange),
+            if (m['dosage'] != null && (m['dosage'] as String).isNotEmpty)
+              _buildInfoRow('Dosage', m['dosage'] as String),
+            if (m['form'] != null && (m['form'] as String).isNotEmpty)
+              _buildInfoRow('Form', m['form'] as String),
+            if (m['strength'] != null && (m['strength'] as String).isNotEmpty)
+              _buildInfoRow('Strength', m['strength'] as String),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: _adding ? null : () => _addToCart(m, price),
+                onPressed: (_adding || !_isAvailable(m)) ? null : () => _addToCart(m, price),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0C4556),
+                  backgroundColor: _isAvailable(m) ? const Color(0xFF0C4556) : Colors.grey,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 child: _adding
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Add to Cart', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                    : Text(
+                        _isAvailable(m) ? 'Add to Cart' : 'Out of Stock',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
               ),
             ),
           ],
@@ -176,6 +192,148 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
     } finally {
       if (mounted) setState(() => _adding = false);
     }
+  }
+
+  bool _isAvailable(Map<String, dynamic> m) {
+    final stock = m['stock'] as int?;
+    final available = m['available'] as bool?;
+    if (stock != null) {
+      return stock > 0;
+    }
+    return available ?? true;
+  }
+
+  Widget _buildStockInfo(Map<String, dynamic> m) {
+    final stock = m['stock'] as int?;
+    if (stock != null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: stock > 10
+              ? Colors.green.withOpacity(0.1)
+              : stock > 0
+                  ? Colors.orange.withOpacity(0.1)
+                  : Colors.red.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: stock > 10
+                ? Colors.green
+                : stock > 0
+                    ? Colors.orange
+                    : Colors.red,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              stock > 0 ? Icons.check_circle : Icons.cancel,
+              color: stock > 10
+                  ? Colors.green
+                  : stock > 0
+                      ? Colors.orange
+                      : Colors.red,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              stock > 0 ? 'In Stock ($stock available)' : 'Out of Stock',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: stock > 10
+                    ? Colors.green
+                    : stock > 0
+                        ? Colors.orange
+                        : Colors.red,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildDetailSection(String title, dynamic data, IconData icon, Color color) {
+    if (data == null) return const SizedBox.shrink();
+    
+    List<String> items = [];
+    if (data is List) {
+      items = data.map((e) => e.toString()).toList();
+    } else if (data is String && data.isNotEmpty) {
+      items = [data];
+    }
+    
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Color(0xFF0C4556),
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ...items.map((item) => Padding(
+          padding: const EdgeInsets.only(left: 28, bottom: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '• ',
+                style: TextStyle(color: color, fontWeight: FontWeight.bold),
+              ),
+              Expanded(
+                child: Text(
+                  item,
+                  style: const TextStyle(color: Colors.grey),
+                ),
+              ),
+            ],
+          ),
+        )),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Color(0xFF0C4556),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

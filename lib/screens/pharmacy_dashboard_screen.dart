@@ -24,15 +24,51 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
   final _usesController = TextEditingController();
   final _sideEffectsController = TextEditingController();
   final _precautionsController = TextEditingController();
+  final _stockController = TextEditingController();
   
   bool _requiresPrescription = false;
   bool _isLoading = false;
   List<Map<String, dynamic>> _medicines = [];
+  int _totalOrders = 0;
+  double _totalRevenue = 0.0;
 
   @override
   void initState() {
     super.initState();
     _loadMedicines();
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) return;
+
+      final ordersSnapshot = await _firestore
+          .collection('orders')
+          .where('pharmacyId', isEqualTo: userId)
+          .get();
+
+      int totalOrders = 0;
+      double revenue = 0.0;
+
+      for (var doc in ordersSnapshot.docs) {
+        final data = doc.data();
+        if (data['status'] != 'cancelled') {
+          totalOrders++;
+          revenue += (data['total'] as num?)?.toDouble() ?? 0.0;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _totalOrders = totalOrders;
+          _totalRevenue = revenue;
+        });
+      }
+    } catch (e) {
+      // Handle error
+    }
   }
 
   Future<void> _loadMedicines() async {
@@ -83,12 +119,14 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
         'dosage': _dosageController.text.trim(),
         'form': _formController.text.trim(),
         'price': double.tryParse(_priceController.text) ?? 0.0,
+        'stock': int.tryParse(_stockController.text) ?? 0,
         'description': _descriptionController.text.trim(),
         'uses': uses,
         'sideEffects': sideEffects,
         'precautions': precautions,
         'requiresPrescription': _requiresPrescription,
         'pharmacyId': userId,
+        'available': true,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -123,6 +161,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     _dosageController.clear();
     _formController.clear();
     _priceController.clear();
+    _stockController.clear();
     _descriptionController.clear();
     _usesController.clear();
     _sideEffectsController.clear();
@@ -209,12 +248,96 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
             ],
           ),
         ),
-        body: TabBarView(
+        body: Column(
           children: [
-            _buildAddMedicineForm(),
-            _buildMedicinesList(),
+            _buildStatsCards(),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildAddMedicineForm(),
+                  _buildMedicinesList(),
+                ],
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatsCards() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: const Color(0xFFF5F6F8),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildStatCard(
+              'Total Orders',
+              '$_totalOrders',
+              Icons.receipt_long,
+              Colors.blue,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildStatCard(
+              'Revenue',
+              '₹${_totalRevenue.toStringAsFixed(0)}',
+              Icons.account_balance_wallet,
+              Colors.green,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildStatCard(
+              'Medicines',
+              '${_medicines.length}',
+              Icons.medication,
+              Colors.orange,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -239,7 +362,27 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          _buildTextField(_priceController, 'Price (₹) *', Icons.currency_rupee, keyboardType: TextInputType.number),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTextField(
+                  _priceController,
+                  'Price (₹) *',
+                  Icons.currency_rupee,
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildTextField(
+                  _stockController,
+                  'Stock Quantity *',
+                  Icons.inventory,
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           _buildTextField(_descriptionController, 'Description', Icons.description, maxLines: 3),
           const SizedBox(height: 12),

@@ -1,89 +1,113 @@
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:flutter/material.dart';
 
 class RazorpayService {
-  late Razorpay _razorpay;
+  static Razorpay? _razorpay;
   
-  // Razorpay Test Keys (Test Mode - No KYC required)
-  // Get your test key from: https://dashboard.razorpay.com/app/keys
-  // Use Test Mode keys (starts with rzp_test_)
-  static const String _testKeyId = 'rzp_test_1DP5mmOlF5M5fd'; // TODO: Replace with your Razorpay test key from dashboard
-  // Note: Key Secret is not needed in Flutter SDK, only Key ID is required
+  // Razorpay Test Keys (No KYC required)
+  // Get these from: https://razorpay.com/docs/payments/server-integration/test-keys/
+  // Or from your Razorpay Dashboard > Settings > API Keys > Test Keys
+  static const String _keyId = 'rzp_test_1DP5mmOlF5G5ag'; // Test Key ID
   
-  Function(String)? onPaymentSuccess;
-  Function(String)? onPaymentError;
-  Function(PaymentFailureResponse)? onPaymentFailure;
-  Function(ExternalWalletResponse)? onExternalWallet;
+  // Callbacks for payment events
+  static Function(PaymentSuccessResponse)? onSuccess;
+  static Function(PaymentFailureResponse)? onError;
+  static Function(ExternalWalletResponse)? onExternalWallet;
 
-  RazorpayService() {
+  /// Initialize Razorpay with callbacks
+  static void initialize({
+    Function(PaymentSuccessResponse)? onSuccessCallback,
+    Function(PaymentFailureResponse)? onErrorCallback,
+    Function(ExternalWalletResponse)? onExternalWalletCallback,
+  }) {
+    onSuccess = onSuccessCallback;
+    onError = onErrorCallback;
+    onExternalWallet = onExternalWalletCallback;
+    
     _razorpay = Razorpay();
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
-    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+    _razorpay!.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay!.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay!.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
   }
 
-  void _handlePaymentSuccess(PaymentSuccessResponse response) {
-    if (onPaymentSuccess != null) {
-      onPaymentSuccess!(response.paymentId ?? '');
+  /// Open Razorpay checkout
+  static Future<void> openCheckout({
+    required double amount,
+    required String name,
+    required String email,
+    required String phone,
+    String? description,
+    Map<String, dynamic>? notes,
+  }) async {
+    if (_razorpay == null) {
+      initialize();
+    }
+
+    final options = {
+      'key': _keyId,
+      'amount': (amount * 100).toInt(), // Amount in paise (multiply by 100)
+      'name': 'Sugenix',
+      'description': description ?? 'Medicine Order Payment',
+      'prefill': {
+        'contact': phone,
+        'email': email,
+        'name': name,
+      },
+      'external': {
+        'wallets': ['paytm'], // Optional: Enable specific wallets
+      },
+      'theme': {
+        'color': '#0C4556', // Your app's primary color
+      },
+      if (notes != null) 'notes': notes,
+    };
+
+    try {
+      _razorpay!.open(options);
+    } catch (e) {
+      print('Razorpay Error: $e');
+      if (onError != null) {
+        onError!(PaymentFailureResponse(
+          code: 0,
+          message: 'Failed to open payment gateway: $e',
+          error: null,
+        ));
+      }
     }
   }
 
-  void _handlePaymentError(PaymentFailureResponse response) {
-    if (onPaymentError != null) {
-      onPaymentError!(response.message ?? 'Payment failed');
-    }
-    if (onPaymentFailure != null) {
-      onPaymentFailure!(response);
+  /// Handle payment success
+  static void _handlePaymentSuccess(PaymentSuccessResponse response) {
+    print('Payment Success: ${response.paymentId}');
+    if (onSuccess != null) {
+      onSuccess!(response);
     }
   }
 
-  void _handleExternalWallet(ExternalWalletResponse response) {
+  /// Handle payment error
+  static void _handlePaymentError(PaymentFailureResponse response) {
+    print('Payment Error: ${response.code} - ${response.message}');
+    if (onError != null) {
+      onError!(response);
+    }
+  }
+
+  /// Handle external wallet
+  static void _handleExternalWallet(ExternalWalletResponse response) {
+    print('External Wallet: ${response.walletName}');
     if (onExternalWallet != null) {
       onExternalWallet!(response);
     }
   }
 
-  // Open Razorpay checkout
-  void openCheckout({
-    required double amount,
-    required String appointmentId,
-    required String patientName,
-    required String patientEmail,
-    required String patientPhone,
-    String? description,
-  }) {
-    final options = {
-      'key': _testKeyId,
-      'amount': (amount * 100).toInt(), // Amount in paise
-      'name': 'Sugenix',
-      'description': description ?? 'Appointment Consultation Fee',
-      'prefill': {
-        'contact': patientPhone,
-        'email': patientEmail,
-        'name': patientName,
-      },
-      'external': {
-        'wallets': ['paytm'], // Optional: enable specific wallets
-      },
-      'theme': {
-        'color': '#0C4556', // Sugenix brand color
-      },
-      'notes': {
-        'appointment_id': appointmentId,
-      },
-    };
-
-    try {
-      _razorpay.open(options);
-    } catch (e) {
-      if (onPaymentError != null) {
-        onPaymentError!('Failed to open payment gateway: $e');
-      }
+  /// Dispose Razorpay
+  static void dispose() {
+    if (_razorpay != null) {
+      _razorpay!.clear();
+      _razorpay = null;
     }
-  }
-
-  // Dispose Razorpay instance
-  void dispose() {
-    _razorpay.clear();
+    onSuccess = null;
+    onError = null;
+    onExternalWallet = null;
   }
 }
-

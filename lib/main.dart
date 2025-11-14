@@ -6,6 +6,7 @@ import 'package:sugenix/splash.dart';
 import 'package:sugenix/Login.dart';
 import 'package:sugenix/signin.dart';
 import 'package:sugenix/screens/home_screen.dart';
+import 'package:sugenix/screens/patient_home_screen.dart';
 import 'package:sugenix/screens/medical_records_screen.dart';
 import 'package:sugenix/screens/medicine_orders_screen.dart';
 import 'package:sugenix/screens/profile_screen.dart';
@@ -20,12 +21,16 @@ import 'package:sugenix/screens/glucose_history_screen.dart';
 import 'package:sugenix/screens/bluetooth_device_screen.dart';
 import 'package:sugenix/screens/emergency_contacts_screen.dart';
 import 'package:sugenix/services/favorites_service.dart';
+import 'package:sugenix/services/auth_service.dart';
 import 'package:sugenix/models/doctor.dart';
 import 'package:sugenix/screens/doctor_registration_screen.dart';
 import 'package:sugenix/screens/pharmacy_registration_screen.dart';
 import 'package:sugenix/screens/medicine_catalog_screen.dart';
 import 'package:sugenix/screens/patient_dashboard_screen.dart';
 import 'package:sugenix/screens/pharmacy_dashboard_screen.dart';
+import 'package:sugenix/screens/pharmacy_orders_screen.dart';
+import 'package:sugenix/screens/pharmacy_inventory_screen.dart';
+import 'package:sugenix/screens/doctor_dashboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -115,17 +120,145 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
+  String? _userRole;
+  bool _loadingRole = true;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const GlucoseMonitoringScreen(),
-    const MedicalRecordsScreen(),
-    const MedicineOrdersScreen(),
-    const ProfileScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    try {
+      final authService = AuthService();
+      final profile = await authService.getUserProfile();
+      setState(() {
+        _userRole = profile?['role'] ?? 'user';
+        _loadingRole = false;
+      });
+    } catch (e) {
+      setState(() {
+        _userRole = 'user';
+        _loadingRole = false;
+      });
+    }
+  }
+
+  List<Widget> get _screens {
+    if (_userRole == 'pharmacy') {
+      return [
+        const PharmacyDashboardScreen(),
+        const PharmacyOrdersScreen(),
+        const PharmacyInventoryScreen(),
+        const ProfileScreen(),
+      ];
+    } else if (_userRole == 'doctor') {
+      return [
+        const DoctorDashboardScreen(),
+        const AppointmentsScreen(),
+        const MedicalRecordsScreen(),
+        const ProfileScreen(),
+      ];
+    } else {
+      // Patient/User
+      return [
+        const PatientHomeScreen(),
+        const GlucoseMonitoringScreen(),
+        const MedicalRecordsScreen(),
+        const MedicineOrdersScreen(),
+        const ProfileScreen(),
+      ];
+    }
+  }
+
+  List<BottomNavigationBarItem> get _navItems {
+    if (_userRole == 'pharmacy') {
+      return [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard_outlined, size: 24),
+          activeIcon: Icon(Icons.dashboard, size: 24),
+          label: 'Dashboard',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.receipt_long_outlined, size: 24),
+          activeIcon: Icon(Icons.receipt_long, size: 24),
+          label: 'Orders',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.inventory_2_outlined, size: 24),
+          activeIcon: Icon(Icons.inventory_2, size: 24),
+          label: 'Inventory',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_outline, size: 24),
+          activeIcon: Icon(Icons.person, size: 24),
+          label: 'Profile',
+        ),
+      ];
+    } else if (_userRole == 'doctor') {
+      return [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard_outlined, size: 24),
+          activeIcon: Icon(Icons.dashboard, size: 24),
+          label: 'Dashboard',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.calendar_today_outlined, size: 24),
+          activeIcon: Icon(Icons.calendar_today, size: 24),
+          label: 'Appointments',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.assignment_outlined, size: 24),
+          activeIcon: Icon(Icons.assignment, size: 24),
+          label: 'Records',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_outline, size: 24),
+          activeIcon: Icon(Icons.person, size: 24),
+          label: 'Profile',
+        ),
+      ];
+    } else {
+      // Patient/User
+      return [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home_outlined, size: 24),
+          activeIcon: Icon(Icons.home, size: 24),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.monitor_heart_outlined, size: 24),
+          activeIcon: Icon(Icons.monitor_heart, size: 24),
+          label: 'Glucose',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.assignment_outlined, size: 24),
+          activeIcon: Icon(Icons.assignment, size: 24),
+          label: 'Records',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.medication_outlined, size: 24),
+          activeIcon: Icon(Icons.medication, size: 24),
+          label: 'Medicine',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_outline, size: 24),
+          activeIcon: Icon(Icons.person, size: 24),
+          label: 'Profile',
+        ),
+      ];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_loadingRole) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth > 600;
 
@@ -155,36 +288,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           elevation: 0,
           selectedFontSize: isTablet ? 16 : 12,
           unselectedFontSize: isTablet ? 14 : 10,
-          items: [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined, size: isTablet ? 28 : 24),
-              activeIcon: Icon(Icons.home, size: isTablet ? 28 : 24),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(
-                Icons.monitor_heart_outlined,
-                size: isTablet ? 28 : 24,
-              ),
-              activeIcon: Icon(Icons.monitor_heart, size: isTablet ? 28 : 24),
-              label: 'Glucose',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.assignment_outlined, size: isTablet ? 28 : 24),
-              activeIcon: Icon(Icons.assignment, size: isTablet ? 28 : 24),
-              label: 'Records',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.medication_outlined, size: isTablet ? 28 : 24),
-              activeIcon: Icon(Icons.medication, size: isTablet ? 28 : 24),
-              label: 'Medicine',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline, size: isTablet ? 28 : 24),
-              activeIcon: Icon(Icons.person, size: isTablet ? 28 : 24),
-              label: 'Profile',
-            ),
-          ],
+          items: _navItems,
         ),
       ),
     );

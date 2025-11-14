@@ -1,0 +1,653 @@
+import 'package:flutter/material.dart';
+import 'package:sugenix/services/glucose_service.dart';
+import 'package:sugenix/services/auth_service.dart';
+import 'package:sugenix/services/doctor_service.dart';
+import 'package:sugenix/models/doctor.dart';
+import 'package:sugenix/screens/doctor_details_screen.dart';
+import 'package:sugenix/screens/ai_assistant_screen.dart';
+import 'package:sugenix/screens/emergency_screen.dart';
+import 'package:sugenix/screens/medicine_scanner_screen.dart';
+import 'package:sugenix/screens/medicine_catalog_screen.dart';
+import 'package:sugenix/widgets/translated_text.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:intl/intl.dart';
+
+class PatientHomeScreen extends StatefulWidget {
+  const PatientHomeScreen({super.key});
+
+  @override
+  State<PatientHomeScreen> createState() => _PatientHomeScreenState();
+}
+
+class _PatientHomeScreenState extends State<PatientHomeScreen> {
+  final GlucoseService _glucoseService = GlucoseService();
+  final AuthService _authService = AuthService();
+  final DoctorService _doctorService = DoctorService();
+
+  List<Map<String, dynamic>> _recentReadings = [];
+  Map<String, dynamic>? _userProfile;
+  bool _isLoading = true;
+  List<Doctor> _allDoctors = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    try {
+      _userProfile = await _authService.getUserProfile();
+      _glucoseService.getGlucoseReadings().listen((readings) {
+        if (mounted) {
+          setState(() {
+            _recentReadings = readings.take(3).toList();
+            _isLoading = false;
+          });
+        }
+      });
+      _doctorService.streamDoctors().listen((doctors) {
+        if (mounted) {
+          setState(() {
+            _allDoctors = doctors;
+          });
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final userName = _userProfile?['name'] ?? 'User';
+    final currentTime = DateFormat('EEEE, MMMM d').format(DateTime.now());
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: TranslatedAppBarTitle('home', fallback: 'Home'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
+            onPressed: () {
+              Navigator.pushNamed(context, '/language');
+            },
+          ),
+        ],
+      ),
+      body: _isLoading ? _buildShimmerLoading() : _buildContent(userName, currentTime),
+    );
+  }
+
+  Widget _buildShimmerLoading() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: List.generate(5, (index) => Container(
+          height: 100,
+          margin: const EdgeInsets.only(bottom: 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+        )),
+      ),
+    );
+  }
+
+  Widget _buildContent(String userName, String currentTime) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildWelcomeCard(userName, currentTime),
+          const SizedBox(height: 20),
+          _buildGlucoseOverview(),
+          const SizedBox(height: 20),
+          _buildQuickActions(),
+          const SizedBox(height: 20),
+          _buildMedicineSection(),
+          const SizedBox(height: 20),
+          _buildDoctorsSection(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWelcomeCard(String userName, String currentTime) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0C4556), Color(0xFF1A6B7A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0C4556).withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.waving_hand, color: Colors.white, size: 28),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const TranslatedText(
+                  'welcome',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  fallback: 'Welcome back,',
+                ),
+                Text(
+                  userName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  currentTime,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: Colors.white.withOpacity(0.12),
+            child: const Icon(Icons.person, color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGlucoseOverview() {
+    if (_recentReadings.isEmpty) {
+      return _buildEmptyGlucoseCard();
+    }
+
+    final latestReading = _recentReadings.first;
+    final glucoseValue = latestReading['value'] as double;
+    final status = _getGlucoseStatus(glucoseValue);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: (status['color'] as Color).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.monitor_heart,
+                  color: status['color'] as Color,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const TranslatedText(
+                      'glucose',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      fallback: 'Glucose Level',
+                    ),
+                    Text(
+                      '${glucoseValue.toStringAsFixed(0)} mg/dL',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: status['color'] as Color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: (status['color'] as Color).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  status['label'] as String,
+                  style: TextStyle(
+                    color: status['color'] as Color,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyGlucoseCard() {
+    return Container(
+      padding: const EdgeInsets.all(25),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(50),
+            ),
+            child: const Icon(
+              Icons.add_circle_outline,
+              size: 50,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 15),
+          const TranslatedText(
+            'glucose',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0C4556),
+            ),
+            fallback: 'No glucose readings yet',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const TranslatedText(
+          'home',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF0C4556),
+          ),
+          fallback: 'Quick Actions',
+        ),
+        const SizedBox(height: 15),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionCard(
+                'Add Reading',
+                Icons.add_circle,
+                const Color(0xFF4CAF50),
+                () {
+                  Navigator.pushNamed(context, '/glucose-monitoring');
+                },
+              ),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: _buildActionCard(
+                'View History',
+                Icons.history,
+                const Color(0xFF2196F3),
+                () {
+                  Navigator.pushNamed(context, '/glucose-history');
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 15),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionCard(
+                'AI Assistant',
+                Icons.psychology,
+                const Color(0xFF9C27B0),
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AIAssistantScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: _buildActionCard(
+                'Emergency',
+                Icons.emergency,
+                const Color(0xFFF44336),
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const EmergencyScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMedicineSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const TranslatedText(
+              'medicine',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0C4556),
+              ),
+              fallback: 'Medicines',
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const MedicineCatalogScreen(),
+                  ),
+                );
+              },
+              child: const TranslatedText(
+                'medicine',
+                style: TextStyle(color: Color(0xFF0C4556)),
+                fallback: 'View All',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 15),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionCard(
+                'Scan Medicine',
+                Icons.qr_code_scanner,
+                const Color(0xFF0C4556),
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MedicineScannerScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: _buildActionCard(
+                'Buy Medicines',
+                Icons.shopping_cart,
+                const Color(0xFFFF9800),
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MedicineCatalogScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDoctorsSection() {
+    if (_allDoctors.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const TranslatedText(
+          'home',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF0C4556),
+          ),
+          fallback: 'Top Doctors',
+        ),
+        const SizedBox(height: 15),
+        SizedBox(
+          height: 180,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _allDoctors.take(5).length,
+            itemBuilder: (context, index) {
+              final doctor = _allDoctors[index];
+              return Container(
+                width: 160,
+                margin: const EdgeInsets.only(right: 15),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DoctorDetailsScreen(doctor: doctor),
+                      ),
+                    );
+                  },
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0C4556).withOpacity(0.1),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(15),
+                              topRight: Radius.circular(15),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.person,
+                            size: 50,
+                            color: Color(0xFF0C4556),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              doctor.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Color(0xFF0C4556),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              doctor.specialization,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionCard(
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                color: Color(0xFF0C4556),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Map<String, dynamic> _getGlucoseStatus(double value) {
+    if (value < 70) {
+      return {
+        'label': 'Low',
+        'color': Colors.red,
+      };
+    } else if (value >= 70 && value <= 99) {
+      return {
+        'label': 'Normal',
+        'color': Colors.green,
+      };
+    } else if (value >= 100 && value <= 125) {
+      return {
+        'label': 'Prediabetes',
+        'color': Colors.orange,
+      };
+    } else {
+      return {
+        'label': 'High',
+        'color': Colors.red,
+      };
+    }
+  }
+}
+

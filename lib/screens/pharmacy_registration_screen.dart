@@ -37,11 +37,13 @@ class _PharmacyRegistrationScreenState extends State<PharmacyRegistrationScreen>
         'name': _nameController.text.trim(),
         'phone': _phoneController.text.trim(),
         'address': _addressController.text.trim(),
+        'approvalStatus': 'pending',
         'verified': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
       await db.collection('users').doc(uid).set({
         'role': 'pharmacy',
+        'approvalStatus': 'pending',
       }, SetOptions(merge: true));
 
       if (!mounted) return;

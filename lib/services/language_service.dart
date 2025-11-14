@@ -14,7 +14,8 @@ class LanguageService {
   // Stream that emits current language immediately and on changes
   static Stream<String> get currentLanguageStream async* {
     // Emit current language immediately
-    yield await getSelectedLanguage();
+    final current = await getSelectedLanguage();
+    yield current;
     // Then listen for changes
     yield* _languageController.stream.asyncMap((_) async {
       return await getSelectedLanguage();

@@ -172,6 +172,45 @@ class _MedicineCard extends StatelessWidget {
     required this.onOpen,
   });
 
+  bool _isAvailable(Map<String, dynamic> medicine) {
+    final stock = medicine['stock'] as int?;
+    final available = medicine['available'] as bool?;
+    if (stock != null) {
+      return stock > 0;
+    }
+    return available ?? true;
+  }
+
+  Widget _buildStockInfo(Map<String, dynamic> medicine) {
+    final stock = medicine['stock'] as int?;
+    if (stock != null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: stock > 10
+              ? Colors.green.withOpacity(0.1)
+              : stock > 0
+                  ? Colors.orange.withOpacity(0.1)
+                  : Colors.red.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          stock > 0 ? 'In Stock ($stock)' : 'Out of Stock',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: stock > 10
+                ? Colors.green
+                : stock > 0
+                    ? Colors.orange
+                    : Colors.red,
+          ),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
   @override
   Widget build(BuildContext context) {
     final name = (medicine['name'] as String?) ?? 'Medicine';
@@ -224,27 +263,49 @@ class _MedicineCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: Colors.grey, fontSize: 12),
               ),
+              const SizedBox(height: 8),
+              _buildStockInfo(medicine),
               const Spacer(),
               Row(
                 children: [
-                  Text(
-                    '₹${price.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      color: Color(0xFF0C4556),
-                      fontWeight: FontWeight.w700,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '₹${price.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          color: Color(0xFF0C4556),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
+                      if (medicine['requiresPrescription'] == true)
+                        const Text(
+                          'Rx Required',
+                          style: TextStyle(
+                            color: Colors.orange,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                    ],
                   ),
                   const Spacer(),
                   SizedBox(
                     height: 34,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0C4556),
+                        backgroundColor: _isAvailable(medicine)
+                            ? const Color(0xFF0C4556)
+                            : Colors.grey,
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      onPressed: onAddToCart,
-                      child: const Text('Add', style: TextStyle(color: Colors.white)),
+                      onPressed: _isAvailable(medicine) ? onAddToCart : null,
+                      child: Text(
+                        _isAvailable(medicine) ? 'Add' : 'Out of Stock',
+                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                      ),
                     ),
                   ),
                 ],

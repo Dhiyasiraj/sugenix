@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sugenix/services/revenue_service.dart';
 import 'package:sugenix/services/doctor_service.dart';
+import 'package:sugenix/screens/admin_panel_pharmacy_tab.dart';
 import 'package:intl/intl.dart';
 
 class AdminPanelScreen extends StatefulWidget {
@@ -61,7 +62,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Admin Panel'),
@@ -69,8 +70,10 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
           foregroundColor: const Color(0xFF0C4556),
           bottom: const TabBar(
             labelColor: Color(0xFF0C4556),
+            isScrollable: true,
             tabs: [
               Tab(text: 'Doctors'),
+              Tab(text: 'Pharmacies'),
               Tab(text: 'Revenue'),
               Tab(text: 'Records'),
               Tab(text: 'Orders'),
@@ -86,10 +89,11 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
               child: _buildSummary(),
             ),
             const SizedBox(height: 16),
-            const Expanded(
+            Expanded(
               child: TabBarView(
-                children: [
+                children: const [
                   _DoctorsApprovalTab(),
+                  PharmaciesApprovalTab(),
                   _RevenueTab(),
                   _AllMedicalRecordsTab(),
                   _AllOrdersTab(),
@@ -693,13 +697,22 @@ class _DoctorsApprovalTab extends StatelessWidget {
                               ),
                             );
                             if (confirm == true) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Processing...'),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              }
                               try {
                                 await doctorService.updateDoctorApprovalStatus(
                                     doctorId, 'rejected');
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Doctor rejected'),
+                                      content: Text(
+                                          'Doctor rejected. Email notification sent.'),
                                       backgroundColor: Colors.red,
                                     ),
                                   );
@@ -752,14 +765,22 @@ class _DoctorsApprovalTab extends StatelessWidget {
                               ),
                             );
                             if (confirm == true) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Processing...'),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              }
                               try {
                                 await doctorService.updateDoctorApprovalStatus(
                                     doctorId, 'approved');
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content:
-                                          Text('Doctor approved successfully'),
+                                      content: Text(
+                                          'Doctor approved successfully. Email notification sent.'),
                                       backgroundColor: Colors.green,
                                     ),
                                   );

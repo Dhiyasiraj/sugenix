@@ -71,6 +71,8 @@ class MedicineCartService {
   Future<String> checkout({
     required String address,
     String paymentMethod = 'COD',
+    String? paymentId,
+    String? orderId,
   }) async {
     final cartSnap = await _cartCol.get();
     if (cartSnap.docs.isEmpty) {
@@ -86,14 +88,30 @@ class MedicineCartService {
       return {'id': d.id, ...data};
     }).toList();
 
-    final orderRef = await _ordersCol.add({
+    // Get pharmacy ID from first item (if available)
+    String? pharmacyId;
+    if (items.isNotEmpty) {
+      // Try to get pharmacyId from medicine data
+      final firstItem = items.first;
+      if (firstItem.containsKey('pharmacyId')) {
+        pharmacyId = firstItem['pharmacyId'] as String?;
+      }
+    }
+
+    final orderData = {
       'userId': _uid,
-      'status': 'placed',
+      'status': paymentMethod == 'Razorpay' && paymentId != null ? 'confirmed' : 'placed',
       'total': total,
       'address': address,
       'paymentMethod': paymentMethod,
+      'paymentStatus': paymentMethod == 'Razorpay' ? 'paid' : 'pending',
       'createdAt': FieldValue.serverTimestamp(),
-    });
+      if (paymentId != null) 'paymentId': paymentId,
+      if (orderId != null) 'razorpayOrderId': orderId,
+      if (pharmacyId != null) 'pharmacyId': pharmacyId,
+    };
+
+    final orderRef = await _ordersCol.add(orderData);
 
     final batch = _db.batch();
     for (final item in items) {

@@ -24,7 +24,29 @@ class TranslatedText extends StatelessWidget {
   Widget build(BuildContext context) {
     return StreamBuilder<String>(
       stream: LanguageService.currentLanguageStream,
+      initialData: 'en',
       builder: (context, snapshot) {
+        // If stream hasn't emitted yet, use default
+        if (!snapshot.hasData) {
+          return FutureBuilder<String>(
+            future: LanguageService.getSelectedLanguage(),
+            builder: (context, futureSnapshot) {
+              final langCode = futureSnapshot.data ?? 'en';
+              final translated = LanguageService.translate(translationKey, langCode);
+              final displayText = translated == translationKey && fallback != null
+                  ? fallback!
+                  : translated;
+              return Text(
+                displayText,
+                style: style,
+                textAlign: textAlign,
+                maxLines: maxLines,
+                overflow: overflow,
+              );
+            },
+          );
+        }
+        
         final languageCode = snapshot.data ?? 'en';
         final translated = LanguageService.translate(translationKey, languageCode);
         final displayText = translated == translationKey && fallback != null

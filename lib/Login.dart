@@ -271,19 +271,20 @@ class _LoginState extends State<Login> {
         password: _passwordController.text,
       );
 
-      // Check if user is a doctor and verify approval status
+      // Check if user is a doctor or pharmacy and verify approval status
       final userProfile = await _authService.getUserProfile();
       final userRole = userProfile?['role'];
       
-      if (userRole == 'doctor') {
+      if (userRole == 'doctor' || userRole == 'pharmacy') {
         final approvalStatus = userProfile?['approvalStatus'] ?? 'pending';
         
         if (approvalStatus != 'approved') {
-          // Sign out the doctor if not approved
+          // Sign out if not approved
           await _authService.signOut();
           
           if (mounted) {
-            _showSnackBar('Your doctor account is pending admin approval. Please wait for approval before logging in.');
+            final roleName = userRole == 'doctor' ? 'doctor' : 'pharmacy';
+            _showSnackBar('Your $roleName account is pending admin approval. Please wait for approval before logging in.');
           }
           return;
         }
