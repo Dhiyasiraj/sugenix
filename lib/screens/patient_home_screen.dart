@@ -209,7 +209,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
     }
 
     final latestReading = _recentReadings.first;
-    final glucoseValue = latestReading['value'] as double;
+    final glucoseValue = (latestReading['value'] as num?)?.toDouble() ?? 0.0;
     final status = _getGlucoseStatus(glucoseValue);
 
     return Container(

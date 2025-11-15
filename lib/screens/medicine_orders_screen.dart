@@ -5,7 +5,6 @@ import 'package:sugenix/services/medicine_database_service.dart';
 import 'package:sugenix/services/medicine_cart_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/widgets/translated_text.dart';
-import 'package:sugenix/widgets/offline_banner.dart';
 import 'package:sugenix/screens/prescription_upload_screen.dart';
 import 'package:sugenix/screens/orders_list_screen.dart';
 import 'package:sugenix/screens/medicine_catalog_screen.dart';
@@ -161,29 +160,22 @@ class _MedicineOrdersScreenState extends State<MedicineOrdersScreen> {
       body: SafeArea(
         top: false,
         bottom: true,
-        child: Column(
-          children: [
-            const OfflineBanner(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    _buildSearchBar(),
-                    const SizedBox(height: 30),
-                    if (_searching)
-                      const Center(child: CircularProgressIndicator())
-                    else if (_results.isNotEmpty)
-                      _buildSearchResults()
-                    else
-                      _buildMedicineServices(),
-                    // Add bottom padding for Android navigation buttons
-                    SizedBox(height: MediaQuery.of(context).padding.bottom),
-                  ],
-                ),
-              ),
-            ),
-          ],
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              _buildSearchBar(),
+              const SizedBox(height: 30),
+              if (_searching)
+                const Center(child: CircularProgressIndicator())
+              else if (_results.isNotEmpty)
+                _buildSearchResults()
+              else
+                _buildMedicineServices(),
+              // Add bottom padding for Android navigation buttons
+              SizedBox(height: MediaQuery.of(context).padding.bottom),
+            ],
+          ),
         ),
       ),
     );

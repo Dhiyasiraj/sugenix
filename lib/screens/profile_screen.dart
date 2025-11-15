@@ -29,16 +29,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _userProfile;
   bool _isLoading = true;
   bool _isEditing = false;
+  String? _userRole;
 
-  // Single set of controllers (removed duplicates)
+  // Common controllers
   final _nameController = TextEditingController();
   final _mobileController = TextEditingController();
   final _emailController = TextEditingController();
+  
+  // Patient-specific controllers
   final _diabetesTypeController = TextEditingController();
   final _heightController = TextEditingController();
   final _weightController = TextEditingController();
   String? _selectedGender;
   DateTime? _selectedDateOfBirth;
+  
+  // Doctor-specific controllers
+  final _specializationController = TextEditingController();
+  final _hospitalController = TextEditingController();
+  final _bioController = TextEditingController();
+  final _experienceController = TextEditingController();
+  final _educationController = TextEditingController();
+  final _consultationFeeController = TextEditingController();
+  List<String> _selectedLanguages = [];
+  
+  // Pharmacy-specific controllers
+  final _addressController = TextEditingController();
+  final _licenseNumberController = TextEditingController();
 
   @override
   void initState() {
@@ -52,30 +68,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (profile != null) {
         setState(() {
           _userProfile = profile;
+          _userRole = profile['role'] ?? 'user';
+          
+          // Common fields
           _nameController.text = profile['name'] ?? '';
           _mobileController.text = profile['phone'] ?? '';
           _emailController.text = profile['email'] ?? '';
-          _diabetesTypeController.text = profile['diabetesType'] ?? '';
-          _selectedGender = profile['gender'] ?? 'Male';
-
-          // Load date of birth
-          if (profile['dateOfBirth'] != null) {
-            if (profile['dateOfBirth'] is Timestamp) {
-              _selectedDateOfBirth =
-                  (profile['dateOfBirth'] as Timestamp).toDate();
-            } else if (profile['dateOfBirth'] is DateTime) {
-              _selectedDateOfBirth = profile['dateOfBirth'] as DateTime;
+          
+          // Patient-specific fields
+          if (_userRole == 'user' || _userRole == null) {
+            _diabetesTypeController.text = profile['diabetesType'] ?? '';
+            _selectedGender = profile['gender'] ?? 'Male';
+            
+            // Load date of birth
+            if (profile['dateOfBirth'] != null) {
+              if (profile['dateOfBirth'] is Timestamp) {
+                _selectedDateOfBirth =
+                    (profile['dateOfBirth'] as Timestamp).toDate();
+              } else if (profile['dateOfBirth'] is DateTime) {
+                _selectedDateOfBirth = profile['dateOfBirth'] as DateTime;
+              }
+            }
+            
+            // Load height and weight
+            if (profile['height'] != null) {
+              _heightController.text = profile['height'].toString();
+            }
+            if (profile['weight'] != null) {
+              _weightController.text = profile['weight'].toString();
             }
           }
-
-          // Load height and weight
-          if (profile['height'] != null) {
-            _heightController.text = profile['height'].toString();
+          
+          // Doctor-specific fields
+          if (_userRole == 'doctor') {
+            _specializationController.text = profile['specialization'] ?? '';
+            _hospitalController.text = profile['hospital'] ?? '';
+            _bioController.text = profile['bio'] ?? '';
+            _experienceController.text = profile['experience'] ?? '';
+            _educationController.text = profile['education'] ?? '';
+            if (profile['consultationFee'] != null) {
+              _consultationFeeController.text = profile['consultationFee'].toString();
+            }
+            if (profile['languages'] != null) {
+              _selectedLanguages = List<String>.from(profile['languages']);
+            }
           }
-          if (profile['weight'] != null) {
-            _weightController.text = profile['weight'].toString();
+          
+          // Pharmacy-specific fields
+          if (_userRole == 'pharmacy') {
+            _addressController.text = profile['address'] ?? '';
+            _licenseNumberController.text = profile['licenseNumber'] ?? '';
           }
-
+          
           _isLoading = false;
         });
       } else {
@@ -92,45 +136,82 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _updateProfile() async {
     try {
-      // Parse height and weight
-      double? height;
-      double? weight;
-
-      if (_heightController.text.isNotEmpty) {
-        height = double.tryParse(_heightController.text);
-        if (height == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please enter a valid height'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
+      if (_userRole == 'user' || _userRole == null) {
+        // Patient profile update
+        double? height;
+        double? weight;
+        
+        if (_heightController.text.isNotEmpty) {
+          height = double.tryParse(_heightController.text);
+          if (height == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please enter a valid height'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
         }
-      }
-
-      if (_weightController.text.isNotEmpty) {
-        weight = double.tryParse(_weightController.text);
-        if (weight == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please enter a valid weight'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
+        
+        if (_weightController.text.isNotEmpty) {
+          weight = double.tryParse(_weightController.text);
+          if (weight == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please enter a valid weight'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
         }
-      }
 
-      await _authService.updateUserProfile(
-        name: _nameController.text,
-        phone: _mobileController.text,
-        diabetesType: _diabetesTypeController.text,
-        gender: _selectedGender,
-        dateOfBirth: _selectedDateOfBirth,
-        height: height,
-        weight: weight,
-      );
+        await _authService.updateUserProfile(
+          name: _nameController.text,
+          phone: _mobileController.text,
+          diabetesType: _diabetesTypeController.text,
+          gender: _selectedGender,
+          dateOfBirth: _selectedDateOfBirth,
+          height: height,
+          weight: weight,
+        );
+      } else if (_userRole == 'doctor') {
+        // Doctor profile update
+        double? consultationFee;
+        if (_consultationFeeController.text.isNotEmpty) {
+          consultationFee = double.tryParse(_consultationFeeController.text);
+          if (consultationFee == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please enter a valid consultation fee'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+        }
+
+        await _authService.updateUserProfile(
+          name: _nameController.text,
+          phone: _mobileController.text,
+          specialization: _specializationController.text,
+          hospital: _hospitalController.text,
+          bio: _bioController.text,
+          experience: _experienceController.text,
+          education: _educationController.text,
+          consultationFee: consultationFee,
+          languages: _selectedLanguages.isNotEmpty ? _selectedLanguages : null,
+        );
+      } else if (_userRole == 'pharmacy') {
+        // Pharmacy profile update
+        await _authService.updateUserProfile(
+          name: _nameController.text,
+          phone: _mobileController.text,
+          address: _addressController.text,
+          licenseNumber: _licenseNumberController.text,
+        );
+      }
 
       setState(() {
         _isEditing = false;
@@ -163,6 +244,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _diabetesTypeController.dispose();
     _heightController.dispose();
     _weightController.dispose();
+    _specializationController.dispose();
+    _hospitalController.dispose();
+    _bioController.dispose();
+    _experienceController.dispose();
+    _educationController.dispose();
+    _consultationFeeController.dispose();
+    _addressController.dispose();
+    _licenseNumberController.dispose();
     super.dispose();
   }
 
@@ -449,21 +538,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              _userProfile?['diabetesType'] ?? 'Type 1',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+          if (_userRole == 'doctor')
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                _userProfile?['specialization'] ?? 'Doctor',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            )
+          else if (_userRole == 'pharmacy')
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text(
+                'Pharmacy',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                _userProfile?['diabetesType'] ?? 'Type 1',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -487,7 +609,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Personal Information',
+            _userRole == 'doctor' 
+                ? 'Professional Information'
+                : _userRole == 'pharmacy'
+                    ? 'Pharmacy Information'
+                    : 'Personal Information',
             style: TextStyle(
               fontSize: ResponsiveHelper.getResponsiveFontSize(
                 context,
@@ -520,41 +646,109 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Icons.phone,
             enabled: _isEditing,
           ),
-          const SizedBox(height: 15),
-          _buildGenderDropdown(),
-          const SizedBox(height: 15),
-          _buildDateOfBirthField(),
-          const SizedBox(height: 15),
-          _buildTextField(
-            'Diabetes Type',
-            _diabetesTypeController,
-            Icons.medical_services,
-            enabled: _isEditing,
-          ),
-          const SizedBox(height: 15),
-          Row(
-            children: [
-              Expanded(
-                child: _buildTextField(
-                  'Height (cm)',
-                  _heightController,
-                  Icons.height,
-                  enabled: _isEditing,
-                  keyboardType: TextInputType.number,
+          // Patient-specific fields
+          if (_userRole == 'user' || _userRole == null) ...[
+            const SizedBox(height: 15),
+            _buildGenderDropdown(),
+            const SizedBox(height: 15),
+            _buildDateOfBirthField(),
+            const SizedBox(height: 15),
+            _buildTextField(
+              'Diabetes Type',
+              _diabetesTypeController,
+              Icons.medical_services,
+              enabled: _isEditing,
+            ),
+            const SizedBox(height: 15),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTextField(
+                    'Height (cm)',
+                    _heightController,
+                    Icons.height,
+                    enabled: _isEditing,
+                    keyboardType: TextInputType.number,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: _buildTextField(
-                  'Weight (kg)',
-                  _weightController,
-                  Icons.monitor_weight,
-                  enabled: _isEditing,
-                  keyboardType: TextInputType.number,
+                const SizedBox(width: 15),
+                Expanded(
+                  child: _buildTextField(
+                    'Weight (kg)',
+                    _weightController,
+                    Icons.monitor_weight,
+                    enabled: _isEditing,
+                    keyboardType: TextInputType.number,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
+          // Doctor-specific fields
+          if (_userRole == 'doctor') ...[
+            const SizedBox(height: 15),
+            _buildTextField(
+              'Specialization',
+              _specializationController,
+              Icons.medical_services,
+              enabled: _isEditing,
+            ),
+            const SizedBox(height: 15),
+            _buildTextField(
+              'Hospital/Clinic',
+              _hospitalController,
+              Icons.local_hospital,
+              enabled: _isEditing,
+            ),
+            const SizedBox(height: 15),
+            _buildTextField(
+              'Experience',
+              _experienceController,
+              Icons.work,
+              enabled: _isEditing,
+            ),
+            const SizedBox(height: 15),
+            _buildTextField(
+              'Education',
+              _educationController,
+              Icons.school,
+              enabled: _isEditing,
+            ),
+            const SizedBox(height: 15),
+            _buildTextField(
+              'Consultation Fee (₹)',
+              _consultationFeeController,
+              Icons.currency_rupee,
+              enabled: _isEditing,
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 15),
+            _buildTextField(
+              'Bio',
+              _bioController,
+              Icons.description,
+              enabled: _isEditing,
+              maxLines: 3,
+            ),
+          ],
+          // Pharmacy-specific fields
+          if (_userRole == 'pharmacy') ...[
+            const SizedBox(height: 15),
+            _buildTextField(
+              'Address',
+              _addressController,
+              Icons.location_on,
+              enabled: _isEditing,
+              maxLines: 3,
+            ),
+            const SizedBox(height: 15),
+            _buildTextField(
+              'License Number',
+              _licenseNumberController,
+              Icons.verified,
+              enabled: _isEditing,
+            ),
+          ],
           if (_isEditing) ...[
             const SizedBox(height: 25),
             Row(
@@ -791,11 +985,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     IconData icon, {
     bool enabled = true,
     TextInputType? keyboardType,
+    int maxLines = 1,
   }) {
     return TextField(
       controller: controller,
       enabled: enabled,
       keyboardType: keyboardType,
+      maxLines: maxLines,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: const Color(0xFF0C4556)),

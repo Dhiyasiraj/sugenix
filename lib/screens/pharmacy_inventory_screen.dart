@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sugenix/widgets/translated_text.dart';
+import 'package:sugenix/screens/pharmacy_product_form_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class PharmacyInventoryScreen extends StatelessWidget {
   const PharmacyInventoryScreen({super.key});
@@ -70,17 +72,44 @@ class PharmacyInventoryScreen extends StatelessWidget {
                   ],
                 ),
                 child: ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0C4556).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.medication,
-                      color: Color(0xFF0C4556),
-                    ),
-                  ),
+                  leading: medicine['imageUrl'] != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: CachedNetworkImage(
+                            imageUrl: medicine['imageUrl'],
+                            width: 60,
+                            height: 60,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              width: 60,
+                              height: 60,
+                              color: Colors.grey[200],
+                              child: const Center(child: CircularProgressIndicator()),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0C4556).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.medication,
+                                color: Color(0xFF0C4556),
+                              ),
+                            ),
+                          ),
+                        )
+                      : Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0C4556).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.medication,
+                            color: Color(0xFF0C4556),
+                          ),
+                        ),
                   title: Text(
                     name,
                     style: const TextStyle(
@@ -101,21 +130,41 @@ class PharmacyInventoryScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        '₹${price.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: Color(0xFF0C4556),
-                        ),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '₹${price.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Color(0xFF0C4556),
+                            ),
+                          ),
+                          if (medicine['minQuantity'] != null)
+                            Text(
+                              'Min: ${medicine['minQuantity']}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                        ],
                       ),
+                      const SizedBox(width: 8),
                       IconButton(
                         icon: const Icon(Icons.edit, size: 20),
                         onPressed: () => _editMedicine(context, medicineId, medicine),
                         color: const Color(0xFF0C4556),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, size: 20),
+                        onPressed: () => _deleteMedicine(context, medicineId),
+                        color: Colors.red,
                       ),
                     ],
                   ),
@@ -126,7 +175,14 @@ class PharmacyInventoryScreen extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.pushNamed(context, '/pharmacy-dashboard'),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const PharmacyProductFormScreen(),
+            ),
+          );
+        },
         backgroundColor: const Color(0xFF0C4556),
         child: const Icon(Icons.add, color: Colors.white),
       ),
@@ -138,20 +194,58 @@ class PharmacyInventoryScreen extends StatelessWidget {
     String medicineId,
     Map<String, dynamic> medicine,
   ) {
-    // Navigate to edit screen or show dialog
-    showDialog(
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PharmacyProductFormScreen(
+          product: {'id': medicineId, ...medicine},
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteMedicine(
+    BuildContext context,
+    String medicineId,
+  ) async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Edit Medicine'),
-        content: const Text('Edit functionality coming soon'),
+        title: const Text('Delete Product'),
+        content: const Text('Are you sure you want to delete this product?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
           ),
         ],
       ),
     );
+
+    if (confirmed == true) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('medicines')
+            .doc(medicineId)
+            .delete();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Product deleted successfully')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${e.toString()}')),
+          );
+        }
+      }
+    }
   }
 }
 

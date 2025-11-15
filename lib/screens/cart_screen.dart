@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sugenix/services/medicine_cart_service.dart';
 import 'package:sugenix/services/razorpay_service.dart';
 import 'package:sugenix/services/auth_service.dart';
+import 'package:sugenix/services/platform_settings_service.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 class CartScreen extends StatefulWidget {
@@ -14,6 +15,7 @@ class CartScreen extends StatefulWidget {
 class _CartScreenState extends State<CartScreen> {
   final MedicineCartService _cartService = MedicineCartService();
   final AuthService _authService = AuthService();
+  final PlatformSettingsService _platformSettings = PlatformSettingsService();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
@@ -21,6 +23,8 @@ class _CartScreenState extends State<CartScreen> {
   String _selectedPaymentMethod = 'COD'; // 'COD' or 'Razorpay'
   bool _processingPayment = false;
   Map<String, dynamic>? _userProfile;
+  double _cartSubtotal = 0.0;
+  double _platformFee = 0.0;
   double _cartTotal = 0.0;
   bool _isGuest = false;
   int _refreshKey = 0;
@@ -279,16 +283,21 @@ class _CartScreenState extends State<CartScreen> {
                     child: Text('Your cart is empty', style: TextStyle(color: Colors.grey)),
                   );
                 }
-                double total = 0.0;
+                double subtotal = 0.0;
                 for (final i in items) {
                   final price = (i['price'] as num?)?.toDouble() ?? 0.0;
                   final qty = (i['quantity'] as int?) ?? 1;
-                  total += price * qty;
+                  subtotal += price * qty;
                 }
-                // Update cart total
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted && _cartTotal != total) {
-                    setState(() => _cartTotal = total);
+                
+                // Calculate platform fee and total
+                _platformSettings.calculatePlatformFee(subtotal).then((feeCalc) {
+                  if (mounted) {
+                    setState(() {
+                      _cartSubtotal = subtotal;
+                      _platformFee = feeCalc['platformFee'] ?? 0.0;
+                      _cartTotal = feeCalc['totalAmount'] ?? subtotal;
+                    });
                   }
                 });
                 return ListView.separated(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sugenix/firebase_options.dart';
@@ -31,6 +32,7 @@ import 'package:sugenix/screens/pharmacy_dashboard_screen.dart';
 import 'package:sugenix/screens/pharmacy_orders_screen.dart';
 import 'package:sugenix/screens/pharmacy_inventory_screen.dart';
 import 'package:sugenix/screens/doctor_dashboard_screen.dart';
+import 'package:sugenix/screens/admin_panel_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,6 +46,23 @@ void main() async {
     persistenceEnabled: true,
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
+
+  // Set system UI overlay style to prevent system navigation buttons from overlapping
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.white,
+      systemNavigationBarIconBrightness: Brightness.dark,
+      systemNavigationBarDividerColor: Colors.transparent,
+    ),
+  );
+
+  // Set preferred orientations
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
 
   runApp(const SugenixApp());
 }
@@ -146,7 +165,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   List<Widget> get _screens {
-    if (_userRole == 'pharmacy') {
+    if (_userRole == 'admin') {
+      return [
+        const AdminPanelScreen(initialTab: 0), // Users
+        const AdminPanelScreen(initialTab: 1), // Doctors
+        const AdminPanelScreen(initialTab: 2), // Pharmacies
+        const AdminPanelScreen(initialTab: 3), // Revenue
+      ];
+    } else if (_userRole == 'pharmacy') {
       return [
         const PharmacyDashboardScreen(),
         const PharmacyOrdersScreen(),
@@ -173,7 +199,30 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   List<BottomNavigationBarItem> get _navItems {
-    if (_userRole == 'pharmacy') {
+    if (_userRole == 'admin') {
+      return [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.people_outlined, size: 24),
+          activeIcon: Icon(Icons.people, size: 24),
+          label: 'Users',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.medical_services_outlined, size: 24),
+          activeIcon: Icon(Icons.medical_services, size: 24),
+          label: 'Doctors',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.local_pharmacy_outlined, size: 24),
+          activeIcon: Icon(Icons.local_pharmacy, size: 24),
+          label: 'Pharmacies',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.account_balance_wallet_outlined, size: 24),
+          activeIcon: Icon(Icons.account_balance_wallet, size: 24),
+          label: 'Revenue',
+        ),
+      ];
+    } else if (_userRole == 'pharmacy') {
       return [
         BottomNavigationBarItem(
           icon: Icon(Icons.dashboard_outlined, size: 24),
@@ -268,18 +317,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         bottom: false,
         child: _screens[_selectedIndex],
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Container(
-          decoration: BoxDecoration(
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
-              ),
-            ],
-          ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          bottom: true,
           child: BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
             currentIndex: _selectedIndex,

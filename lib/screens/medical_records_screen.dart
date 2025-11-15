@@ -10,7 +10,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
-import 'package:sugenix/widgets/offline_banner.dart';
 import 'package:sugenix/services/appointment_service.dart';
 import 'package:sugenix/services/doctor_service.dart';
 import 'package:sugenix/models/doctor.dart';
@@ -89,14 +88,7 @@ class _MedicalRecordsScreenState extends State<MedicalRecordsScreen> {
       body: SafeArea(
         top: false,
         bottom: true,
-        child: Column(
-          children: [
-            const OfflineBanner(),
-            Expanded(
-              child: _records.isEmpty ? _buildEmptyState() : _buildRecordsList(),
-            ),
-          ],
-        ),
+        child: _records.isEmpty ? _buildEmptyState() : _buildRecordsList(),
       ),
     );
   }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:sugenix/services/glucose_service.dart';
 import 'package:sugenix/services/gemini_service.dart';
 import 'package:sugenix/screens/glucose_history_screen.dart';
-import 'package:sugenix/widgets/offline_banner.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/widgets/translated_text.dart';
@@ -72,29 +71,22 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
       body: SafeArea(
         top: false,
         bottom: true,
-        child: Column(
-          children: [
-            const OfflineBanner(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildCurrentReading(),
-                    const SizedBox(height: 30),
-                    _buildAIAnalysis(),
-                    const SizedBox(height: 30),
-                    _buildRecentReadings(),
-                    const SizedBox(height: 30),
-                    _buildQuickActions(),
-                    // Add bottom padding for Android navigation buttons
-                    SizedBox(height: MediaQuery.of(context).padding.bottom),
-                  ],
-                ),
-              ),
-            ),
-          ],
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildCurrentReading(),
+              const SizedBox(height: 30),
+              _buildAIAnalysis(),
+              const SizedBox(height: 30),
+              _buildRecentReadings(),
+              const SizedBox(height: 30),
+              _buildQuickActions(),
+              // Add bottom padding for Android navigation buttons
+              SizedBox(height: MediaQuery.of(context).padding.bottom),
+            ],
+          ),
         ),
       ),
     );
@@ -109,7 +101,7 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
         ? _glucoseRecords.first
         : null;
     final glucoseLevel = latestRecord != null
-        ? (latestRecord['value'] as double)
+        ? ((latestRecord['value'] as num?)?.toDouble() ?? 0.0)
         : 0.0;
     final readingType = latestRecord != null
         ? (latestRecord['type'] as String?)
@@ -323,13 +315,13 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
     final avgGlucose = recentReadings.isEmpty
         ? 0.0
         : (recentReadings
-                .map((r) => r['value'] as double)
+                .map((r) => (r['value'] as num?)?.toDouble() ?? 0.0)
                 .reduce((a, b) => a + b) /
             recentReadings.length);
 
     final isRising = recentReadings.length > 1 &&
-        (recentReadings.first['value'] as double) >
-            (recentReadings.last['value'] as double);
+        ((recentReadings.first['value'] as num?)?.toDouble() ?? 0.0) >
+            ((recentReadings.last['value'] as num?)?.toDouble() ?? 0.0);
     final isHigh = avgGlucose > 180;
     final isLow = avgGlucose < 70;
 
@@ -434,7 +426,7 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
   }
 
   Widget _buildReadingCard(Map<String, dynamic> record) {
-    final value = record['value'] as double;
+    final value = (record['value'] as num?)?.toDouble() ?? 0.0;
     final readingType = record['type'] as String?;
     final status = _getGlucoseStatus(value, readingType);
     final timestamp = record['timestamp'] as Timestamp;
@@ -950,7 +942,7 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
     
     try {
       final latestRecord = _glucoseRecords.first;
-      final glucoseLevel = latestRecord['value'] as double;
+      final glucoseLevel = (latestRecord['value'] as num?)?.toDouble() ?? 0.0;
       final readingType = latestRecord['type'] as String? ?? 'random';
       final recentReadings = _glucoseRecords.take(7).map((r) => {
         'value': r['value'],

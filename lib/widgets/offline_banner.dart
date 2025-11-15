@@ -25,7 +25,7 @@ class _OfflineBannerState extends State<OfflineBanner> {
     return StreamBuilder<Map<String, bool>>(
       stream: sync.networkStatusStream(),
       builder: (context, snapshot) {
-        // Only show if we have data and there's actually an issue
+        // Only show if we have data
         if (!snapshot.hasData || snapshot.hasError) {
           _shouldShow = false;
           return const SizedBox.shrink();
@@ -35,14 +35,19 @@ class _OfflineBannerState extends State<OfflineBanner> {
         final hasPendingWrites = snapshot.data?['hasPendingWrites'] ?? false;
         final isOnline = snapshot.data?['isOnline'] ?? true;
         
-        // Only show if we're actually offline OR have pending writes
-        // Don't show during normal navigation when Firebase is just using cache
-        final shouldShow = (!isOnline) || (hasPendingWrites && !isOnline);
+        // Firebase often uses cache even when online (normal behavior during navigation)
+        // Only show banner when we have pending writes that can't be synced
+        // This prevents showing during normal navigation when Firebase just uses cache
+        
+        // Only show if we have pending writes AND we're offline (can't sync)
+        // This is the only case where we truly need to show the banner
+        final shouldShow = hasPendingWrites && isFromCache;
         
         // Debounce to prevent flickering during navigation
         if (shouldShow != _shouldShow) {
           _debounceTimer?.cancel();
-          _debounceTimer = Timer(const Duration(milliseconds: 800), () {
+          // Longer debounce to avoid showing during quick navigation
+          _debounceTimer = Timer(const Duration(milliseconds: 2000), () {
             if (mounted) {
               setState(() {
                 _shouldShow = shouldShow;
@@ -51,47 +56,39 @@ class _OfflineBannerState extends State<OfflineBanner> {
           });
         }
         
-        // Don't show if we're online and no pending writes
-        if (isOnline && !hasPendingWrites) {
-          return const SizedBox.shrink();
-        }
-        
-        // Don't show if only reading from cache but we're online (normal Firebase behavior)
-        if (isFromCache && isOnline && !hasPendingWrites) {
+        // Always hide if we're online (not from cache) or no pending writes
+        if (isOnline || !hasPendingWrites) {
+          // Reset shouldShow if we come back online or pending writes are cleared
+          if (_shouldShow) {
+            _debounceTimer?.cancel();
+            _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+              if (mounted) {
+                setState(() {
+                  _shouldShow = false;
+                });
+              }
+            });
+          }
           return const SizedBox.shrink();
         }
 
         // Only render if we should show (after debounce)
-        if (!_shouldShow && !hasPendingWrites) {
+        if (!_shouldShow) {
           return const SizedBox.shrink();
         }
 
-        String text = '';
-        Color bg = Colors.orange;
-        if (!isOnline && hasPendingWrites) {
-          text = 'Offline • Syncing pending changes when online';
-          bg = Colors.orange;
-        } else if (!isOnline) {
-          text = 'Offline • Showing cached data';
-          bg = Colors.redAccent;
-        } else if (hasPendingWrites) {
-          text = 'Syncing your changes…';
-          bg = Colors.orange;
-        } else {
-          return const SizedBox.shrink();
-        }
-
+        // Show banner only when we have pending writes and we're offline
         return Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          color: bg,
+          color: Colors.orange,
           child: Row(
             children: [
               const Icon(Icons.cloud_off, color: Colors.white, size: 18),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  text,
+                  'Offline • Syncing pending changes when online',
                   style: const TextStyle(color: Colors.white, fontSize: 12),
                 ),
               ),

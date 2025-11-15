@@ -1,11 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sugenix/services/platform_settings_service.dart';
 import 'dart:convert';
 
 class MedicineCartService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final PlatformSettingsService _platformSettings = PlatformSettingsService();
   static const String _guestCartKey = 'guest_cart_items';
 
   String? get _uid => _auth.currentUser?.uid;
@@ -226,11 +228,11 @@ class MedicineCartService {
       throw Exception('Cart is empty');
     }
 
-    double total = 0.0;
+    double subtotal = 0.0;
     final processedItems = items.map((data) {
       final qty = (data['quantity'] as int? ?? 1);
       final price = (data['price'] as num?)?.toDouble() ?? 0.0;
-      total += price * qty;
+      subtotal += price * qty;
       return {'id': data['id'] ?? data['medicineId'], ...data};
     }).toList();
 
@@ -244,6 +246,12 @@ class MedicineCartService {
       }
     }
 
+    // Calculate platform fee
+    final feeCalculation = await _platformSettings.calculatePlatformFee(subtotal);
+    final platformFee = feeCalculation['platformFee'] ?? 0.0;
+    final pharmacyAmount = feeCalculation['pharmacyAmount'] ?? subtotal;
+    final total = feeCalculation['totalAmount'] ?? subtotal;
+
     final orderData = {
       'userId': _uid, // null for guest users
       'isGuest': _uid == null,
@@ -251,6 +259,9 @@ class MedicineCartService {
       'customerEmail': customerEmail,
       'customerPhone': customerPhone,
       'status': paymentMethod == 'Razorpay' && paymentId != null ? 'confirmed' : 'placed',
+      'subtotal': subtotal,
+      'platformFee': platformFee,
+      'pharmacyAmount': pharmacyAmount,
       'total': total,
       'address': address,
       'paymentMethod': paymentMethod,

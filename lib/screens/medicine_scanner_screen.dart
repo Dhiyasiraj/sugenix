@@ -29,7 +29,32 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
 
   Future<void> _pickImage() async {
     try {
-      final image = await PlatformImageService.pickImage();
+      // Show dialog to choose between camera and gallery
+      final ImageSource? source = await showDialog<ImageSource>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Select Image Source'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Color(0xFF0C4556)),
+                title: const Text('Camera'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: Color(0xFF0C4556)),
+                title: const Text('Gallery'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (source == null) return;
+
+      final image = await PlatformImageService.pickImage(source: source);
       if (image != null) {
         setState(() {
           _scannedImage = image;
