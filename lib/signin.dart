@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:sugenix/Login.dart';
 import 'package:sugenix/main.dart';
 import 'package:sugenix/services/auth_service.dart';
+import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
+import 'package:sugenix/widgets/translated_text.dart';
 
 class Signup extends StatefulWidget {
   const Signup({super.key});
@@ -57,205 +59,232 @@ class _SignupState extends State<Signup> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                const SizedBox(height: 40),
-                Text(
-                  "Sign in",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: titleSize,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  "Your journey to smarter diabetes care starts here",
-                  style: TextStyle(color: Colors.white70, fontSize: subtitleSize),
-                ),
-                const SizedBox(height: 40),
-                Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isWide ? 560 : double.infinity,
+                  const SizedBox(height: 40),
+                  TranslatedText(
+                    'sign_in_title',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: titleSize,
+                      fontWeight: FontWeight.bold,
                     ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
+                    fallback: 'Sign in',
+                  ),
+                  const SizedBox(height: 10),
+                  TranslatedText(
+                    'signup_journey',
+                    style: TextStyle(
+                        color: Colors.white70, fontSize: subtitleSize),
+                    fallback:
+                        'Your journey to smarter diabetes care starts here',
+                  ),
+                  const SizedBox(height: 40),
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: isWide ? 560 : double.infinity,
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Column(
-                          children: [
-                            TextField(
-                              controller: _nameController,
-                              decoration: InputDecoration(
-                                hintText: "Name",
-                                prefixIcon: const Icon(Icons.person_outlined),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide.none,
-                                ),
-                                filled: true,
-                                fillColor: Colors.grey[100],
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            TextField(
-                              controller: _emailController,
-                              decoration: InputDecoration(
-                                hintText: "Email",
-                                prefixIcon: const Icon(Icons.email_outlined),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide.none,
-                                ),
-                                filled: true,
-                                fillColor: Colors.grey[100],
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            TextField(
-                              controller: _passwordController,
-                              obscureText: _obscurePassword,
-                              decoration: InputDecoration(
-                                hintText: "Password",
-                                prefixIcon: const Icon(Icons.lock_outlined),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility
-                                        : Icons.visibility_off,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide.none,
-                                ),
-                                filled: true,
-                                fillColor: Colors.grey[100],
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            TextField(
-                              controller: _confirmPasswordController,
-                              obscureText: _obscureConfirmPassword,
-                              decoration: InputDecoration(
-                                hintText: "Re-enter Password",
-                                prefixIcon: const Icon(Icons.lock_outlined),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscureConfirmPassword
-                                        ? Icons.visibility
-                                        : Icons.visibility_off,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscureConfirmPassword =
-                                          !_obscureConfirmPassword;
-                                    });
-                                  },
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide.none,
-                                ),
-                                filled: true,
-                                fillColor: Colors.grey[100],
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              children: [
-                                Checkbox(
-                                  value: _agreeToTerms,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _agreeToTerms = value ?? false;
-                                    });
-                                  },
-                                  activeColor: const Color(0xFF0C4556),
-                                ),
-                                const Expanded(
-                                  child: Text(
-                                    "I agree to the terms and conditions",
-                                    style: TextStyle(fontSize: 14),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 50,
-                              child: ElevatedButton(
-                                onPressed: _agreeToTerms && !_isLoading
-                                    ? _handleSignup
-                                    : null,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF0C4556),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                child: _isLoading
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Text(
-                                        "Sign up",
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text(
-                                  "Have an account? ",
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const Login(),
-                                      ),
-                                    );
-                                  },
-                                  child: const Text(
-                                    "Sign in",
-                                    style: TextStyle(
-                                      color: Color(0xFF0C4556),
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
                             ),
                           ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: LanguageBuilder(
+                            builder: (context, languageCode) {
+                              return Column(
+                                children: [
+                                  TextField(
+                                    controller: _nameController,
+                                    decoration: InputDecoration(
+                                      hintText: LanguageService.translate(
+                                          'name', languageCode),
+                                      prefixIcon:
+                                          const Icon(Icons.person_outlined),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.grey[100],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  TextField(
+                                    controller: _emailController,
+                                    decoration: InputDecoration(
+                                      hintText: LanguageService.translate(
+                                          'email', languageCode),
+                                      prefixIcon:
+                                          const Icon(Icons.email_outlined),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.grey[100],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  TextField(
+                                    controller: _passwordController,
+                                    obscureText: _obscurePassword,
+                                    decoration: InputDecoration(
+                                      hintText: LanguageService.translate(
+                                          'password', languageCode),
+                                      prefixIcon:
+                                          const Icon(Icons.lock_outlined),
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          _obscurePassword
+                                              ? Icons.visibility
+                                              : Icons.visibility_off,
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            _obscurePassword =
+                                                !_obscurePassword;
+                                          });
+                                        },
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.grey[100],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  TextField(
+                                    controller: _confirmPasswordController,
+                                    obscureText: _obscureConfirmPassword,
+                                    decoration: InputDecoration(
+                                      hintText: LanguageService.translate(
+                                          're_enter_password', languageCode),
+                                      prefixIcon:
+                                          const Icon(Icons.lock_outlined),
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          _obscureConfirmPassword
+                                              ? Icons.visibility
+                                              : Icons.visibility_off,
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            _obscureConfirmPassword =
+                                                !_obscureConfirmPassword;
+                                          });
+                                        },
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.grey[100],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Row(
+                                    children: [
+                                      Checkbox(
+                                        value: _agreeToTerms,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _agreeToTerms = value ?? false;
+                                          });
+                                        },
+                                        activeColor: const Color(0xFF0C4556),
+                                      ),
+                                      Expanded(
+                                        child: TranslatedText(
+                                          'agree_terms',
+                                          style: const TextStyle(fontSize: 14),
+                                          fallback:
+                                              'I agree to the terms and conditions',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 50,
+                                    child: ElevatedButton(
+                                      onPressed: _agreeToTerms && !_isLoading
+                                          ? _handleSignup
+                                          : null,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFF0C4556),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                      child: _isLoading
+                                          ? const SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child: CircularProgressIndicator(
+                                                color: Colors.white,
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : TranslatedText(
+                                              'signup',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                              fallback: 'Sign up',
+                                            ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      TranslatedText(
+                                        'have_account',
+                                        style:
+                                            const TextStyle(color: Colors.grey),
+                                        fallback: 'Have an account? ',
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  const Login(),
+                                            ),
+                                          );
+                                        },
+                                        child: TranslatedText(
+                                          'sign_in',
+                                          style: const TextStyle(
+                                            color: Color(0xFF0C4556),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          fallback: 'Sign in',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ),
@@ -266,7 +295,6 @@ class _SignupState extends State<Signup> {
           ),
         ),
       ),
-      
     );
   }
 
@@ -286,20 +314,41 @@ class _SignupState extends State<Signup> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Continue as',
-                  style: TextStyle(
+                TranslatedText(
+                  'continue_as',
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF0C4556),
                   ),
+                  fallback: 'Continue as',
                 ),
                 const SizedBox(height: 16),
-                _buildRoleTile('user', Icons.person, 'Patient/User'),
-                const SizedBox(height: 8),
-                _buildRoleTile('doctor', Icons.medical_services, 'Doctor / Diabetologist'),
-                const SizedBox(height: 8),
-                _buildRoleTile('pharmacy', Icons.local_pharmacy, 'Pharmacy'),
+                LanguageBuilder(
+                  builder: (context, languageCode) {
+                    return Column(
+                      children: [
+                        _buildRoleTile(
+                            'user',
+                            Icons.person,
+                            LanguageService.translate(
+                                'patient_user', languageCode)),
+                        const SizedBox(height: 8),
+                        _buildRoleTile(
+                            'doctor',
+                            Icons.medical_services,
+                            LanguageService.translate(
+                                'doctor_diabetologist', languageCode)),
+                        const SizedBox(height: 8),
+                        _buildRoleTile(
+                            'pharmacy',
+                            Icons.local_pharmacy,
+                            LanguageService.translate(
+                                'pharmacy', languageCode)),
+                      ],
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -311,21 +360,25 @@ class _SignupState extends State<Signup> {
       return;
     }
 
+    final languageCode = await LanguageService.getSelectedLanguage();
+
     if (_nameController.text.isEmpty ||
         _emailController.text.isEmpty ||
         _passwordController.text.isEmpty ||
         _confirmPasswordController.text.isEmpty) {
-      _showSnackBar('Please fill in all fields');
+      _showSnackBar(LanguageService.translate('fill_all_fields', languageCode));
       return;
     }
 
     if (_passwordController.text != _confirmPasswordController.text) {
-      _showSnackBar('Passwords do not match');
+      _showSnackBar(
+          LanguageService.translate('passwords_no_match', languageCode));
       return;
     }
 
     if (_passwordController.text.length < 6) {
-      _showSnackBar('Password must be at least 6 characters');
+      _showSnackBar(
+          LanguageService.translate('password_min_length', languageCode));
       return;
     }
 
@@ -354,13 +407,17 @@ class _SignupState extends State<Signup> {
         } else {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+            MaterialPageRoute(
+                builder: (context) => const MainNavigationScreen()),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        _showSnackBar('Signup failed: ${e.toString().split(': ').last}');
+        final languageCode = await LanguageService.getSelectedLanguage();
+        final errorMsg =
+            LanguageService.translate('signup_failed', languageCode);
+        _showSnackBar('$errorMsg: ${e.toString().split(': ').last}');
       }
     } finally {
       if (mounted) {

@@ -10,6 +10,7 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:intl/intl.dart';
 import 'package:sugenix/services/doctor_service.dart';
 import 'package:sugenix/services/favorites_service.dart';
+import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/screens/emergency_screen.dart';
@@ -222,13 +223,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Welcome back,',
-                  style: TextStyle(
+                TranslatedText(
+                  'welcome_back_comma',
+                  style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
+                  fallback: 'Welcome back,',
                 ),
                 Text(
                   userName,
@@ -265,101 +267,107 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return _buildEmptyGlucoseCard();
     }
 
-    final latestReading = _recentReadings.first;
-    final glucoseValue = (latestReading['value'] as num?)?.toDouble() ?? 0.0;
-    final status = _getGlucoseStatus(glucoseValue);
+    return LanguageBuilder(
+      builder: (context, languageCode) {
+        final latestReading = _recentReadings.first;
+        final glucoseValue = (latestReading['value'] as num?)?.toDouble() ?? 0.0;
+        final status = _getGlucoseStatus(glucoseValue, languageCode);
 
-    return AnimationConfiguration.staggeredList(
-      position: 0,
-      duration: const Duration(milliseconds: 600),
-      child: SlideAnimation(
-        verticalOffset: 50.0,
-        child: FadeInAnimation(
-          child: Container(
-            padding: const EdgeInsets.all(25),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: (status['color'] as Color).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.monitor_heart,
-                        color: status['color'] as Color,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 15),
-                    const Text(
-                      'Current Glucose Level',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0C4556),
-                      ),
+        return AnimationConfiguration.staggeredList(
+          position: 0,
+          duration: const Duration(milliseconds: 600),
+          child: SlideAnimation(
+            verticalOffset: 50.0,
+            child: FadeInAnimation(
+              child: Container(
+                padding: const EdgeInsets.all(25),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      glucoseValue.toStringAsFixed(0),
-                      style: TextStyle(
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
-                        color: status['color'] as Color,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Row(
                       children: [
-                        const Text(
-                          'mg/dL',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
-                            fontWeight: FontWeight.w500,
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: (status['color'] as Color).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.monitor_heart,
+                            color: status['color'] as Color,
+                            size: 24,
                           ),
                         ),
-                        Text(
-                          status['message'] as String,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: status['color'] as Color,
-                            fontWeight: FontWeight.w600,
+                        const SizedBox(width: 15),
+                        TranslatedText(
+                          'current_glucose_level',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0C4556),
                           ),
+                          fallback: 'Current Glucose Level',
                         ),
                       ],
                     ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Text(
+                          glucoseValue.toStringAsFixed(0),
+                          style: TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold,
+                            color: status['color'] as Color,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TranslatedText(
+                              'mg_dl',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              fallback: 'mg/dL',
+                            ),
+                            Text(
+                              status['message'] as String,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: status['color'] as Color,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    if (_glucoseStats != null) ...[
+                      const SizedBox(height: 20),
+                      _buildStatsRow(),
+                    ],
                   ],
                 ),
-                if (_glucoseStats != null) ...[
-                  const SizedBox(height: 20),
-                  _buildStatsRow(),
-                ],
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -398,18 +406,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
                 const SizedBox(height: 15),
-                const Text(
-                  'No glucose readings yet',
-                  style: TextStyle(
+                TranslatedText(
+                  'no_glucose_readings',
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF0C4556),
                   ),
+                  fallback: 'No glucose readings yet',
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Start monitoring your glucose levels',
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                TranslatedText(
+                  'start_monitoring',
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  fallback: 'Start monitoring your glucose levels',
                 ),
               ],
             ),
@@ -421,50 +431,60 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildStatsRow() {
     final stats = _glucoseStats!;
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatItem(
-            'Avg',
-            '${stats['average'].toStringAsFixed(0)}',
-            Icons.trending_up,
-            Colors.blue,
-          ),
-        ),
-        Expanded(
-          child: _buildStatItem(
-            'Normal',
-            '${stats['normalReadings']}',
-            Icons.check_circle,
-            Colors.green,
-          ),
-        ),
-        Expanded(
-          child: _buildStatItem(
-            'High',
-            '${stats['highReadings']}',
-            Icons.warning,
-            Colors.orange,
-          ),
-        ),
-        Expanded(
-          child: _buildStatItem(
-            'Low',
-            '${stats['lowReadings']}',
-            Icons.error,
-            Colors.red,
-          ),
-        ),
-      ],
+    return LanguageBuilder(
+      builder: (context, languageCode) {
+        return Row(
+          children: [
+            Expanded(
+              child: _buildStatItem(
+                'avg',
+                '${stats['average'].toStringAsFixed(0)}',
+                Icons.trending_up,
+                Colors.blue,
+                languageCode,
+              ),
+            ),
+            Expanded(
+              child: _buildStatItem(
+                'normal',
+                '${stats['normalReadings']}',
+                Icons.check_circle,
+                Colors.green,
+                languageCode,
+              ),
+            ),
+            Expanded(
+              child: _buildStatItem(
+                'high',
+                '${stats['highReadings']}',
+                Icons.warning,
+                Colors.orange,
+                languageCode,
+              ),
+            ),
+            Expanded(
+              child: _buildStatItem(
+                'low',
+                '${stats['lowReadings']}',
+                Icons.error,
+                Colors.red,
+                languageCode,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildStatItem(
-    String label,
+    String translationKey,
     String value,
     IconData icon,
     Color color,
+    String languageCode,
   ) {
+    final label = LanguageService.translate(translationKey, languageCode);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -496,137 +516,150 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       child: SlideAnimation(
         verticalOffset: 50.0,
         child: FadeInAnimation(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Quick Actions',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0C4556),
-                ),
-              ),
-              const SizedBox(height: 15),
-              Row(
+          child: LanguageBuilder(
+            builder: (context, languageCode) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: _buildActionCard(
-                      'Add Reading',
-                      Icons.add_circle,
-                      const Color(0xFF4CAF50),
-                      () {
-                        Navigator.pushNamed(context, '/glucose-monitoring');
-                      },
+                  TranslatedText(
+                    'quick_actions',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0C4556),
                     ),
+                    fallback: 'Quick Actions',
                   ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: _buildActionCard(
-                      'View History',
-                      Icons.history,
-                      const Color(0xFF2196F3),
-                      () {
-                        Navigator.pushNamed(context, '/glucose-history');
-                      },
-                    ),
+                  const SizedBox(height: 15),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildActionCard(
+                          'add_reading',
+                          Icons.add_circle,
+                          const Color(0xFF4CAF50),
+                          () {
+                            Navigator.pushNamed(context, '/glucose-monitoring');
+                          },
+                          languageCode,
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: _buildActionCard(
+                          'view_history',
+                          Icons.history,
+                          const Color(0xFF2196F3),
+                          () {
+                            Navigator.pushNamed(context, '/glucose-history');
+                          },
+                          languageCode,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildActionCard(
+                          'ai_assistant',
+                          Icons.psychology,
+                          const Color(0xFF9C27B0),
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AIAssistantScreen(),
+                              ),
+                            );
+                          },
+                          languageCode,
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: _buildActionCard(
+                          'wellness',
+                          Icons.favorite,
+                          const Color(0xFFE91E63),
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const WellnessScreen(),
+                              ),
+                            );
+                          },
+                          languageCode,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildActionCard(
+                          'emergency',
+                          Icons.emergency,
+                          const Color(0xFFF44336),
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const EmergencyScreen(),
+                              ),
+                            );
+                          },
+                          languageCode,
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: _buildActionCard(
+                          'medicine',
+                          Icons.medication,
+                          const Color(0xFF9C27B0),
+                          () {
+                            Navigator.pushNamed(context, '/medicine-orders');
+                          },
+                          languageCode,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildActionCard(
+                          'dashboard',
+                          Icons.dashboard_customize,
+                          const Color(0xFF3F51B5),
+                          () {
+                            Navigator.pushNamed(context, '/patient-dashboard');
+                          },
+                          languageCode,
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: _buildActionCard(
+                          'records',
+                          Icons.assignment,
+                          const Color(0xFF4CAF50),
+                          () {
+                            Navigator.pushNamed(context, '/medical-records');
+                          },
+                          languageCode,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-              const SizedBox(height: 15),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildActionCard(
-                      'AI Assistant',
-                      Icons.psychology,
-                      const Color(0xFF9C27B0),
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AIAssistantScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: _buildActionCard(
-                      'Wellness',
-                      Icons.favorite,
-                      const Color(0xFFE91E63),
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const WellnessScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 15),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildActionCard(
-                      'Emergency',
-                      Icons.emergency,
-                      const Color(0xFFF44336),
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const EmergencyScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: _buildActionCard(
-                      'Medicine',
-                      Icons.medication,
-                      const Color(0xFF9C27B0),
-                      () {
-                        Navigator.pushNamed(context, '/medicine-orders');
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 15),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildActionCard(
-                      'Dashboard',
-                      Icons.dashboard_customize,
-                      const Color(0xFF3F51B5),
-                      () {
-                        Navigator.pushNamed(context, '/patient-dashboard');
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: _buildActionCard(
-                      'Records',
-                      Icons.assignment,
-                      const Color(0xFF4CAF50),
-                      () {
-                        Navigator.pushNamed(context, '/medical-records');
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
@@ -634,11 +667,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildActionCard(
-    String title,
+    String translationKey,
     IconData icon,
     Color color,
     VoidCallback onTap,
+    String languageCode,
   ) {
+    final title = LanguageService.translate(translationKey, languageCode);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -691,50 +726,56 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  const Text(
-                    'Live Doctors',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0C4556),
-                    ),
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Colors.green,
-                            shape: BoxShape.circle,
-                          ),
+              LanguageBuilder(
+                builder: (context, languageCode) {
+                  return Row(
+                    children: [
+                      TranslatedText(
+                        'live_doctors',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0C4556),
                         ),
-                        const SizedBox(width: 4),
-                        const Text(
-                          'Live',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.green,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        fallback: 'Live Doctors',
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
                         ),
-                      ],
-                    ),
-                  ),
-                ],
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            TranslatedText(
+                              'live',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.green,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              fallback: 'Live',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 15),
               SizedBox(
@@ -776,13 +817,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Popular Doctors',
-                style: TextStyle(
+              TranslatedText(
+                'popular_doctors',
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF0C4556),
                 ),
+                fallback: 'Popular Doctors',
               ),
               const SizedBox(height: 15),
               SizedBox(
@@ -824,13 +866,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Pediatric Specialists',
-                style: TextStyle(
+              TranslatedText(
+                'pediatric_specialists',
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF0C4556),
                 ),
+                fallback: 'Pediatric Specialists',
               ),
               const SizedBox(height: 15),
               SizedBox(
@@ -937,9 +980,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               await _favoritesService.toggleFavorite(doctor.id);
                               // Optionally show feedback
                             } catch (e) {
+                              final languageCode = await LanguageService.getSelectedLanguage();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Failed to update favorite'),
+                                  content: Text(LanguageService.translate('failed_to_update_favorite', languageCode)),
                                   backgroundColor: Colors.red,
                                 ),
                               );
@@ -1010,13 +1054,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Map<String, dynamic> _getGlucoseStatus(double value) {
+  Map<String, dynamic> _getGlucoseStatus(double value, String languageCode) {
     if (value < 70) {
-      return {'color': Colors.red, 'message': 'Low'};
+      return {'color': Colors.red, 'message': LanguageService.translate('low', languageCode)};
     } else if (value > 180) {
-      return {'color': Colors.orange, 'message': 'High'};
+      return {'color': Colors.orange, 'message': LanguageService.translate('high', languageCode)};
     } else {
-      return {'color': Colors.green, 'message': 'Normal'};
+      return {'color': Colors.green, 'message': LanguageService.translate('normal', languageCode)};
     }
   }
 }

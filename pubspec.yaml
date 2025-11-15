@@ -8,6 +8,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: ^1.0.8
   firebase_core: ^4.2.0
   firebase_auth: ^6.1.1
@@ -17,7 +19,8 @@ dependencies:
   geolocator: ^10.1.0
   url_launcher: ^6.2.1
   shared_preferences: ^2.2.2
-  intl: ^0.19.0
+  intl: ^0.20.2
+  provider: ^6.1.1
   http: ^1.1.0
   cached_network_image: ^3.3.0
   shimmer: ^3.0.0
@@ -43,3 +46,5 @@ flutter:
   
   assets:
     - assets/sugenix_logo.png.png
+  
+  generate: true

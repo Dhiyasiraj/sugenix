@@ -33,6 +33,10 @@ import 'package:sugenix/screens/pharmacy_orders_screen.dart';
 import 'package:sugenix/screens/pharmacy_inventory_screen.dart';
 import 'package:sugenix/screens/doctor_dashboard_screen.dart';
 import 'package:sugenix/screens/admin_panel_screen.dart';
+import 'package:sugenix/services/app_localization_service.dart';
+import 'package:sugenix/services/locale_notifier.dart';
+import 'package:sugenix/l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,17 +68,35 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  runApp(const SugenixApp());
+  // Initialize saved locale
+  final savedLocale = await AppLocalizationService.getSavedLocale();
+  
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => LocaleNotifier()..setLocale(savedLocale),
+      child: const SugenixApp(),
+    ),
+  );
 }
 
-class SugenixApp extends StatelessWidget {
+class SugenixApp extends StatefulWidget {
   const SugenixApp({super.key});
 
   @override
+  State<SugenixApp> createState() => _SugenixAppState();
+}
+
+class _SugenixAppState extends State<SugenixApp> {
+  @override
   Widget build(BuildContext context) {
+    final localeNotifier = Provider.of<LocaleNotifier>(context);
+    
     return MaterialApp(
       title: 'Sugenix - Diabetes Management',
       debugShowCheckedModeBanner: false,
+      locale: localeNotifier.locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData(
         primarySwatch: Colors.teal,
         primaryColor: const Color(0xFF0C4556),
@@ -198,28 +220,28 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     }
   }
 
-  List<BottomNavigationBarItem> get _navItems {
+  List<BottomNavigationBarItem> _getNavItems(AppLocalizations l10n) {
     if (_userRole == 'admin') {
       return [
         BottomNavigationBarItem(
           icon: Icon(Icons.people_outlined, size: 24),
           activeIcon: Icon(Icons.people, size: 24),
-          label: 'Users',
+          label: l10n.users,
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.medical_services_outlined, size: 24),
           activeIcon: Icon(Icons.medical_services, size: 24),
-          label: 'Doctors',
+          label: l10n.doctors,
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.local_pharmacy_outlined, size: 24),
           activeIcon: Icon(Icons.local_pharmacy, size: 24),
-          label: 'Pharmacies',
+          label: l10n.pharmacies,
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.account_balance_wallet_outlined, size: 24),
           activeIcon: Icon(Icons.account_balance_wallet, size: 24),
-          label: 'Revenue',
+          label: l10n.revenue,
         ),
       ];
     } else if (_userRole == 'pharmacy') {
@@ -227,22 +249,22 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         BottomNavigationBarItem(
           icon: Icon(Icons.dashboard_outlined, size: 24),
           activeIcon: Icon(Icons.dashboard, size: 24),
-          label: 'Dashboard',
+          label: l10n.dashboard,
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.receipt_long_outlined, size: 24),
           activeIcon: Icon(Icons.receipt_long, size: 24),
-          label: 'Orders',
+          label: l10n.orders,
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.inventory_2_outlined, size: 24),
           activeIcon: Icon(Icons.inventory_2, size: 24),
-          label: 'Inventory',
+          label: l10n.inventory,
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.person_outline, size: 24),
           activeIcon: Icon(Icons.person, size: 24),
-          label: 'Profile',
+          label: l10n.profile,
         ),
       ];
     } else if (_userRole == 'doctor') {
@@ -250,22 +272,22 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         BottomNavigationBarItem(
           icon: Icon(Icons.dashboard_outlined, size: 24),
           activeIcon: Icon(Icons.dashboard, size: 24),
-          label: 'Dashboard',
+          label: l10n.dashboard,
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.calendar_today_outlined, size: 24),
           activeIcon: Icon(Icons.calendar_today, size: 24),
-          label: 'Appointments',
+          label: l10n.appointments,
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.assignment_outlined, size: 24),
           activeIcon: Icon(Icons.assignment, size: 24),
-          label: 'Records',
+          label: l10n.records,
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.person_outline, size: 24),
           activeIcon: Icon(Icons.person, size: 24),
-          label: 'Profile',
+          label: l10n.profile,
         ),
       ];
     } else {
@@ -274,27 +296,27 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         BottomNavigationBarItem(
           icon: Icon(Icons.home_outlined, size: 24),
           activeIcon: Icon(Icons.home, size: 24),
-          label: 'Home',
+          label: l10n.home,
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.monitor_heart_outlined, size: 24),
           activeIcon: Icon(Icons.monitor_heart, size: 24),
-          label: 'Glucose',
+          label: l10n.glucose,
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.assignment_outlined, size: 24),
           activeIcon: Icon(Icons.assignment, size: 24),
-          label: 'Records',
+          label: l10n.records,
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.medication_outlined, size: 24),
           activeIcon: Icon(Icons.medication, size: 24),
-          label: 'Medicine',
+          label: l10n.medicine,
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.person_outline, size: 24),
           activeIcon: Icon(Icons.person, size: 24),
-          label: 'Profile',
+          label: l10n.profile,
         ),
       ];
     }
@@ -317,36 +339,41 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         bottom: false,
         child: _screens[_selectedIndex],
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
+      bottomNavigationBar: Builder(
+        builder: (context) {
+          final l10n = AppLocalizations.of(context)!;
+          return Container(
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          bottom: true,
-          child: BottomNavigationBar(
-            type: BottomNavigationBarType.fixed,
-            currentIndex: _selectedIndex,
-            onTap: (index) {
-              setState(() {
-                _selectedIndex = index;
-              });
-            },
-            selectedItemColor: const Color(0xFF0C4556),
-            unselectedItemColor: Colors.grey,
-            backgroundColor: Colors.white,
-            elevation: 0,
-            selectedFontSize: isTablet ? 16 : 12,
-            unselectedFontSize: isTablet ? 14 : 10,
-            items: _navItems,
-          ),
-        ),
+            child: SafeArea(
+              top: false,
+              bottom: true,
+              child: BottomNavigationBar(
+                type: BottomNavigationBarType.fixed,
+                currentIndex: _selectedIndex,
+                onTap: (index) {
+                  setState(() {
+                    _selectedIndex = index;
+                  });
+                },
+                selectedItemColor: const Color(0xFF0C4556),
+                unselectedItemColor: Colors.grey,
+                backgroundColor: Colors.white,
+                elevation: 0,
+                selectedFontSize: isTablet ? 16 : 12,
+                unselectedFontSize: isTablet ? 14 : 10,
+                items: _getNavItems(l10n),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -358,17 +385,18 @@ class CalendarScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Calendar'),
+        title: Text(l10n.calendar),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF0C4556),
       ),
-      body: const Center(
+      body: Center(
         child: Text(
-          'Calendar Screen\nComing Soon!',
+          l10n.calendarScreenComingSoon,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 18, color: Colors.grey),
+          style: const TextStyle(fontSize: 18, color: Colors.grey),
         ),
       ),
     );
@@ -381,10 +409,11 @@ class FavoritesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final favoritesService = FavoritesService();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Favourite Doctors'),
+        title: Text(l10n.favouriteDoctors),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF0C4556),
       ),
@@ -393,10 +422,10 @@ class FavoritesScreen extends StatelessWidget {
         builder: (context, snapshot) {
           final doctors = snapshot.data ?? [];
           if (doctors.isEmpty) {
-            return const Center(
+            return Center(
               child: Text(
-                'No favourites yet',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                l10n.noFavouritesYet,
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
               ),
             );
           }
