@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sugenix/services/revenue_service.dart';
 import 'package:sugenix/services/doctor_service.dart';
+import 'package:sugenix/services/platform_settings_service.dart';
 import 'package:sugenix/screens/admin_panel_pharmacy_tab.dart';
 import 'package:intl/intl.dart';
 
@@ -28,7 +29,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 6,
+      length: 7,
       initialIndex: widget.initialTab ?? 0,
       vsync: this,
     );
@@ -97,6 +98,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
             Tab(text: 'Doctors'),
             Tab(text: 'Pharmacies'),
             Tab(text: 'Revenue'),
+            Tab(text: 'Settings'),
             Tab(text: 'Records'),
             Tab(text: 'Orders'),
           ],
@@ -114,13 +116,14 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: const [
-                _UsersTab(),
-                _DoctorsApprovalTab(),
-                PharmaciesApprovalTab(),
-                _RevenueTab(),
-                _AllMedicalRecordsTab(),
-                _AllOrdersTab(),
+              children: [
+                const _UsersTab(),
+                const _DoctorsApprovalTab(),
+                const PharmaciesApprovalTab(),
+                const _RevenueTab(),
+                const _PlatformSettingsTab(),
+                const _AllMedicalRecordsTab(),
+                const _AllOrdersTab(),
               ],
             ),
           ),
@@ -642,6 +645,280 @@ class _AllMedicalRecordsTab extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+class _PlatformSettingsTab extends StatefulWidget {
+  const _PlatformSettingsTab();
+
+  @override
+  State<_PlatformSettingsTab> createState() => _PlatformSettingsTabState();
+}
+
+class _PlatformSettingsTabState extends State<_PlatformSettingsTab> {
+  final PlatformSettingsService _platformSettings = PlatformSettingsService();
+  final _feeValueController = TextEditingController();
+  final _minimumFeeController = TextEditingController();
+  final _maximumFeeController = TextEditingController();
+  String _selectedFeeType = 'percentage';
+  bool _isLoading = false;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  @override
+  void dispose() {
+    _feeValueController.dispose();
+    _minimumFeeController.dispose();
+    _maximumFeeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadSettings() async {
+    setState(() => _isLoading = true);
+    try {
+      final settings = await _platformSettings.getPlatformFeeSettings();
+      setState(() {
+        _selectedFeeType = settings['feeType'] as String? ?? 'percentage';
+        _feeValueController.text = (settings['feeValue'] as double? ?? 5.0).toString();
+        _minimumFeeController.text = (settings['minimumFee'] as double? ?? 0.0).toString();
+        final maxFee = settings['maximumFee'] as double?;
+        _maximumFeeController.text = maxFee != null ? maxFee.toString() : '';
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load settings: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveSettings() async {
+    if (_feeValueController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Fee value is required')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      final feeValue = double.tryParse(_feeValueController.text);
+      if (feeValue == null || feeValue < 0) {
+        throw Exception('Invalid fee value');
+      }
+
+      double? minimumFee;
+      if (_minimumFeeController.text.isNotEmpty) {
+        minimumFee = double.tryParse(_minimumFeeController.text);
+        if (minimumFee == null || minimumFee < 0) {
+          throw Exception('Invalid minimum fee');
+        }
+      }
+
+      double? maximumFee;
+      if (_maximumFeeController.text.isNotEmpty) {
+        maximumFee = double.tryParse(_maximumFeeController.text);
+        if (maximumFee == null || maximumFee < 0) {
+          throw Exception('Invalid maximum fee');
+        }
+        if (minimumFee != null && maximumFee < minimumFee) {
+          throw Exception('Maximum fee must be greater than minimum fee');
+        }
+      }
+
+      await _platformSettings.updatePlatformFeeSettings(
+        feeType: _selectedFeeType,
+        feeValue: feeValue,
+        minimumFee: minimumFee,
+        maximumFee: maximumFee,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Platform settings updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Platform Fee Settings',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0C4556),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Configure how platform fees are calculated for medicine orders',
+            style: TextStyle(color: Colors.grey[600], fontSize: 14),
+          ),
+          const SizedBox(height: 30),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Fee Type',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0C4556),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                RadioListTile<String>(
+                  title: const Text('Percentage'),
+                  subtitle: const Text('Fee calculated as percentage of order total'),
+                  value: 'percentage',
+                  groupValue: _selectedFeeType,
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedFeeType = value!;
+                    });
+                  },
+                  activeColor: const Color(0xFF0C4556),
+                ),
+                RadioListTile<String>(
+                  title: const Text('Fixed Amount'),
+                  subtitle: const Text('Fixed fee amount per order'),
+                  value: 'fixed',
+                  groupValue: _selectedFeeType,
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedFeeType = value!;
+                    });
+                  },
+                  activeColor: const Color(0xFF0C4556),
+                ),
+                const SizedBox(height: 24),
+                TextField(
+                  controller: _feeValueController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: _selectedFeeType == 'percentage' ? 'Fee Percentage (%)' : 'Fixed Fee (₹)',
+                    hintText: _selectedFeeType == 'percentage' ? 'e.g., 5 for 5%' : 'e.g., 10 for ₹10',
+                    prefixIcon: const Icon(Icons.percent, color: Color(0xFF0C4556)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _minimumFeeController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Minimum Fee (₹) - Optional',
+                    hintText: 'e.g., 5',
+                    prefixIcon: const Icon(Icons.arrow_downward, color: Color(0xFF0C4556)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _maximumFeeController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Maximum Fee (₹) - Optional',
+                    hintText: 'e.g., 100',
+                    prefixIcon: const Icon(Icons.arrow_upward, color: Color(0xFF0C4556)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 30),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _isSaving ? null : _saveSettings,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0C4556),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : const Text(
+                            'Save Settings',
+                            style: TextStyle(color: Colors.white, fontSize: 16),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Colors.blue),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Platform fees are automatically calculated and shown to customers during checkout. Changes take effect immediately for new orders.',
+                    style: TextStyle(color: Colors.blue[900], fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

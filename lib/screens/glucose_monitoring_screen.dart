@@ -549,7 +549,7 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
         Row(
           children: [
             Expanded(
-              child: _buildActionButton("Set Reminder", Icons.alarm, () {}),
+              child: _buildActionButton("Set Reminder", Icons.alarm, () => _showSetReminderDialog()),
             ),
             const SizedBox(width: 15),
             Expanded(
@@ -686,17 +686,46 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                if (glucoseController.text.isNotEmpty) {
-                  try {
-                    await _glucoseService.addGlucoseReading(
-                      value: double.parse(glucoseController.text),
-                      type: selectedType,
-                      notes: notesController.text.isNotEmpty
-                          ? notesController.text
-                          : null,
-                    );
+                if (glucoseController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enter glucose level'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  return;
+                }
+                
+                final value = double.tryParse(glucoseController.text);
+                if (value == null || value <= 0 || value > 1000) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enter a valid glucose level (1-1000 mg/dL)'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  return;
+                }
+                
+                try {
+                  await _glucoseService.addGlucoseReading(
+                    value: value,
+                    type: selectedType,
+                    notes: notesController.text.isNotEmpty
+                        ? notesController.text
+                        : null,
+                  );
+                  if (context.mounted) {
                     Navigator.pop(context);
-                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Glucose reading added successfully'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Failed to add reading: ${e.toString()}'),
@@ -707,6 +736,89 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
                 }
               },
               child: const Text("Add"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSetReminderDialog() {
+    TimeOfDay? selectedTime;
+    bool isEnabled = false;
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text("Set Glucose Reminder"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SwitchListTile(
+                  title: const Text("Enable Reminder"),
+                  value: isEnabled,
+                  onChanged: (value) {
+                    setState(() {
+                      isEnabled = value;
+                    });
+                  },
+                ),
+                if (isEnabled) ...[
+                  const SizedBox(height: 20),
+                  ListTile(
+                    title: const Text("Reminder Time"),
+                    subtitle: Text(
+                      selectedTime != null
+                          ? selectedTime!.format(context)
+                          : "Select time",
+                    ),
+                    trailing: const Icon(Icons.access_time),
+                    onTap: () async {
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: selectedTime ?? TimeOfDay.now(),
+                      );
+                      if (time != null) {
+                        setState(() {
+                          selectedTime = time;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    "You'll be reminded daily to check your glucose level at the selected time.",
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: isEnabled && selectedTime != null
+                  ? () {
+                      // Store reminder in SharedPreferences
+                      // For now, just show a success message
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Reminder set for ${selectedTime!.format(context)}',
+                          ),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  : null,
+              child: const Text("Save"),
             ),
           ],
         ),

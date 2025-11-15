@@ -402,11 +402,36 @@ class _CartScreenState extends State<CartScreen> {
                             const SizedBox(height: 12),
                             const Divider(),
                             const SizedBox(height: 12),
+                            // Price breakdown
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Subtotal', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                                Text(
+                                  '₹${_cartSubtotal.toStringAsFixed(2)}',
+                                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Platform Fee', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                                Text(
+                                  '₹${_platformFee.toStringAsFixed(2)}',
+                                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            const Divider(),
+                            const SizedBox(height: 12),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text('Total Amount', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                Text('₹${total.toStringAsFixed(2)}',
+                                Text('₹${_cartTotal.toStringAsFixed(2)}',
                                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0C4556))),
                               ],
                             ),

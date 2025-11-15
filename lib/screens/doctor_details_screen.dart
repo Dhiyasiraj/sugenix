@@ -911,8 +911,8 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
   Widget _buildFeeBreakdown() {
     final consultationFee = widget.doctor.consultationFee;
     final fees = RevenueService.calculateFees(consultationFee);
-    final totalFee = fees['totalFee']!;
-    final platformFee = fees['platformFee']!;
+    final totalFee = fees['totalFee'] ?? consultationFee; // Fallback to consultationFee if calculation fails
+    final platformFee = fees['platformFee'] ?? 0.0;
 
     return Container(
       padding: const EdgeInsets.all(15),
@@ -991,7 +991,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
       String appointmentId) {
     final consultationFee = widget.doctor.consultationFee;
     final fees = RevenueService.calculateFees(consultationFee);
-    final totalFee = fees['totalFee']!;
+    final totalFee = fees['totalFee'] ?? consultationFee; // Fallback to consultationFee if calculation fails
 
     showDialog(
       context: context,

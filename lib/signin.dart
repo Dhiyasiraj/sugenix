@@ -51,11 +51,12 @@ class _SignupState extends State<Signup> {
           ),
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 const SizedBox(height: 40),
                 Text(
                   "Sign in",
@@ -228,7 +229,7 @@ class _SignupState extends State<Signup> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                            Row(
+                        Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Text(
@@ -253,10 +254,8 @@ class _SignupState extends State<Signup> {
                               ),
                             ),
                           ],
-                            ),
-                          ],
                         ),
-                      ),
+                      ],
                     ),
                   ),
                 ),
@@ -264,6 +263,7 @@ class _SignupState extends State<Signup> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

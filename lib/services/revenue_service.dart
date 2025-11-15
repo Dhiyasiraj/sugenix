@@ -186,5 +186,57 @@ class RevenueService {
       };
     }
   }
+
+  // Record medicine order revenue
+  Future<void> recordMedicineOrderRevenue({
+    required String orderId,
+    required String? pharmacyId,
+    required String? userId,
+    required double subtotal,
+    required double platformFee,
+    required double pharmacyAmount,
+    required double total,
+    String? paymentMethod,
+  }) async {
+    try {
+      // Record admin revenue (platform fee from medicine orders)
+      await _firestore.collection('revenue').add({
+        'type': 'platform_fee_medicine',
+        'orderId': orderId,
+        'pharmacyId': pharmacyId,
+        'userId': userId,
+        'amount': platformFee,
+        'subtotal': subtotal,
+        'platformFee': platformFee,
+        'pharmacyAmount': pharmacyAmount,
+        'total': total,
+        'paymentMethod': paymentMethod ?? 'cod',
+        'status': 'completed',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update admin total revenue
+      await _updateAdminRevenue(platformFee);
+
+      // Update pharmacy revenue if pharmacyId exists
+      if (pharmacyId != null) {
+        await _updatePharmacyRevenue(pharmacyId, pharmacyAmount);
+      }
+    } catch (e) {
+      // Silently fail - revenue tracking is not critical
+    }
+  }
+
+  // Update pharmacy revenue
+  Future<void> _updatePharmacyRevenue(String pharmacyId, double amount) async {
+    try {
+      await _firestore.collection('pharmacies').doc(pharmacyId).update({
+        'totalRevenue': FieldValue.increment(amount),
+        'lastRevenueUpdate': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      // Silently fail
+    }
+  }
 }
 

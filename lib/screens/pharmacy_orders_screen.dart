@@ -53,6 +53,9 @@ class PharmacyOrdersScreen extends StatelessWidget {
               final order = orders[index].data() as Map<String, dynamic>;
               final orderId = orders[index].id;
               final total = (order['total'] as num?)?.toDouble() ?? 0.0;
+              final subtotal = (order['subtotal'] as num?)?.toDouble();
+              final platformFee = (order['platformFee'] as num?)?.toDouble();
+              final pharmacyAmount = (order['pharmacyAmount'] as num?)?.toDouble();
               final status = order['status'] as String? ?? 'pending';
               final createdAt = order['createdAt'] as Timestamp?;
               final items = order['items'] as List<dynamic>? ?? [];
@@ -159,12 +162,39 @@ class PharmacyOrdersScreen extends StatelessWidget {
                               ),
                             );
                           }),
+                          if (subtotal != null || platformFee != null || pharmacyAmount != null) ...[
+                            const Divider(),
+                            if (subtotal != null)
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Subtotal:', style: TextStyle(color: Colors.grey)),
+                                  Text('₹${subtotal.toStringAsFixed(2)}', style: const TextStyle(color: Colors.grey)),
+                                ],
+                              ),
+                            if (platformFee != null)
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Platform Fee:', style: TextStyle(color: Colors.grey)),
+                                  Text('₹${platformFee.toStringAsFixed(2)}', style: const TextStyle(color: Colors.grey)),
+                                ],
+                              ),
+                            if (pharmacyAmount != null)
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Your Revenue:', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.green)),
+                                  Text('₹${pharmacyAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.green)),
+                                ],
+                              ),
+                          ],
                           const Divider(),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               const Text(
-                                'Total:',
+                                'Customer Paid:',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,

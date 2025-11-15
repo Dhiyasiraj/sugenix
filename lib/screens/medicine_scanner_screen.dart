@@ -54,13 +54,29 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
 
       if (source == null) return;
 
-      final image = await PlatformImageService.pickImage(source: source);
-      if (image != null) {
-        setState(() {
-          _scannedImage = image;
-          _medicineInfo = null;
-        });
-        _processImage(image);
+      try {
+        final image = await PlatformImageService.pickImage(source: source);
+        if (image != null) {
+          setState(() {
+            _scannedImage = image;
+            _medicineInfo = null;
+          });
+          _processImage(image);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Camera/Gallery access denied or unavailable. Please grant permissions in settings.'),
+              backgroundColor: Colors.orange,
+              action: SnackBarAction(
+                label: 'OK',
+                textColor: Colors.white,
+                onPressed: () {},
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

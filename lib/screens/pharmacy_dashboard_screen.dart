@@ -56,7 +56,9 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
         final data = doc.data();
         if (data['status'] != 'cancelled') {
           totalOrders++;
-          revenue += (data['total'] as num?)?.toDouble() ?? 0.0;
+          // Use pharmacyAmount (after platform fee deduction) for revenue
+          revenue += (data['pharmacyAmount'] as num?)?.toDouble() ?? 
+                     ((data['total'] as num?)?.toDouble() ?? 0.0);
         }
       }
 

@@ -2,12 +2,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sugenix/services/platform_settings_service.dart';
+import 'package:sugenix/services/revenue_service.dart';
 import 'dart:convert';
 
 class MedicineCartService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final PlatformSettingsService _platformSettings = PlatformSettingsService();
+  final RevenueService _revenueService = RevenueService();
   static const String _guestCartKey = 'guest_cart_items';
 
   String? get _uid => _auth.currentUser?.uid;
@@ -291,6 +293,22 @@ class MedicineCartService {
     // Clear guest cart if guest user
     if (_uid == null) {
       await clearCart();
+    }
+
+    // Record revenue transaction
+    try {
+      await _revenueService.recordMedicineOrderRevenue(
+        orderId: orderRef.id,
+        pharmacyId: pharmacyId,
+        userId: _uid,
+        subtotal: subtotal,
+        platformFee: platformFee,
+        pharmacyAmount: pharmacyAmount,
+        total: total,
+        paymentMethod: paymentMethod,
+      );
+    } catch (e) {
+      // Silently fail - revenue tracking is not critical
     }
 
     return orderRef.id;
