@@ -405,96 +405,153 @@ class _UsersTab extends StatelessWidget {
           itemCount: docs.length,
           separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, i) {
-            final data = docs[i].data() as Map<String, dynamic>;
+            final doc = docs[i];
+            final data = doc.data() as Map<String, dynamic>;
+            final userId = doc.id;
             final name = data['name'] as String? ?? 'Unknown';
             final email = data['email'] as String? ?? '';
             final role = data['role'] as String? ?? 'user';
             final phone = data['phone'] as String? ?? '';
             final createdAt = data['createdAt'] as Timestamp?;
+            final isActive = data['isActive'] as bool? ?? true;
+            final approvalStatus = data['approvalStatus'] as String?;
             
-            return Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  )
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: _getRoleColor(role).withOpacity(0.1),
-                        child: Icon(
-                          _getRoleIcon(role),
-                          color: _getRoleColor(role),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Color(0xFF0C4556),
-                              ),
-                            ),
-                            Text(
-                              email,
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getRoleColor(role).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          role.toUpperCase(),
-                          style: TextStyle(
+            return InkWell(
+              onTap: () => _showUserDetailsDialog(context, userId, data, role),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: _getRoleColor(role).withOpacity(0.1),
+                          child: Icon(
+                            _getRoleIcon(role),
                             color: _getRoleColor(role),
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
                           ),
                         ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: Color(0xFF0C4556),
+                                      ),
+                                    ),
+                                  ),
+                                  if (!isActive)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Text(
+                                        'INACTIVE',
+                                        style: TextStyle(
+                                          color: Colors.red,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  if (approvalStatus != null && approvalStatus != 'approved')
+                                    Container(
+                                      margin: const EdgeInsets.only(left: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: approvalStatus == 'pending'
+                                            ? Colors.orange.withOpacity(0.1)
+                                            : Colors.red.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        approvalStatus.toUpperCase(),
+                                        style: TextStyle(
+                                          color: approvalStatus == 'pending'
+                                              ? Colors.orange
+                                              : Colors.red,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              Text(
+                                email,
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getRoleColor(role).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            role.toUpperCase(),
+                            style: TextStyle(
+                              color: _getRoleColor(role),
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (phone.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Phone: $phone',
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
                       ),
                     ],
-                  ),
-                  if (phone.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      'Phone: $phone',
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
+                    if (createdAt != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Joined: ${DateFormat('MMM dd, yyyy').format(createdAt.toDate())}',
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                    ],
                   ],
-                  if (createdAt != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'Joined: ${DateFormat('MMM dd, yyyy').format(createdAt.toDate())}',
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                  ],
-                ],
+                ),
               ),
             );
           },
@@ -526,6 +583,325 @@ class _UsersTab extends StatelessWidget {
         return Icons.local_pharmacy;
       default:
         return Icons.person;
+    }
+  }
+
+  Future<void> _showUserDetailsDialog(
+    BuildContext context,
+    String userId,
+    Map<String, dynamic> userData,
+    String role,
+  ) async {
+    final name = userData['name'] as String? ?? 'Unknown';
+    final email = userData['email'] as String? ?? '';
+    final phone = userData['phone'] as String? ?? '';
+    final createdAt = userData['createdAt'] as Timestamp?;
+    final isActive = userData['isActive'] as bool? ?? true;
+    final approvalStatus = userData['approvalStatus'] as String?;
+    
+    // Fetch additional role-specific data
+    Map<String, dynamic>? roleSpecificData;
+    if (role == 'doctor') {
+      final doctorDoc = await FirebaseFirestore.instance
+          .collection('doctors')
+          .doc(userId)
+          .get();
+      roleSpecificData = doctorDoc.data();
+    } else if (role == 'pharmacy') {
+      final pharmacyDoc = await FirebaseFirestore.instance
+          .collection('pharmacies')
+          .doc(userId)
+          .get();
+      roleSpecificData = pharmacyDoc.data();
+    }
+
+    if (!context.mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+          padding: const EdgeInsets.all(24),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: _getRoleColor(role).withOpacity(0.1),
+                      child: Icon(
+                        _getRoleIcon(role),
+                        color: _getRoleColor(role),
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0C4556),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            email,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                _buildDetailRow('Role', role.toUpperCase()),
+                _buildDetailRow('Phone', phone.isNotEmpty ? phone : 'Not provided'),
+                if (createdAt != null)
+                  _buildDetailRow(
+                    'Joined',
+                    DateFormat('MMM dd, yyyy • hh:mm a').format(createdAt.toDate()),
+                  ),
+                _buildDetailRow(
+                  'Status',
+                  isActive ? 'Active' : 'Inactive',
+                  valueColor: isActive ? Colors.green : Colors.red,
+                ),
+                if (approvalStatus != null)
+                  _buildDetailRow(
+                    'Approval Status',
+                    approvalStatus.toUpperCase(),
+                    valueColor: approvalStatus == 'approved'
+                        ? Colors.green
+                        : approvalStatus == 'pending'
+                            ? Colors.orange
+                            : Colors.red,
+                  ),
+                
+                // Role-specific details
+                if (role == 'doctor' && roleSpecificData != null) ...[
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Doctor Details',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0C4556),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (roleSpecificData['specialization'] != null)
+                    _buildDetailRow(
+                      'Specialization',
+                      roleSpecificData['specialization'] as String,
+                    ),
+                  if (roleSpecificData['hospital'] != null)
+                    _buildDetailRow(
+                      'Hospital',
+                      roleSpecificData['hospital'] as String,
+                    ),
+                  if (roleSpecificData['consultationFee'] != null)
+                    _buildDetailRow(
+                      'Consultation Fee',
+                      '₹${(roleSpecificData['consultationFee'] as num).toStringAsFixed(0)}',
+                    ),
+                  if (roleSpecificData['licenseNumber'] != null)
+                    _buildDetailRow(
+                      'License Number',
+                      roleSpecificData['licenseNumber'] as String,
+                    ),
+                ],
+                
+                if (role == 'pharmacy' && roleSpecificData != null) ...[
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Pharmacy Details',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0C4556),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (roleSpecificData['address'] != null)
+                    _buildDetailRow(
+                      'Address',
+                      roleSpecificData['address'] as String,
+                    ),
+                  if (roleSpecificData['licenseNumber'] != null)
+                    _buildDetailRow(
+                      'License Number',
+                      roleSpecificData['licenseNumber'] as String,
+                    ),
+                ],
+                
+                // Deactivate/Activate button for doctors and pharmacies
+                if (role == 'doctor' || role == 'pharmacy') ...[
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await _toggleUserAccountStatus(context, userId, role, !isActive);
+                      },
+                      icon: Icon(isActive ? Icons.block : Icons.check_circle),
+                      label: Text(isActive ? 'Deactivate Account' : 'Activate Account'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isActive ? Colors.red : Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                color: valueColor ?? const Color(0xFF0C4556),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _toggleUserAccountStatus(
+    BuildContext context,
+    String userId,
+    String role,
+    bool activate,
+  ) async {
+    try {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(activate ? 'Activate Account' : 'Deactivate Account'),
+          content: Text(
+            activate
+                ? 'Are you sure you want to activate this ${role} account? They will be able to access the platform again.'
+                : 'Are you sure you want to deactivate this ${role} account? They will not be able to access the platform.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: activate ? Colors.green : Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(activate ? 'Activate' : 'Deactivate'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(activate ? 'Activating account...' : 'Deactivating account...'),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+
+      // Update user status
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'isActive': activate,
+        'deactivatedAt': activate ? null : FieldValue.serverTimestamp(),
+      });
+
+      // Also update in role-specific collection
+      if (role == 'doctor') {
+        await FirebaseFirestore.instance.collection('doctors').doc(userId).update({
+          'isActive': activate,
+        });
+      } else if (role == 'pharmacy') {
+        await FirebaseFirestore.instance.collection('pharmacies').doc(userId).update({
+          'isActive': activate,
+        });
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              activate
+                  ? 'Account activated successfully'
+                  : 'Account deactivated successfully',
+            ),
+            backgroundColor: activate ? Colors.green : Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to ${activate ? 'activate' : 'deactivate'} account: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }
