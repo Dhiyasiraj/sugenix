@@ -164,30 +164,71 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
 
   String _getFallbackResponse(String userMessage) {
     final lowerMessage = userMessage.toLowerCase();
+    final fallbackTopics = [
+      {
+        'keywords': ['glucose', 'blood sugar', 'sugar'],
+        'response':
+            "For glucose management, monitor your levels regularly. Fasting targets are 70–99 mg/dL and post-meal ideally stays below 140 mg/dL. Log your readings in the Glucose module so the AI can spot trends and flag risky patterns."
+      },
+      {
+        'keywords': ['medication', 'medicine', 'drug'],
+        'response':
+            "Take diabetes medications exactly as prescribed and set reminders so doses are never missed. Use the Medicine Scanner to review instructions, and speak with your doctor before changing timing or dosage."
+      },
+      {
+        'keywords': ['diet', 'food', 'eat', 'meal'],
+        'response':
+            "Build plates with half vegetables, one quarter lean protein, and one quarter whole grains. Space meals 3–4 hours apart, stay hydrated, and carry a fast-acting carb snack in case your glucose dips unexpectedly."
+      },
+      {
+        'keywords': ['exercise', 'workout', 'activity', 'walk'],
+        'response':
+            "Aim for 150 minutes of moderate movement each week—brisk walking, cycling, or low-impact aerobics all help insulin work better. Check glucose before and after workouts and keep water plus a small carb snack handy."
+      },
+      {
+        'keywords': ['stress', 'anxiety', 'mental'],
+        'response':
+            "Stress hormones can raise glucose. Add short breathing breaks, gentle stretches, or journaling after meals. If stress feels overwhelming, consider speaking with a counselor or mental-health specialist."
+      },
+      {
+        'keywords': ['sleep', 'insomnia', 'rest'],
+        'response':
+            "Consistent 7–8 hour sleep windows improve insulin sensitivity. Dim screens an hour before bed, keep caffeine to mornings, and try light stretches or meditation to signal your body that it’s time to rest."
+      },
+      {
+        'keywords': ['foot', 'feet', 'wound'],
+        'response':
+            "Inspect your feet daily for cuts, redness, or swelling. Wash, dry thoroughly, moisturize the tops (not between toes), and wear cushioned footwear. Report any sores or numbness to your care team promptly."
+      },
+      {
+        'keywords': ['insulin', 'injection', 'pen'],
+        'response':
+            "Rotate injection sites (abdomen, thighs, upper arms) to avoid lipodystrophy. Store insulin within the recommended temperature range and discard any vial beyond its in-use window to keep dosing accurate."
+      },
+      {
+        'keywords': ['travel', 'trip', 'flight'],
+        'response':
+            "Pack double the medicines and supplies you expect to use, keep them in carry-on luggage, and adjust dosing schedules gradually when crossing time zones. Check glucose more often on travel days."
+      },
+      {
+        'keywords': ['emergency', 'urgent', 'help'],
+        'response':
+            "If you have severe symptoms, use the Emergency SOS feature or contact local medical services immediately. Share your latest readings and medication list so responders can support you faster."
+      },
+    ];
 
-    if (lowerMessage.contains('glucose') ||
-        lowerMessage.contains('sugar') ||
-        lowerMessage.contains('blood')) {
-      return "For glucose management, monitor your levels regularly. Normal fasting glucose should be 70-99 mg/dL, and post-meal should be below 140 mg/dL. Make sure to take your medications as prescribed and maintain a balanced diet.";
-    } else if (lowerMessage.contains('medication') ||
-        lowerMessage.contains('medicine') ||
-        lowerMessage.contains('drug')) {
-      return "It's important to take your medications as prescribed by your doctor. Never skip doses and always check with your healthcare provider before making any changes. You can scan your medicine using the medicine scanner for detailed information.";
-    } else if (lowerMessage.contains('diet') ||
-        lowerMessage.contains('food') ||
-        lowerMessage.contains('eat')) {
-      return "A balanced diet is crucial for diabetes management. Focus on whole grains, lean proteins, plenty of vegetables, and limit processed foods and sugars. Consider consulting the wellness recommendations section for personalized meal plans.";
-    } else if (lowerMessage.contains('exercise') ||
-        lowerMessage.contains('workout') ||
-        lowerMessage.contains('activity')) {
-      return "Regular physical activity helps control blood sugar levels. Aim for at least 150 minutes of moderate exercise per week, such as brisk walking. Always check your glucose before and after exercise, and stay hydrated.";
-    } else if (lowerMessage.contains('emergency') ||
-        lowerMessage.contains('help') ||
-        lowerMessage.contains('urgent')) {
-      return "If you're experiencing a medical emergency, please use the Emergency SOS feature in the app or call your local emergency services immediately. The app can share your health data with paramedics for better care.";
-    } else {
-      return "Thank you for your question. I'm here to help with diabetes management, medication information, dietary advice, and general health guidance. Would you like more specific information about any of these topics?";
+    for (final topic in fallbackTopics) {
+      final keywords = (topic['keywords'] as List<String>);
+      if (keywords.any((k) => lowerMessage.contains(k))) {
+        return topic['response'] as String;
+      }
     }
+
+    return '''
+Thanks for reaching out! I can guide you on glucose tracking, medication routines, diet, activity, hydration, stress relief, or emergency planning. 
+• Tell me a recent glucose trend and I’ll interpret it.
+• Ask for meal or workout ideas tailored to your readings.
+• Say “share tips” plus a topic (sleep, travel, foot care) for focused guidance.''';
   }
 
   void _scrollToBottom() {

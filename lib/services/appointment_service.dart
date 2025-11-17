@@ -141,6 +141,33 @@ class AppointmentService {
     });
   }
 
+  // Get doctor's appointments
+  Stream<List<Map<String, dynamic>>> getDoctorAppointments() {
+    if (_auth.currentUser == null) return Stream.value([]);
+
+    final doctorId = _auth.currentUser!.uid;
+    return _firestore.collection('appointments').snapshots().map((snapshot) {
+      final allAppointments = snapshot.docs.map((doc) {
+        final data = doc.data();
+        final timestamp = data['dateTime'] as Timestamp?;
+        return {
+          'id': doc.id,
+          ...data,
+          'dateTime': timestamp?.toDate() ?? DateTime.now(),
+        };
+      }).toList();
+
+      final filtered =
+          allAppointments.where((a) => a['doctorId'] == doctorId).toList();
+      filtered.sort((a, b) {
+        final aDate = a['dateTime'] as DateTime;
+        final bDate = b['dateTime'] as DateTime;
+        return aDate.compareTo(bDate);
+      });
+      return filtered;
+    });
+  }
+
   // Get appointment by ID
   Future<Map<String, dynamic>?> getAppointmentById(String appointmentId) async {
     try {
@@ -169,6 +196,18 @@ class AppointmentService {
       });
     } catch (e) {
       throw Exception('Failed to cancel appointment: ${e.toString()}');
+    }
+  }
+
+  Future<void> updateAppointmentStatus(
+      String appointmentId, String status) async {
+    try {
+      await _firestore.collection('appointments').doc(appointmentId).update({
+        'status': status,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Failed to update appointment: ${e.toString()}');
     }
   }
 

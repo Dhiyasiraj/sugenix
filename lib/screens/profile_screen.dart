@@ -12,7 +12,9 @@ import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/services/role_service.dart';
 import 'package:sugenix/screens/admin_panel_screen.dart';
 import 'package:sugenix/screens/doctor_dashboard_screen.dart';
+import 'package:sugenix/screens/doctor_appointments_screen.dart';
 import 'package:sugenix/screens/pharmacy_dashboard_screen.dart';
+import 'package:sugenix/screens/pharmacy_orders_screen.dart';
 import 'package:sugenix/screens/settings_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -1084,6 +1086,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildActionButtons() {
+    final quickActions = _quickActionsForRole(context);
     return Container(
       padding: const EdgeInsets.all(25),
       decoration: BoxDecoration(
@@ -1114,126 +1117,171 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          _buildActionButton(
-            'Medical Records',
-            Icons.folder_open,
-            const Color(0xFF4CAF50),
-            () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const MedicalRecordsScreen(),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 15),
-          _buildActionButton(
-            'Medicine Orders',
-            Icons.medication,
-            const Color(0xFF2196F3),
-            () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const MedicineOrdersScreen(),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 15),
-          _buildActionButton(
-            'My Appointments',
-            Icons.calendar_today,
-            const Color(0xFF2196F3),
-            () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AppointmentsScreen(),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 15),
-          _buildActionButton(
-            'Emergency Contacts',
-            Icons.emergency,
-            const Color(0xFFF44336),
-            () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const EmergencyContactsScreen(),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 15),
-          _buildActionButton(
-            'Emergency SOS',
-            Icons.sos,
-            const Color(0xFFF44336),
-            () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const EmergencyScreen(),
-                ),
-              );
-            },
-          ),
-          // Settings only for doctor and pharmacy
-          if (_userRole == 'doctor' || _userRole == 'pharmacy') ...[
-            const SizedBox(height: 15),
-            _buildActionButton(
-              'Settings',
-              Icons.settings,
-              const Color(0xFF9C27B0),
-              () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const SettingsScreen(),
-                  ),
-                );
-              },
-            ),
+          for (int i = 0; i < quickActions.length; i++) ...[
+            _buildActionButton(quickActions[i]),
+            if (i != quickActions.length - 1) const SizedBox(height: 15),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildActionButton(
-    String title,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
+  List<_ProfileQuickAction> _quickActionsForRole(BuildContext context) {
+    final role = _userRole ?? 'user';
+    final List<_ProfileQuickAction> actions = [];
+
+    switch (role) {
+      case 'doctor':
+        actions.addAll([
+          _ProfileQuickAction(
+            title: 'Doctor Dashboard',
+            icon: Icons.dashboard_customize,
+            color: const Color(0xFF2196F3),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const DoctorDashboardScreen()),
+            ),
+          ),
+          _ProfileQuickAction(
+            title: 'Patient Records',
+            icon: Icons.folder_shared,
+            color: const Color(0xFF4CAF50),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MedicalRecordsScreen()),
+            ),
+          ),
+          _ProfileQuickAction(
+            title: 'Doctor Appointments',
+            icon: Icons.event,
+            color: const Color(0xFF9C27B0),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const DoctorAppointmentsScreen()),
+            ),
+          ),
+        ]);
+        break;
+      case 'pharmacy':
+        actions.addAll([
+          _ProfileQuickAction(
+            title: 'Pharmacy Dashboard',
+            icon: Icons.store_mall_directory,
+            color: const Color(0xFF009688),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PharmacyDashboardScreen()),
+            ),
+          ),
+          _ProfileQuickAction(
+            title: 'Pharmacy Orders',
+            icon: Icons.local_shipping,
+            color: const Color(0xFFFFA726),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PharmacyOrdersScreen()),
+            ),
+          ),
+        ]);
+        break;
+      default:
+        actions.addAll([
+          _ProfileQuickAction(
+            title: 'Medical Records',
+            icon: Icons.folder_open,
+            color: const Color(0xFF4CAF50),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MedicalRecordsScreen()),
+            ),
+          ),
+          _ProfileQuickAction(
+            title: 'Medicine Orders',
+            icon: Icons.medication,
+            color: const Color(0xFF2196F3),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MedicineOrdersScreen()),
+            ),
+          ),
+          _ProfileQuickAction(
+            title: 'My Appointments',
+            icon: Icons.calendar_today,
+            color: const Color(0xFF9C27B0),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AppointmentsScreen()),
+            ),
+          ),
+          _ProfileQuickAction(
+            title: 'Emergency Contacts',
+            icon: Icons.emergency,
+            color: const Color(0xFFF44336),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const EmergencyContactsScreen()),
+            ),
+          ),
+          _ProfileQuickAction(
+            title: 'Emergency SOS',
+            icon: Icons.sos,
+            color: const Color(0xFFF44336),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const EmergencyScreen()),
+            ),
+          ),
+        ]);
+    }
+
+    actions.addAll([
+      _ProfileQuickAction(
+        title: 'Settings',
+        icon: Icons.settings,
+        color: const Color(0xFF673AB7),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+        ),
+      ),
+      _ProfileQuickAction(
+        title: 'Language Preferences',
+        icon: Icons.language,
+        color: const Color(0xFF607D8B),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const LanguageScreen()),
+        ),
+      ),
+    ]);
+
+    return actions;
+  }
+
+  Widget _buildActionButton(_ProfileQuickAction action) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: action.onTap,
       child: Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: action.color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: action.color.withOpacity(0.3)),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
+                color: action.color.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, color: color, size: 20),
+              child: Icon(action.icon, color: action.color, size: 20),
             ),
             const SizedBox(width: 15),
             Expanded(
               child: Text(
-                title,
+                action.title,
                 style: TextStyle(
                   fontSize: ResponsiveHelper.getResponsiveFontSize(
                     context,
@@ -1246,10 +1294,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
-            Icon(Icons.arrow_forward_ios, color: color, size: 16),
+            Icon(Icons.arrow_forward_ios, color: action.color, size: 16),
           ],
         ),
       ),
     );
   }
+}
+
+class _ProfileQuickAction {
+  final String title;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ProfileQuickAction({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
 }

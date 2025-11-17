@@ -429,8 +429,12 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
     final value = (record['value'] as num?)?.toDouble() ?? 0.0;
     final readingType = record['type'] as String?;
     final status = _getGlucoseStatus(value, readingType);
-    final timestamp = record['timestamp'] as Timestamp;
-    final timeAgo = _getTimeAgo(timestamp.toDate());
+    final timestampValue = record['timestamp'];
+    final timestampDate = timestampValue is Timestamp
+        ? timestampValue.toDate()
+        : (timestampValue is DateTime ? timestampValue : null);
+    final timeAgo =
+        timestampDate != null ? _getTimeAgo(timestampDate) : 'Just now';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 15),

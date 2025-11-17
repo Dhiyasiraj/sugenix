@@ -152,23 +152,23 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
             ],
           ),
         ),
-        body: Column(
-          children: [
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _buildSummary(),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _buildAppointmentsTab(),
-                  _buildRecordsTab(),
-                ],
+        body: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) => [
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _buildSummary(),
               ),
             ),
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
           ],
+          body: TabBarView(
+            children: [
+              _buildAppointmentsTab(),
+              _buildRecordsTab(),
+            ],
+          ),
         ),
       ),
     );

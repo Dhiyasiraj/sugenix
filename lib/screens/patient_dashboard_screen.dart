@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:sugenix/screens/appointments_screen.dart';
 import 'package:sugenix/screens/emergency_screen.dart';
+import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/screens/medical_records_screen.dart';
 import 'package:sugenix/screens/medicine_orders_screen.dart';
 import 'package:sugenix/services/appointment_service.dart';
 import 'package:sugenix/services/glucose_service.dart';
+import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/services/medical_records_service.dart';
 import 'package:sugenix/services/medicine_orders_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
@@ -47,14 +49,25 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return StreamBuilder<String>(
+      stream: LanguageService.currentLanguageStream,
+      builder: (context, snapshot) {
+        final languageCode = snapshot.data ?? LanguageService.getCurrentLanguage();
+        return _buildDashboard(context, languageCode);
+      },
+    );
+  }
+
+  Widget _buildDashboard(BuildContext context, String languageCode) {
     final padding = ResponsiveHelper.getResponsivePadding(context);
+    final title = _t('my_health_dashboard', languageCode, 'My Health Dashboard');
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          'My Health Dashboard',
-          style: TextStyle(
+        title: Text(
+          title,
+          style: const TextStyle(
             color: Color(0xFF0C4556),
             fontWeight: FontWeight.bold,
           ),
@@ -63,6 +76,17 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LanguageScreen()),
+              );
+            },
+          ),
+        ],
       ),
       backgroundColor: const Color(0xFFF5F6F8),
       body: SingleChildScrollView(
@@ -70,24 +94,24 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSummaryRow(context),
+            _buildSummaryRow(context, languageCode),
             const SizedBox(height: 20),
-            _buildQuickActions(context),
+            _buildQuickActions(context, languageCode),
             const SizedBox(height: 20),
-            _buildRecentReadings(),
+            _buildRecentReadings(languageCode),
             const SizedBox(height: 20),
-            _buildUpcomingAppointments(),
+            _buildUpcomingAppointments(languageCode),
             const SizedBox(height: 20),
-            _buildRecentOrders(),
+            _buildRecentOrders(languageCode),
             const SizedBox(height: 20),
-            _buildMedicalRecords(),
+            _buildMedicalRecords(languageCode),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSummaryRow(BuildContext context) {
+  Widget _buildSummaryRow(BuildContext context, String languageCode) {
     final isWide = ResponsiveHelper.isTablet(context) || ResponsiveHelper.isDesktop(context);
     final avg = _glucoseStats?['average'] as double?;
     final normal = _glucoseStats?['normalReadings'] ?? 0;
@@ -101,28 +125,28 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         _buildSummaryCard(
           icon: Icons.monitor_heart,
           color: Colors.green,
-          title: '7-Day Average',
+          title: _t('seven_day_average', languageCode, '7-Day Average'),
           value: avg != null ? '${avg.toStringAsFixed(0)} mg/dL' : '--',
           width: isWide ? 220 : double.infinity,
         ),
         _buildSummaryCard(
           icon: Icons.thumb_up,
           color: Colors.blue,
-          title: 'In Range',
+          title: _t('in_range_readings', languageCode, 'In Range'),
           value: '$normal readings',
           width: isWide ? 220 : double.infinity,
         ),
         _buildSummaryCard(
           icon: Icons.warning,
           color: Colors.orange,
-          title: 'High Alerts',
+          title: _t('high_alerts', languageCode, 'High Alerts'),
           value: '$high readings',
           width: isWide ? 220 : double.infinity,
         ),
         _buildSummaryCard(
           icon: Icons.warning_amber,
           color: Colors.red,
-          title: 'Low Alerts',
+          title: _t('low_alerts', languageCode, 'Low Alerts'),
           value: '$low readings',
           width: isWide ? 220 : double.infinity,
         ),
@@ -186,16 +210,16 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context) {
+  Widget _buildQuickActions(BuildContext context, String languageCode) {
     final items = [
       {
-        'title': 'Glucose Logs',
+        'title': _t('glucose_logs', languageCode, 'Glucose Logs'),
         'icon': Icons.bar_chart,
         'color': const Color(0xFF2196F3),
         'action': () => Navigator.pushNamed(context, '/glucose-history'),
       },
       {
-        'title': 'Book Doctor',
+        'title': _t('book_doctor', languageCode, 'Book Doctor'),
         'icon': Icons.medical_services,
         'color': const Color(0xFF9C27B0),
         'action': () => Navigator.push(
@@ -204,7 +228,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             ),
       },
       {
-        'title': 'Medical Records',
+        'title': _t('medical_records_section', languageCode, 'Medical Records'),
         'icon': Icons.assignment,
         'color': const Color(0xFF4CAF50),
         'action': () => Navigator.push(
@@ -213,7 +237,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             ),
       },
       {
-        'title': 'Order Medicines',
+        'title': _t('order_medicines', languageCode, 'Order Medicines'),
         'icon': Icons.local_pharmacy,
         'color': const Color(0xFFFF9800),
         'action': () => Navigator.push(
@@ -222,7 +246,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             ),
       },
       {
-        'title': 'Emergency SOS',
+        'title': _t('emergency_sos_action', languageCode, 'Emergency SOS'),
         'icon': Icons.emergency_share,
         'color': const Color(0xFFF44336),
         'action': () => Navigator.push(
@@ -294,15 +318,15 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
-  Widget _buildRecentReadings() {
+  Widget _buildRecentReadings(String languageCode) {
     return _buildSection(
-      title: 'Recent Glucose Readings',
+      title: _t('recent_glucose_readings', languageCode, 'Recent Glucose Readings'),
       child: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _glucoseService.getGlucoseReadings(),
         builder: (context, snapshot) {
           final readings = (snapshot.data ?? []).take(5).toList();
           if (readings.isEmpty) {
-            return _buildEmptyState('No readings yet. Add your first reading.');
+            return _buildEmptyState(_t('no_readings_message', languageCode, 'No readings yet. Add your first reading.'));
           }
           return Column(
             children: readings.map((reading) {
@@ -343,9 +367,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
-  Widget _buildUpcomingAppointments() {
+  Widget _buildUpcomingAppointments(String languageCode) {
     return _buildSection(
-      title: 'Upcoming Appointments',
+      title: _t('upcoming_appointments_section', languageCode, 'Upcoming Appointments'),
       child: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _appointmentService.getUserAppointments(),
         builder: (context, snapshot) {
@@ -364,7 +388,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
               });
           final nextAppointments = appointments.take(3).toList();
           if (nextAppointments.isEmpty) {
-            return _buildEmptyState('No upcoming appointments. Book a consultation.');
+            return _buildEmptyState(
+              '${_t('no_upcoming_appointments', languageCode, 'No upcoming appointments.')} ${_t('book_consultation_prompt', languageCode, 'Book a consultation.')}',
+            );
           }
           return Column(
             children: nextAppointments.map((appointment) {
@@ -400,15 +426,15 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
-  Widget _buildRecentOrders() {
+  Widget _buildRecentOrders(String languageCode) {
     return _buildSection(
-      title: 'Recent Medicine Orders',
+      title: _t('recent_orders_section', languageCode, 'Recent Medicine Orders'),
       child: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _ordersService.getUserOrders(),
         builder: (context, snapshot) {
           final orders = (snapshot.data ?? []).take(5).toList();
           if (orders.isEmpty) {
-            return _buildEmptyState('No orders yet. Explore the e-pharmacy store.');
+            return _buildEmptyState(_t('no_recent_orders', languageCode, 'No orders yet. Explore the e-pharmacy store.'));
           }
           return Column(
             children: orders.map((order) {
@@ -449,22 +475,22 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
-  Widget _buildMedicalRecords() {
+  Widget _buildMedicalRecords(String languageCode) {
     return _buildSection(
-      title: 'Latest Medical Records',
+      title: _t('latest_medical_records', languageCode, 'Latest Medical Records'),
       action: TextButton(
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const MedicalRecordsScreen()),
         ),
-        child: const Text('View All'),
+        child: Text(_t('view_all', languageCode, 'View All')),
       ),
       child: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _medicalRecordsService.getMedicalRecords(),
         builder: (context, snapshot) {
           final records = (snapshot.data ?? []).take(4).toList();
           if (records.isEmpty) {
-            return _buildEmptyState('No records found. Upload prescriptions or reports.');
+            return _buildEmptyState(_t('no_medical_records', languageCode, 'No records found. Upload prescriptions or reports.'));
           }
           return Column(
             children: records.map((record) {
@@ -579,6 +605,11 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         ],
       ),
     );
+  }
+
+  String _t(String key, String languageCode, String fallback) {
+    final translated = LanguageService.translate(key, languageCode);
+    return translated == key ? fallback : translated;
   }
 
   DateTime? _toDate(dynamic value) {
