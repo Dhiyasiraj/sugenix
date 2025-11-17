@@ -33,6 +33,7 @@ import 'package:sugenix/screens/pharmacy_orders_screen.dart';
 import 'package:sugenix/screens/pharmacy_inventory_screen.dart';
 import 'package:sugenix/screens/doctor_dashboard_screen.dart';
 import 'package:sugenix/screens/admin_panel_screen.dart';
+import 'package:sugenix/screens/prescription_upload_screen.dart';
 import 'package:sugenix/services/app_localization_service.dart';
 import 'package:sugenix/services/locale_notifier.dart';
 import 'package:sugenix/l10n/app_localizations.dart';
@@ -147,6 +148,7 @@ class _SugenixAppState extends State<SugenixApp> {
         '/bluetooth-devices': (context) => const BluetoothDeviceScreen(),
         '/emergency-contacts': (context) => const EmergencyContactsScreen(),
         '/pharmacy-dashboard': (context) => const PharmacyDashboardScreen(),
+        '/prescription-upload': (context) => const PrescriptionUploadScreen(),
       },
     );
   }

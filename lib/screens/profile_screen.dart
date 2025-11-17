@@ -167,6 +167,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
         }
 
+        // Validate required fields
+        if (_nameController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Name is required'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+        
+        if (_mobileController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Mobile number is required'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
         await _authService.updateUserProfile(
           name: _nameController.text,
           phone: _mobileController.text,
@@ -192,6 +213,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
         }
 
+        // Validate required fields
+        if (_nameController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Name is required'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+        
+        if (_mobileController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Mobile number is required'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
         await _authService.updateUserProfile(
           name: _nameController.text,
           phone: _mobileController.text,
@@ -205,6 +247,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       } else if (_userRole == 'pharmacy') {
         // Pharmacy profile update
+        // Validate required fields
+        if (_nameController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Name is required'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+        
+        if (_mobileController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Mobile number is required'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
         await _authService.updateUserProfile(
           name: _nameController.text,
           phone: _mobileController.text,
@@ -351,13 +414,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               return const SizedBox.shrink();
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LanguageScreen()),
-              );
+          // Language button only for patients (user role)
+          StreamBuilder<String>(
+            stream: RoleService().roleStream(),
+            builder: (context, snapshot) {
+              final role = snapshot.data ?? 'user';
+              if (role == 'user') {
+                return IconButton(
+                  icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LanguageScreen()),
+                    );
+                  },
+                );
+              }
+              return const SizedBox.shrink();
             },
           ),
           if (!_isEditing)
@@ -1110,20 +1183,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               );
             },
           ),
-          const SizedBox(height: 15),
-          _buildActionButton(
-            'Settings',
-            Icons.settings,
-            const Color(0xFF9C27B0),
-            () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsScreen(),
-                ),
-              );
-            },
-          ),
+          // Settings only for doctor and pharmacy
+          if (_userRole == 'doctor' || _userRole == 'pharmacy') ...[
+            const SizedBox(height: 15),
+            _buildActionButton(
+              'Settings',
+              Icons.settings,
+              const Color(0xFF9C27B0),
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SettingsScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
         ],
       ),
     );

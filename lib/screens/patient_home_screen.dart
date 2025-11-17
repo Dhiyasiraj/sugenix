@@ -117,8 +117,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           children: [
             _buildWelcomeCard(userName, currentTime),
             const SizedBox(height: 20),
-            _buildGlucoseOverview(),
-            const SizedBox(height: 20),
             _buildQuickActions(),
             const SizedBox(height: 20),
             _buildMedicineSection(),
@@ -337,7 +335,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const TranslatedText(
-          'home',
+          'quick_actions',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -350,30 +348,15 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           children: [
             Expanded(
               child: _buildActionCard(
-                'Add Reading',
-                Icons.add_circle,
-                const Color(0xFF4CAF50),
+                'Wellness',
+                Icons.favorite,
+                const Color(0xFFE91E63),
                 () {
-                  Navigator.pushNamed(context, '/glucose-monitoring');
+                  Navigator.pushNamed(context, '/wellness');
                 },
               ),
             ),
             const SizedBox(width: 15),
-            Expanded(
-              child: _buildActionCard(
-                'View History',
-                Icons.history,
-                const Color(0xFF2196F3),
-                () {
-                  Navigator.pushNamed(context, '/glucose-history');
-                },
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 15),
-        Row(
-          children: [
             Expanded(
               child: _buildActionCard(
                 'AI Assistant',
@@ -389,7 +372,11 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                 },
               ),
             ),
-            const SizedBox(width: 15),
+          ],
+        ),
+        const SizedBox(height: 15),
+        Row(
+          children: [
             Expanded(
               child: _buildActionCard(
                 'Emergency',
@@ -402,6 +389,17 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                       builder: (context) => const EmergencyScreen(),
                     ),
                   );
+                },
+              ),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: _buildActionCard(
+                'Book Doctor',
+                Icons.medical_services,
+                const Color(0xFF9C27B0),
+                () {
+                  Navigator.pushNamed(context, '/appointments');
                 },
               ),
             ),
@@ -493,7 +491,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const TranslatedText(
-          'home',
+          'top_doctors',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,

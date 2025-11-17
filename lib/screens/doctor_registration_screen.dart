@@ -15,6 +15,7 @@ class DoctorRegistrationScreen extends StatefulWidget {
 class _DoctorRegistrationScreenState extends State<DoctorRegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _licenseNumberController = TextEditingController();
   final _specializationController = TextEditingController(text: 'Diabetologist');
   final _hospitalController = TextEditingController();
   final _languagesController = TextEditingController(text: 'English, Malayalam');
@@ -28,6 +29,7 @@ class _DoctorRegistrationScreenState extends State<DoctorRegistrationScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _licenseNumberController.dispose();
     _specializationController.dispose();
     _hospitalController.dispose();
     _languagesController.dispose();
@@ -171,6 +173,7 @@ class _DoctorRegistrationScreenState extends State<DoctorRegistrationScreen> {
       await db.collection('doctors').doc(uid).set({
         'id': uid,
         'name': _nameController.text.trim(),
+        'licenseNumber': _licenseNumberController.text.trim(),
         'specialization': _specializationController.text.trim(),
         'hospital': _hospitalController.text.trim(),
         'languages': languages,
@@ -246,7 +249,9 @@ class _DoctorRegistrationScreenState extends State<DoctorRegistrationScreen> {
             children: [
               _buildField(_nameController, 'Full Name', Icons.person, validator: (v) => v!.isEmpty ? 'Required' : null),
               const SizedBox(height: 12),
-              _buildField(_specializationController, 'Specialization', Icons.medical_services),
+              _buildField(_licenseNumberController, 'License Number', Icons.verified, validator: (v) => v!.isEmpty ? 'License number is required' : null),
+              const SizedBox(height: 12),
+              _buildField(_specializationController, 'Specialization', Icons.medical_services, validator: (v) => v!.isEmpty ? 'Specialization is required' : null),
               const SizedBox(height: 12),
               _buildField(_hospitalController, 'Hospital/Clinic', Icons.local_hospital),
               const SizedBox(height: 12),

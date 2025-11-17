@@ -4,14 +4,23 @@ import 'package:image_picker/image_picker.dart';
 
 class GeminiService {
   // Replace with your actual Gemini API key
+  // IMPORTANT: Get your API key from https://makersuite.google.com/app/apikey
+  // For production, use environment variables or secure storage
   static const String _apiKey = 'AIzaSyAbOgEcLbLwautxmYSE6ZgkCwZYAFX8Tig';
   static const String _baseUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
   static const String _textUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+  
+  // Check if API key is configured
+  static bool get isApiKeyConfigured => _apiKey.isNotEmpty && _apiKey != 'YOUR_GEMINI_API_KEY_HERE';
 
   // Generate text response using Gemini
   static Future<String> generateText(String prompt) async {
+    if (!isApiKeyConfigured) {
+      throw Exception('Gemini API key is not configured. Please set up your API key in gemini_service.dart');
+    }
+    
     try {
       final url = Uri.parse('$_textUrl?key=$_apiKey');
 
@@ -59,6 +68,10 @@ class GeminiService {
 
   // Extract text from image using Gemini Vision
   static Future<String> extractTextFromImage(XFile imageFile) async {
+    if (!isApiKeyConfigured) {
+      throw Exception('Gemini API key is not configured. Please set up your API key in gemini_service.dart');
+    }
+    
     try {
       final bytes = await imageFile.readAsBytes();
       final base64Image = base64Encode(bytes);

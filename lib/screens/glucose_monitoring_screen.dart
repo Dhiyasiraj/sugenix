@@ -726,10 +726,12 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
                   }
                 } catch (e) {
                   if (context.mounted) {
+                    // Don't pop dialog on error, let user try again
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Failed to add reading: ${e.toString()}'),
+                        content: Text('Failed to add reading. Please try again.'),
                         backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 3),
                       ),
                     );
                   }

@@ -358,83 +358,107 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   }
 
   Widget _buildRecordsTab() {
-    return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-      stream: _records(),
-        builder: (context, snapshot) {
-          final docs = snapshot.data ?? [];
-        if (docs.isEmpty) {
-          return const Center(
-            child: Text(
-              'No assigned medical records',
-              style: TextStyle(color: Colors.grey),
-            ),
-          );
-        }
-        return ListView.separated(
+    return Column(
+      children: [
+        Padding(
           padding: const EdgeInsets.all(16),
-          itemCount: docs.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (context, index) {
-            final data = docs[index].data();
-            final title = (data['title'] as String?) ?? 'Record';
-            final type = (data['recordType'] as String?) ?? (data['type'] as String? ?? 'General');
-            final patient = (data['patientName'] as String?) ?? (data['userId'] as String? ?? '');
-            final recordDate = data['recordDate'];
-            DateTime? date;
-            if (recordDate is Timestamp) {
-              date = recordDate.toDate();
-            } else if (recordDate is DateTime) {
-              date = recordDate;
-            } else if (recordDate is String) {
-              try {
-                date = DateTime.parse(recordDate);
-              } catch (_) {
-                date = null;
+          child: ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pushNamed(context, '/prescription-upload');
+            },
+            icon: const Icon(Icons.upload_file),
+            label: const Text('Upload Prescription'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0C4556),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+            stream: _records(),
+            builder: (context, snapshot) {
+              final docs = snapshot.data ?? [];
+              if (docs.isEmpty) {
+                return const Center(
+                  child: Text(
+                    'No patient records yet',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                );
               }
-            }
+              return ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: docs.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final data = docs[index].data();
+                  final title = (data['title'] as String?) ?? 'Record';
+                  final type = (data['recordType'] as String?) ?? (data['type'] as String? ?? 'General');
+                  final patient = (data['patientName'] as String?) ?? (data['userId'] as String? ?? '');
+                  final recordDate = data['recordDate'];
+                  DateTime? date;
+                  if (recordDate is Timestamp) {
+                    date = recordDate.toDate();
+                  } else if (recordDate is DateTime) {
+                    date = recordDate;
+                  } else if (recordDate is String) {
+                    try {
+                      date = DateTime.parse(recordDate);
+                    } catch (_) {
+                      date = null;
+                    }
+                  }
 
-            return Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: ListTile(
-                leading: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF4CAF50).withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.description, color: Color(0xFF4CAF50)),
-                ),
-                title: Text(
-                  title,
-                  style: const TextStyle(
-                    color: Color(0xFF0C4556),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                subtitle: Text(
-                  '$type • $patient',
-                  style: const TextStyle(color: Colors.grey),
-                ),
-                trailing: Text(
-                  date != null ? DateFormat('MMM dd').format(date) : '',
-                  style: const TextStyle(color: Colors.grey),
-                ),
-              ),
-            );
-          },
-        );
-      },
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ListTile(
+                      leading: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4CAF50).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.description, color: Color(0xFF4CAF50)),
+                      ),
+                      title: Text(
+                        title,
+                        style: const TextStyle(
+                          color: Color(0xFF0C4556),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '$type • $patient',
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                      trailing: Text(
+                        date != null ? DateFormat('MMM dd').format(date) : '',
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

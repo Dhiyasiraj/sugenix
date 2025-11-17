@@ -105,29 +105,31 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
         ),
       ),
       backgroundColor: const Color(0xFFF5F6F8),
-      body: Column(
-        children: [
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _buildSummary(),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                const _UsersTab(),
-                const _DoctorsApprovalTab(),
-                const PharmaciesApprovalTab(),
-                const _RevenueTab(),
-                const _PlatformSettingsTab(),
-                const _AllMedicalRecordsTab(),
-                const _AllOrdersTab(),
-              ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildSummary(),
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  const _UsersTab(),
+                  const _DoctorsApprovalTab(),
+                  const PharmaciesApprovalTab(),
+                  const _RevenueTab(),
+                  const _PlatformSettingsTab(),
+                  const _AllMedicalRecordsTab(),
+                  const _AllOrdersTab(),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -137,66 +139,81 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
       return const SizedBox.shrink();
     }
 
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        _summaryCard(Icons.people, Colors.blue, 'Total Users', '$_totalUsers'),
-        _summaryCard(
-            Icons.medical_services, Colors.green, 'Doctors', '$_doctors'),
-        _summaryCard(
-            Icons.local_pharmacy, Colors.orange, 'Pharmacies', '$_pharmacies'),
-        _summaryCard(Icons.receipt_long, Colors.purple, 'Orders', '$_orders'),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 600;
+        final cardWidth = isWide ? (constraints.maxWidth - 48) / 4 : (constraints.maxWidth - 24) / 2;
+        
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          alignment: WrapAlignment.start,
+          children: [
+            SizedBox(
+              width: cardWidth,
+              child: _summaryCard(Icons.people, Colors.blue, 'Total Users', '$_totalUsers'),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _summaryCard(Icons.medical_services, Colors.green, 'Doctors', '$_doctors'),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _summaryCard(Icons.local_pharmacy, Colors.orange, 'Pharmacies', '$_pharmacies'),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _summaryCard(Icons.receipt_long, Colors.purple, 'Orders', '$_orders'),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _summaryCard(IconData icon, Color color, String title, String value) {
-    return SizedBox(
-      width: 180,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color),
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.grey,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.w600,
-              ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Color(0xFF0C4556),
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
             ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: const TextStyle(
-                color: Color(0xFF0C4556),
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

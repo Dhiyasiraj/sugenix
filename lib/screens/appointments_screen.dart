@@ -65,9 +65,9 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
           stream: LanguageService.currentLanguageStream,
           builder: (context, snapshot) {
             final languageCode = snapshot.data ?? 'en';
-            final title = LanguageService.translate('home', languageCode);
+            final title = LanguageService.translate('my_appointments', languageCode);
             return Text(
-              title == 'home' ? 'My Appointments' : title,
+              title == 'my_appointments' ? 'My Appointments' : title,
               style: TextStyle(
                 color: const Color(0xFF0C4556),
                 fontWeight: FontWeight.bold,

@@ -155,13 +155,9 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
         });
         _scrollToBottom();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'AI service temporarily unavailable. Showing basic response.'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        // Show a less intrusive message - only log the error, don't show snackbar
+        // The fallback response is already shown to the user
+        print('AI service error: ${e.toString()}');
       }
     }
   }
@@ -238,9 +234,9 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
               stream: LanguageService.currentLanguageStream,
               builder: (context, snapshot) {
                 final languageCode = snapshot.data ?? 'en';
-                final title = LanguageService.translate('home', languageCode);
+                final title = LanguageService.translate('ai_assistant', languageCode);
                 return Text(
-                  title == 'home' ? 'AI Assistant' : title,
+                  title == 'ai_assistant' ? 'AI Assistant' : title,
                   style: const TextStyle(
                     color: Color(0xFF0C4556),
                     fontWeight: FontWeight.bold,

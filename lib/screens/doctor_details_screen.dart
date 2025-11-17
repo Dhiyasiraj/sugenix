@@ -911,7 +911,8 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
   Widget _buildFeeBreakdown() {
     final consultationFee = widget.doctor.consultationFee;
     final fees = RevenueService.calculateFees(consultationFee);
-    final totalFee = fees['totalFee'] ?? consultationFee; // Fallback to consultationFee if calculation fails
+    // Total amount is the consultation fee (platform fee is included/deducted from this)
+    final totalFee = consultationFee;
     final platformFee = fees['platformFee'] ?? 0.0;
 
     return Container(

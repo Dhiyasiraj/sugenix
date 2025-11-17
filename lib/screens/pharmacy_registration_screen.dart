@@ -14,6 +14,7 @@ class _PharmacyRegistrationScreenState extends State<PharmacyRegistrationScreen>
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
+  final _licenseNumberController = TextEditingController();
   bool _saving = false;
 
   @override
@@ -21,6 +22,7 @@ class _PharmacyRegistrationScreenState extends State<PharmacyRegistrationScreen>
     _nameController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
+    _licenseNumberController.dispose();
     super.dispose();
   }
 
@@ -37,6 +39,7 @@ class _PharmacyRegistrationScreenState extends State<PharmacyRegistrationScreen>
         'name': _nameController.text.trim(),
         'phone': _phoneController.text.trim(),
         'address': _addressController.text.trim(),
+        'licenseNumber': _licenseNumberController.text.trim(),
         'approvalStatus': 'pending',
         'verified': false,
         'createdAt': FieldValue.serverTimestamp(),
@@ -90,6 +93,8 @@ class _PharmacyRegistrationScreenState extends State<PharmacyRegistrationScreen>
               _buildField(_phoneController, 'Phone', Icons.phone, keyboard: TextInputType.phone, validator: (v) => v!.isEmpty ? 'Required' : null),
               const SizedBox(height: 12),
               _buildField(_addressController, 'Address', Icons.location_on, maxLines: 3, validator: (v) => v!.isEmpty ? 'Required' : null),
+              const SizedBox(height: 12),
+              _buildField(_licenseNumberController, 'License Number', Icons.verified, validator: (v) => v!.isEmpty ? 'License number is required' : null),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
