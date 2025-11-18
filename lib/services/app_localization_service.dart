@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sugenix/l10n/app_localizations.dart';
 
 /// Service to manage app localization with SharedPreferences persistence
 class AppLocalizationService {

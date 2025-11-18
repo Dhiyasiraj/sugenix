@@ -3,6 +3,7 @@ import 'package:sugenix/signin.dart';
 import 'package:sugenix/forgetpass.dart';
 import 'package:sugenix/main.dart';
 import 'package:sugenix/services/auth_service.dart';
+import 'package:sugenix/services/admin_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:sugenix/l10n/app_localizations.dart';
 
@@ -19,6 +20,7 @@ class _LoginState extends State<Login> {
   bool _obscurePassword = true;
   bool _isLoading = false;
   final AuthService _authService = AuthService();
+  final AdminService _adminService = AdminService();
 
   @override
   Widget build(BuildContext context) {
@@ -247,32 +249,18 @@ class _LoginState extends State<Login> {
     });
 
     try {
-      // Hardcoded admin credentials
-      const String adminEmail = 'admin@sugenix.com';
-      const String adminPassword = 'admin123';
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
       
-      if (_emailController.text.trim() == adminEmail && 
-          _passwordController.text == adminPassword) {
-        // Admin login - create or sign in admin user
-        try {
-          await _authService.signInWithEmailAndPassword(
-            email: adminEmail,
-            password: adminPassword,
-          );
-        } catch (e) {
-          // If admin doesn't exist, create it
-          await _authService.signUpWithEmailAndPassword(
-            email: adminEmail,
-            password: adminPassword,
-            name: 'Admin',
-            phone: '',
-            dateOfBirth: DateTime.now().subtract(const Duration(days: 365 * 30)),
-            gender: 'Other',
-            diabetesType: 'N/A',
-          );
-          // Set admin role
-          await _authService.setUserRole('admin');
-        }
+      // Check if credentials match an admin account in Firestore
+      final isAdmin = await _adminService.verifyAdminCredentials(email, password);
+      
+      if (isAdmin) {
+        // Admin login - sign in admin user
+        await _authService.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
         
         if (mounted) {
           Navigator.pushReplacement(

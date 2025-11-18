@@ -9,6 +9,7 @@ import 'package:sugenix/screens/emergency_screen.dart';
 import 'package:sugenix/screens/medicine_scanner_screen.dart';
 import 'package:sugenix/screens/medicine_catalog_screen.dart';
 import 'package:sugenix/widgets/translated_text.dart';
+import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:intl/intl.dart';
 
@@ -24,7 +25,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   final AuthService _authService = AuthService();
   final DoctorService _doctorService = DoctorService();
 
-  List<Map<String, dynamic>> _recentReadings = [];
   Map<String, dynamic>? _userProfile;
   bool _isLoading = true;
   List<Doctor> _allDoctors = [];
@@ -38,10 +38,10 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   Future<void> _loadData() async {
     try {
       _userProfile = await _authService.getUserProfile();
+      // Load glucose readings stream for potential future use
       _glucoseService.getGlucoseReadings().listen((readings) {
         if (mounted) {
           setState(() {
-            _recentReadings = readings.take(3).toList();
             _isLoading = false;
           });
         }
@@ -84,7 +84,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
         baseColor: Colors.grey[300]!,
         highlightColor: Colors.grey[100]!,
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: ResponsiveHelper.getResponsivePadding(context),
           children: List.generate(5, (index) => Container(
             height: 100,
             margin: const EdgeInsets.only(bottom: 20),
@@ -103,7 +103,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
       top: false,
       bottom: true,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: ResponsiveHelper.getResponsivePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -166,9 +166,14 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                 ),
                 Text(
                   userName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 22,
+                    fontSize: ResponsiveHelper.getResponsiveFontSize(
+                      context,
+                      mobile: 20,
+                      tablet: 22,
+                      desktop: 24,
+                    ),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -193,134 +198,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
     );
   }
 
-  Widget _buildGlucoseOverview() {
-    if (_recentReadings.isEmpty) {
-      return _buildEmptyGlucoseCard();
-    }
 
-    final latestReading = _recentReadings.first;
-    final glucoseValue = (latestReading['value'] as num?)?.toDouble() ?? 0.0;
-    final status = _getGlucoseStatus(glucoseValue);
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: (status['color'] as Color).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.monitor_heart,
-                  color: status['color'] as Color,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const TranslatedText(
-                      'glucose',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      fallback: 'Glucose Level',
-                    ),
-                    Text(
-                      '${glucoseValue.toStringAsFixed(0)} mg/dL',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: status['color'] as Color,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: (status['color'] as Color).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  status['label'] as String,
-                  style: TextStyle(
-                    color: status['color'] as Color,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyGlucoseCard() {
-    return Container(
-      padding: const EdgeInsets.all(25),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(50),
-            ),
-            child: const Icon(
-              Icons.add_circle_outline,
-              size: 50,
-              color: Colors.grey,
-            ),
-          ),
-          const SizedBox(height: 15),
-          const TranslatedText(
-            'glucose',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0C4556),
-            ),
-            fallback: 'No glucose readings yet',
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildQuickActions() {
     return Column(
@@ -626,28 +504,5 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
     );
   }
 
-  Map<String, dynamic> _getGlucoseStatus(double value) {
-    if (value < 70) {
-      return {
-        'label': 'Low',
-        'color': Colors.red,
-      };
-    } else if (value >= 70 && value <= 99) {
-      return {
-        'label': 'Normal',
-        'color': Colors.green,
-      };
-    } else if (value >= 100 && value <= 125) {
-      return {
-        'label': 'Prediabetes',
-        'color': Colors.orange,
-      };
-    } else {
-      return {
-        'label': 'High',
-        'color': Colors.red,
-      };
-    }
-  }
 }
 
