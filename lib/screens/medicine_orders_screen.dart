@@ -3,7 +3,6 @@ import 'package:sugenix/screens/medicine_scanner_screen.dart';
 import 'package:sugenix/screens/cart_screen.dart';
 import 'package:sugenix/services/medicine_database_service.dart';
 import 'package:sugenix/services/medicine_cart_service.dart';
-import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/screens/prescription_upload_screen.dart';
 import 'package:sugenix/screens/orders_list_screen.dart';
@@ -137,15 +136,6 @@ class _MedicineOrdersScreenState extends State<MedicineOrdersScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LanguageScreen()),
-              );
-            },
-          ),
           IconButton(
             icon: const Icon(Icons.shopping_cart, color: Color(0xFF0C4556)),
             onPressed: () {

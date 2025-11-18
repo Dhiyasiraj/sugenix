@@ -7,7 +7,6 @@ import 'package:sugenix/screens/emergency_contacts_screen.dart';
 import 'package:sugenix/services/auth_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/services/role_service.dart';
 import 'package:sugenix/screens/admin_panel_screen.dart';
@@ -417,24 +416,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             },
           ),
           // Language button only for patients (user role)
-          StreamBuilder<String>(
-            stream: RoleService().roleStream(),
-            builder: (context, snapshot) {
-              final role = snapshot.data ?? 'user';
-              if (role == 'user') {
-                return IconButton(
-                  icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LanguageScreen()),
-                    );
-                  },
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
           if (!_isEditing)
             IconButton(
               icon: const Icon(Icons.edit, color: Color(0xFF0C4556)),
@@ -1242,15 +1223,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const SettingsScreen()),
-        ),
-      ),
-      _ProfileQuickAction(
-        title: 'Language Preferences',
-        icon: Icons.language,
-        color: const Color(0xFF607D8B),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const LanguageScreen()),
         ),
       ),
     ]);

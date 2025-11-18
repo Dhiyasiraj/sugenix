@@ -6,7 +6,6 @@ import 'package:sugenix/services/glucose_service.dart';
 import 'package:sugenix/services/user_context_service.dart';
 import 'package:intl/intl.dart';
 import 'package:sugenix/services/language_service.dart';
-import 'package:sugenix/screens/language_screen.dart';
 
 class AIAssistantScreen extends StatefulWidget {
   const AIAssistantScreen({super.key});
@@ -291,17 +290,6 @@ Thanks for reaching out! I can guide you on glucose tracking, medication routine
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LanguageScreen()),
-              );
-            },
-          ),
-        ],
       ),
       body: SafeArea(
         top: false,

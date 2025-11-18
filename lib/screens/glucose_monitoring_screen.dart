@@ -3,7 +3,6 @@ import 'package:sugenix/services/glucose_service.dart';
 import 'package:sugenix/services/gemini_service.dart';
 import 'package:sugenix/screens/glucose_history_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/widgets/translated_text.dart';
 
 class GlucoseMonitoringScreen extends StatefulWidget {
@@ -53,15 +52,6 @@ class _GlucoseMonitoringScreenState extends State<GlucoseMonitoringScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LanguageScreen()),
-              );
-            },
-          ),
           IconButton(
             icon: const Icon(Icons.add, color: Color(0xFF0C4556)),
             onPressed: () => _showAddGlucoseDialog(),

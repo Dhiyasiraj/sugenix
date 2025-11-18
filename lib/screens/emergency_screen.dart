@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:sugenix/services/emergency_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:sugenix/services/language_service.dart';
-import 'package:sugenix/screens/language_screen.dart';
 
 class EmergencyScreen extends StatefulWidget {
   const EmergencyScreen({super.key});
@@ -33,17 +32,6 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
             );
           },
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.language, color: Colors.white),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LanguageScreen()),
-              );
-            },
-          )
-        ],
       ),
       body: Container(
         decoration: BoxDecoration(

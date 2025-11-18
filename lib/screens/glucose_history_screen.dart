@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sugenix/services/glucose_service.dart';
 import 'package:sugenix/services/language_service.dart';
-import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
@@ -424,15 +423,6 @@ class _GlucoseHistoryScreenState extends State<GlucoseHistoryScreen> {
                 ),
               ),
             ],
-          ),
-          IconButton(
-            icon: const Icon(Icons.language),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const LanguageScreen()),
-              );
-            },
           ),
         ],
       ),

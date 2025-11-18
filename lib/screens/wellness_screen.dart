@@ -5,7 +5,6 @@ import 'package:sugenix/services/wellness_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:sugenix/services/language_service.dart';
-import 'package:sugenix/screens/language_screen.dart';
 
 class WellnessScreen extends StatefulWidget {
   const WellnessScreen({super.key});
@@ -82,17 +81,6 @@ class _WellnessScreenState extends State<WellnessScreen> {
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LanguageScreen()),
-              );
-            },
-          ),
-        ],
       ),
       body: SafeArea(
         top: false,

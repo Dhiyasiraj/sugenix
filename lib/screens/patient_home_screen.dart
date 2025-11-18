@@ -71,14 +71,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         title: TranslatedAppBarTitle('home', fallback: 'Home'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
-            onPressed: () {
-              Navigator.pushNamed(context, '/language');
-            },
-          ),
-        ],
       ),
       body: _isLoading ? _buildShimmerLoading() : _buildContent(userName, currentTime),
     );

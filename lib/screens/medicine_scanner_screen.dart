@@ -6,7 +6,6 @@ import 'package:sugenix/services/platform_image_service.dart';
 import 'package:sugenix/services/medicine_database_service.dart';
 import 'package:sugenix/services/gemini_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
-import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/services/medicine_cart_service.dart';
 import 'package:sugenix/screens/medicine_catalog_screen.dart';
@@ -253,17 +252,6 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LanguageScreen()),
-              );
-            },
-          ),
-        ],
       ),
       body: SafeArea(
         top: false,

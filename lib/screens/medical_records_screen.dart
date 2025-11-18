@@ -9,7 +9,6 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:sugenix/services/language_service.dart';
-import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/services/appointment_service.dart';
 import 'package:sugenix/services/doctor_service.dart';
 import 'package:sugenix/models/doctor.dart';
@@ -579,17 +578,6 @@ class _AddRecordScreenState extends State<AddRecordScreen> {
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LanguageScreen()),
-              );
-            },
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: ResponsiveHelper.getResponsivePadding(context),

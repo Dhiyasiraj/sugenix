@@ -11,7 +11,6 @@ import 'package:intl/intl.dart';
 import 'package:sugenix/services/doctor_service.dart';
 import 'package:sugenix/services/favorites_service.dart';
 import 'package:sugenix/services/language_service.dart';
-import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/screens/emergency_screen.dart';
 
@@ -114,17 +113,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         backgroundColor: Colors.white,
         elevation: 0,
         title: TranslatedAppBarTitle('home', fallback: 'Home'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LanguageScreen()),
-              );
-            },
-          ),
-        ],
       ),
       body: _isLoading ? _buildShimmerLoading() : _buildContent(),
     );

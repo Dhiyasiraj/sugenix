@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:sugenix/screens/appointments_screen.dart';
 import 'package:sugenix/screens/emergency_screen.dart';
-import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/screens/medical_records_screen.dart';
 import 'package:sugenix/screens/medicine_orders_screen.dart';
 import 'package:sugenix/services/appointment_service.dart';
@@ -76,17 +75,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.language, color: Color(0xFF0C4556)),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LanguageScreen()),
-              );
-            },
-          ),
-        ],
       ),
       backgroundColor: const Color(0xFFF5F6F8),
       body: SingleChildScrollView(

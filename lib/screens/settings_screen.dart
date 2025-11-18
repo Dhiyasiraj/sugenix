@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:sugenix/services/auth_service.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/services/glucose_service.dart';
-import 'package:sugenix/screens/language_screen.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -152,21 +151,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSectionTitle('General'),
             _buildSettingsCard(
               children: [
-                _buildSettingsTile(
-                  icon: Icons.language,
-                  title: 'Language',
-                  subtitle: LanguageService.getLanguageName(_selectedLanguage),
-                  onTap: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LanguageScreen()),
-                    );
-                    if (result != null) {
-                      await _loadSettings();
-                      setState(() {});
-                    }
-                  },
-                ),
                 const Divider(),
                 _buildSwitchTile(
                   icon: Icons.notifications,
