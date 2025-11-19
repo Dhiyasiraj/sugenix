@@ -1124,15 +1124,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           _ProfileQuickAction(
-            title: 'Patient Records',
-            icon: Icons.folder_shared,
-            color: const Color(0xFF4CAF50),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const MedicalRecordsScreen()),
-            ),
-          ),
-          _ProfileQuickAction(
             title: 'Doctor Appointments',
             icon: Icons.event,
             color: const Color(0xFF9C27B0),

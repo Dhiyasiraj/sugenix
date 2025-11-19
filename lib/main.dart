@@ -206,8 +206,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     } else if (_userRole == 'doctor') {
       return [
         const DoctorDashboardScreen(),
-        const AppointmentsScreen(),
-        const MedicalRecordsScreen(),
         const ProfileScreen(),
       ];
     } else {
@@ -275,16 +273,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           icon: Icon(Icons.dashboard_outlined, size: 24),
           activeIcon: Icon(Icons.dashboard, size: 24),
           label: l10n.dashboard,
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today_outlined, size: 24),
-          activeIcon: Icon(Icons.calendar_today, size: 24),
-          label: l10n.appointments,
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.assignment_outlined, size: 24),
-          activeIcon: Icon(Icons.assignment, size: 24),
-          label: l10n.records,
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.person_outline, size: 24),
