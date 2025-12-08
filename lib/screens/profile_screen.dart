@@ -36,14 +36,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _nameController = TextEditingController();
   final _mobileController = TextEditingController();
   final _emailController = TextEditingController();
-  
+
   // Patient-specific controllers
   final _diabetesTypeController = TextEditingController();
   final _heightController = TextEditingController();
   final _weightController = TextEditingController();
   String? _selectedGender;
   DateTime? _selectedDateOfBirth;
-  
+
   // Doctor-specific controllers
   final _specializationController = TextEditingController();
   final _hospitalController = TextEditingController();
@@ -52,7 +52,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _educationController = TextEditingController();
   final _consultationFeeController = TextEditingController();
   List<String> _selectedLanguages = [];
-  
+
   // Pharmacy-specific controllers
   final _addressController = TextEditingController();
   final _licenseNumberController = TextEditingController();
@@ -70,17 +70,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() {
           _userProfile = profile;
           _userRole = profile['role'] ?? 'user';
-          
+
           // Common fields
           _nameController.text = profile['name'] ?? '';
           _mobileController.text = profile['phone'] ?? '';
           _emailController.text = profile['email'] ?? '';
-          
+
           // Patient-specific fields
           if (_userRole == 'user' || _userRole == null) {
             _diabetesTypeController.text = profile['diabetesType'] ?? '';
             _selectedGender = profile['gender'] ?? 'Male';
-            
+
             // Load date of birth
             if (profile['dateOfBirth'] != null) {
               if (profile['dateOfBirth'] is Timestamp) {
@@ -90,16 +90,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _selectedDateOfBirth = profile['dateOfBirth'] as DateTime;
               }
             }
-            
+
             // Load height and weight
-            if (profile['height'] != null) {
-              _heightController.text = profile['height'].toString();
-            }
-            if (profile['weight'] != null) {
-              _weightController.text = profile['weight'].toString();
-            }
+            _heightController.text = profile['height']?.toString() ?? '';
+            _weightController.text = profile['weight']?.toString() ?? '';
           }
-          
+
           // Doctor-specific fields
           if (_userRole == 'doctor') {
             _specializationController.text = profile['specialization'] ?? '';
@@ -107,20 +103,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _bioController.text = profile['bio'] ?? '';
             _experienceController.text = profile['experience'] ?? '';
             _educationController.text = profile['education'] ?? '';
-            if (profile['consultationFee'] != null) {
-              _consultationFeeController.text = profile['consultationFee'].toString();
-            }
+            _consultationFeeController.text =
+                profile['consultationFee']?.toString() ?? '';
             if (profile['languages'] != null) {
               _selectedLanguages = List<String>.from(profile['languages']);
             }
           }
-          
+
           // Pharmacy-specific fields
           if (_userRole == 'pharmacy') {
             _addressController.text = profile['address'] ?? '';
             _licenseNumberController.text = profile['licenseNumber'] ?? '';
           }
-          
+
           _isLoading = false;
         });
       } else {
@@ -141,7 +136,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // Patient profile update
         double? height;
         double? weight;
-        
+
         if (_heightController.text.isNotEmpty) {
           height = double.tryParse(_heightController.text);
           if (height == null) {
@@ -154,7 +149,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             return;
           }
         }
-        
+
         if (_weightController.text.isNotEmpty) {
           weight = double.tryParse(_weightController.text);
           if (weight == null) {
@@ -178,7 +173,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
           return;
         }
-        
+
         if (_mobileController.text.trim().isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -224,7 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
           return;
         }
-        
+
         if (_mobileController.text.trim().isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -258,7 +253,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
           return;
         }
-        
+
         if (_mobileController.text.trim().isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -665,7 +660,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _userRole == 'doctor' 
+            _userRole == 'doctor'
                 ? 'Professional Information'
                 : _userRole == 'pharmacy'
                     ? 'Pharmacy Information'
@@ -831,10 +826,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(width: 15),
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () {
-                      setState(() {
-                        _isEditing = false;
-                      });
+                    onPressed: () async {
+                      // Reload profile to reset form fields to original values
+                      if (mounted) {
+                        await _loadUserProfile();
+                        if (mounted) {
+                          setState(() {
+                            _isEditing = false;
+                          });
+                        }
+                      }
                     },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 15),
@@ -1129,7 +1130,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: const Color(0xFF9C27B0),
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const DoctorAppointmentsScreen()),
+              MaterialPageRoute(
+                  builder: (_) => const DoctorAppointmentsScreen()),
             ),
           ),
         ]);
@@ -1142,7 +1144,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: const Color(0xFF009688),
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const PharmacyDashboardScreen()),
+              MaterialPageRoute(
+                  builder: (_) => const PharmacyDashboardScreen()),
             ),
           ),
           _ProfileQuickAction(
@@ -1191,7 +1194,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: const Color(0xFFF44336),
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const EmergencyContactsScreen()),
+              MaterialPageRoute(
+                  builder: (_) => const EmergencyContactsScreen()),
             ),
           ),
           _ProfileQuickAction(

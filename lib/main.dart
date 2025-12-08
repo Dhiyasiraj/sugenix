@@ -71,7 +71,7 @@ void main() async {
 
   // Initialize saved locale
   final savedLocale = await AppLocalizationService.getSavedLocale();
-  
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => LocaleNotifier()..setLocale(savedLocale),
@@ -91,7 +91,7 @@ class _SugenixAppState extends State<SugenixApp> {
   @override
   Widget build(BuildContext context) {
     final localeNotifier = Provider.of<LocaleNotifier>(context);
-    
+
     return MaterialApp(
       title: 'Sugenix - Diabetes Management',
       debugShowCheckedModeBanner: false,
@@ -392,7 +392,6 @@ class CalendarScreen extends StatelessWidget {
     );
   }
 }
-
 
 class FavoritesScreen extends StatelessWidget {
   const FavoritesScreen({super.key});

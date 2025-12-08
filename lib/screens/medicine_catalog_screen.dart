@@ -15,8 +15,9 @@ class _MedicineCatalogScreenState extends State<MedicineCatalogScreen> {
   final MedicineDatabaseService _db = MedicineDatabaseService();
   final MedicineCartService _cart = MedicineCartService();
   final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _allMedicines = [];
   List<Map<String, dynamic>> _results = [];
-  bool _searching = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -25,27 +26,53 @@ class _MedicineCatalogScreenState extends State<MedicineCatalogScreen> {
   }
 
   Future<void> _loadInitial() async {
+    setState(() => _isLoading = true);
     try {
-      final list = await _db.searchMedicines('');
+      // Get all medicines using the stream method
+      final stream = _db.getAllMedicines(limit: 100);
+      final list = await stream.first;
       setState(() {
-        _results = list;
+        _allMedicines = list;
+        _results = list; // Show all medicines initially
+        _isLoading = false;
       });
-    } catch (_) {
-      setState(() => _results = []);
-    } finally {
+    } catch (e) {
+      setState(() {
+        _allMedicines = [];
+        _results = [];
+        _isLoading = false;
+      });
     }
   }
 
-  Future<void> _runSearch(String q) async {
-    setState(() => _searching = true);
-    try {
-      final list = await _db.searchMedicines(q);
-      setState(() => _results = list);
-    } catch (_) {
-      setState(() => _results = []);
-    } finally {
-      if (mounted) setState(() => _searching = false);
+  void _filterMedicines(String query) {
+    // Filter medicines based on search query - like e-commerce
+    if (query.trim().isEmpty) {
+      // If search is empty, show all medicines
+      setState(() {
+        _results = _allMedicines;
+      });
+      return;
     }
+
+    // Filter from loaded medicines only
+    final queryLower = query.toLowerCase().trim();
+    setState(() {
+      _results = _allMedicines.where((medicine) {
+        final name = (medicine['name'] as String? ?? '').toLowerCase();
+        final manufacturer = (medicine['manufacturer'] as String? ?? '').toLowerCase();
+        final description = (medicine['description'] as String? ?? '').toLowerCase();
+        
+        return name.contains(queryLower) || 
+               manufacturer.contains(queryLower) || 
+               description.contains(queryLower);
+      }).toList();
+    });
+  }
+
+  Future<void> _runSearch(String q) async {
+    // Simple search - just filter from loaded medicines
+    _filterMedicines(q);
   }
 
   @override
@@ -83,17 +110,18 @@ class _MedicineCatalogScreenState extends State<MedicineCatalogScreen> {
             padding: const EdgeInsets.all(16),
             child: _buildSearchBar(),
           ),
-          if (_searching) const LinearProgressIndicator(minHeight: 2),
           Expanded(
-            child: _results.isEmpty && !_searching
-                    ? const Center(
-                        child: Text('No medicines found', style: TextStyle(color: Colors.grey)),
-                      )
-                    : GridView.builder(
+            child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _results.isEmpty
+                        ? const Center(
+                            child: Text('No medicines found', style: TextStyle(color: Colors.grey)),
+                          )
+                        : GridView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: crossAxisCount,
-                          childAspectRatio: isDesktop ? 0.78 : (isTablet ? 0.80 : 0.76),
+                          childAspectRatio: isDesktop ? 0.72 : (isTablet ? 0.74 : 0.70),
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                         ),
@@ -143,9 +171,10 @@ class _MedicineCatalogScreenState extends State<MedicineCatalogScreen> {
         color: Colors.grey[100],
         borderRadius: BorderRadius.circular(12),
       ),
-      child: TextField(
-        controller: _searchController,
-        onSubmitted: _runSearch,
+        child: TextField(
+          controller: _searchController,
+          onChanged: _filterMedicines, // Filter as user types
+          onSubmitted: _runSearch,
         decoration: InputDecoration(
           hintText: "Search medicines, brands...",
           prefixIcon: const Icon(Icons.search, color: Colors.grey),
@@ -237,16 +266,16 @@ class _MedicineCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                height: 90,
+                height: 80,
                 decoration: BoxDecoration(
                   color: const Color(0xFF0C4556).withOpacity(0.06),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Center(
-                  child: Icon(Icons.medication, color: Color(0xFF0C4556), size: 34),
+                  child: Icon(Icons.medication, color: Color(0xFF0C4556), size: 32),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
                 name,
                 maxLines: 1,
@@ -254,57 +283,69 @@ class _MedicineCard extends StatelessWidget {
                 style: const TextStyle(
                   color: Color(0xFF0C4556),
                   fontWeight: FontWeight.w700,
+                  fontSize: 13,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                desc,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              const SizedBox(height: 3),
+              Flexible(
+                child: Text(
+                  desc,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.grey, fontSize: 11),
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               _buildStockInfo(medicine),
               const Spacer(),
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '₹${price.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          color: Color(0xFF0C4556),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
-                        ),
-                      ),
-                      if (medicine['requiresPrescription'] == true)
-                        const Text(
-                          'Rx Required',
-                          style: TextStyle(
-                            color: Colors.orange,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '₹${price.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            color: Color(0xFF0C4556),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
                           ),
                         ),
-                    ],
+                        if (medicine['requiresPrescription'] == true)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 1),
+                            child: Text(
+                              'Rx Required',
+                              style: TextStyle(
+                                color: Colors.orange,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 6),
                   SizedBox(
-                    height: 34,
+                    height: 32,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _isAvailable(medicine)
                             ? const Color(0xFF0C4556)
                             : Colors.grey,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                        minimumSize: const Size(55, 32),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       onPressed: _isAvailable(medicine) ? onAddToCart : null,
                       child: Text(
-                        _isAvailable(medicine) ? 'Add' : 'Out of Stock',
-                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                        _isAvailable(medicine) ? 'Add' : 'Out',
+                        style: const TextStyle(color: Colors.white, fontSize: 11),
                       ),
                     ),
                   ),

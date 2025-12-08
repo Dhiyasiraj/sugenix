@@ -6,7 +6,6 @@ import 'package:sugenix/services/appointment_service.dart';
 import 'package:sugenix/services/auth_service.dart';
 import 'package:sugenix/services/revenue_service.dart';
 import 'package:sugenix/services/razorpay_service.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 class DoctorDetailsScreen extends StatelessWidget {
   final Doctor doctor;
@@ -311,7 +310,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
 
   void _setupRazorpayCallbacks() {
     RazorpayService.initialize(
-      onSuccessCallback: (PaymentSuccessResponse response) async {
+      onSuccessCallback: (dynamic response) async {
         if (_lastAppointmentId != null) {
           try {
             await _appointmentService.processPayment(
@@ -347,7 +346,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
           }
         }
       },
-      onErrorCallback: (PaymentFailureResponse response) {
+      onErrorCallback: (dynamic response) {
         if (mounted) {
           setState(() {
             _isLoading = false;
@@ -992,7 +991,8 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
       String appointmentId) {
     final consultationFee = widget.doctor.consultationFee;
     final fees = RevenueService.calculateFees(consultationFee);
-    final totalFee = fees['totalFee'] ?? consultationFee; // Fallback to consultationFee if calculation fails
+    final totalFee = fees['totalFee'] ??
+        consultationFee; // Fallback to consultationFee if calculation fails
 
     showDialog(
       context: context,

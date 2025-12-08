@@ -3,7 +3,6 @@ import 'package:sugenix/services/medicine_cart_service.dart';
 import 'package:sugenix/services/razorpay_service.dart';
 import 'package:sugenix/services/auth_service.dart';
 import 'package:sugenix/services/platform_settings_service.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -28,6 +27,8 @@ class _CartScreenState extends State<CartScreen> {
   double _cartTotal = 0.0;
   bool _isGuest = false;
   int _refreshKey = 0;
+  double _lastCalculatedSubtotal =
+      -1.0; // Track last calculated subtotal to avoid unnecessary recalculations
 
   @override
   void initState() {
@@ -82,11 +83,11 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  void _handlePaymentSuccess(PaymentSuccessResponse response) {
+  void _handlePaymentSuccess(dynamic response) {
     setState(() {
       _processingPayment = false;
     });
-    
+
     // Complete the order with payment details
     _completeOrder(
       paymentMethod: 'Razorpay',
@@ -95,11 +96,11 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  void _handlePaymentError(PaymentFailureResponse response) {
+  void _handlePaymentError(dynamic response) {
     setState(() {
       _processingPayment = false;
     });
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -110,7 +111,7 @@ class _CartScreenState extends State<CartScreen> {
     }
   }
 
-  void _handleExternalWallet(ExternalWalletResponse response) {
+  void _handleExternalWallet(dynamic response) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -137,14 +138,21 @@ class _CartScreenState extends State<CartScreen> {
       }
 
       // Get customer details
-      final name = _isGuest ? _nameController.text.trim() : (_userProfile?['name'] ?? 'User');
-      final email = _isGuest ? _emailController.text.trim() : (_userProfile?['email'] ?? _authService.currentUser?.email ?? '');
-      final phone = _isGuest ? _phoneController.text.trim() : (_userProfile?['phone'] ?? '');
+      final name = _isGuest
+          ? _nameController.text.trim()
+          : (_userProfile?['name'] ?? 'User');
+      final email = _isGuest
+          ? _emailController.text.trim()
+          : (_userProfile?['email'] ?? _authService.currentUser?.email ?? '');
+      final phone = _isGuest
+          ? _phoneController.text.trim()
+          : (_userProfile?['phone'] ?? '');
 
       if (name.isEmpty || email.isEmpty || phone.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please fill in all customer details')),
+            const SnackBar(
+                content: Text('Please fill in all customer details')),
           );
         }
         return;
@@ -161,14 +169,14 @@ class _CartScreenState extends State<CartScreen> {
       );
 
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Order placed successfully! Order ID: #$finalOrderId'),
           backgroundColor: Colors.green,
         ),
       );
-      
+
       Navigator.pop(context);
     } catch (e) {
       if (mounted) {
@@ -182,6 +190,35 @@ class _CartScreenState extends State<CartScreen> {
     }
   }
 
+  Future<void> _calculateCartTotals(double subtotal) async {
+    // Only recalculate if subtotal has changed
+    if (subtotal == _lastCalculatedSubtotal && _cartTotal > 0) {
+      return;
+    }
+
+    _lastCalculatedSubtotal = subtotal;
+
+    try {
+      final feeCalc = await _platformSettings.calculatePlatformFee(subtotal);
+      if (mounted) {
+        setState(() {
+          _cartSubtotal = subtotal;
+          _platformFee = feeCalc['platformFee'] ?? 0.0;
+          _cartTotal = feeCalc['totalAmount'] ?? subtotal;
+        });
+      }
+    } catch (e) {
+      // Fallback if calculation fails
+      if (mounted) {
+        setState(() {
+          _cartSubtotal = subtotal;
+          _platformFee = 0.0;
+          _cartTotal = subtotal;
+        });
+      }
+    }
+  }
+
   Future<void> _processPayment(double amount) async {
     if (_addressController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -191,9 +228,15 @@ class _CartScreenState extends State<CartScreen> {
     }
 
     // Get customer details (from profile if logged in, or from form if guest)
-    final name = _isGuest ? _nameController.text.trim() : (_userProfile?['name'] ?? 'User');
-    final email = _isGuest ? _emailController.text.trim() : (_userProfile?['email'] ?? _authService.currentUser?.email ?? '');
-    final phone = _isGuest ? _phoneController.text.trim() : (_userProfile?['phone'] ?? '');
+    final name = _isGuest
+        ? _nameController.text.trim()
+        : (_userProfile?['name'] ?? 'User');
+    final email = _isGuest
+        ? _emailController.text.trim()
+        : (_userProfile?['email'] ?? _authService.currentUser?.email ?? '');
+    final phone = _isGuest
+        ? _phoneController.text.trim()
+        : (_userProfile?['phone'] ?? '');
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -259,8 +302,13 @@ class _CartScreenState extends State<CartScreen> {
           TextButton(
             onPressed: () async {
               await _cartService.clearCart();
+              setState(() {
+                _refreshKey++;
+                _lastCalculatedSubtotal = -1.0;
+              });
             },
-            child: const Text('Clear', style: TextStyle(color: Color(0xFF0C4556))),
+            child:
+                const Text('Clear', style: TextStyle(color: Color(0xFF0C4556))),
           ),
         ],
       ),
@@ -276,11 +324,22 @@ class _CartScreenState extends State<CartScreen> {
                 }
                 final items = snapshot.data ?? [];
                 if (items.isEmpty) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) setState(() => _cartTotal = 0.0);
-                  });
+                  // Reset totals when cart is empty
+                  if (_cartTotal != 0.0) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        setState(() {
+                          _cartSubtotal = 0.0;
+                          _platformFee = 0.0;
+                          _cartTotal = 0.0;
+                          _lastCalculatedSubtotal = -1.0;
+                        });
+                      }
+                    });
+                  }
                   return const Center(
-                    child: Text('Your cart is empty', style: TextStyle(color: Colors.grey)),
+                    child: Text('Your cart is empty',
+                        style: TextStyle(color: Colors.grey)),
                   );
                 }
                 double subtotal = 0.0;
@@ -289,17 +348,13 @@ class _CartScreenState extends State<CartScreen> {
                   final qty = (i['quantity'] as int?) ?? 1;
                   subtotal += price * qty;
                 }
-                
-                // Calculate platform fee and total
-                _platformSettings.calculatePlatformFee(subtotal).then((feeCalc) {
-                  if (mounted) {
-                    setState(() {
-                      _cartSubtotal = subtotal;
-                      _platformFee = feeCalc['platformFee'] ?? 0.0;
-                      _cartTotal = feeCalc['totalAmount'] ?? subtotal;
-                    });
-                  }
-                });
+
+                // Calculate platform fee and total (only if subtotal changed)
+                if (subtotal != _lastCalculatedSubtotal) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _calculateCartTotals(subtotal);
+                  });
+                }
                 return ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: items.length + 1,
@@ -323,7 +378,10 @@ class _CartScreenState extends State<CartScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (_isGuest) ...[
-                              const Text('Customer Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              const Text('Customer Details',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16)),
                               const SizedBox(height: 8),
                               TextField(
                                 controller: _nameController,
@@ -355,7 +413,9 @@ class _CartScreenState extends State<CartScreen> {
                               ),
                               const SizedBox(height: 16),
                             ],
-                            const Text('Delivery Address', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const Text('Delivery Address',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16)),
                             const SizedBox(height: 8),
                             TextField(
                               controller: _addressController,
@@ -367,7 +427,9 @@ class _CartScreenState extends State<CartScreen> {
                               maxLines: 3,
                             ),
                             const SizedBox(height: 16),
-                            const Text('Payment Method', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const Text('Payment Method',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16)),
                             const SizedBox(height: 8),
                             Row(
                               children: [
@@ -406,10 +468,13 @@ class _CartScreenState extends State<CartScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Subtotal', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                                const Text('Subtotal',
+                                    style: TextStyle(
+                                        fontSize: 14, color: Colors.grey)),
                                 Text(
                                   '₹${_cartSubtotal.toStringAsFixed(2)}',
-                                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                                  style: const TextStyle(
+                                      fontSize: 14, color: Colors.grey),
                                 ),
                               ],
                             ),
@@ -417,10 +482,13 @@ class _CartScreenState extends State<CartScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Platform Fee', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                                const Text('Platform Fee',
+                                    style: TextStyle(
+                                        fontSize: 14, color: Colors.grey)),
                                 Text(
                                   '₹${_platformFee.toStringAsFixed(2)}',
-                                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                                  style: const TextStyle(
+                                      fontSize: 14, color: Colors.grey),
                                 ),
                               ],
                             ),
@@ -430,9 +498,15 @@ class _CartScreenState extends State<CartScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Total Amount', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                const Text('Total Amount',
+                                    style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold)),
                                 Text('₹${_cartTotal.toStringAsFixed(2)}',
-                                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0C4556))),
+                                    style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF0C4556))),
                               ],
                             ),
                           ],
@@ -442,7 +516,8 @@ class _CartScreenState extends State<CartScreen> {
 
                     final item = items[index];
                     final name = (item['name'] as String?) ?? '';
-                    final manufacturer = (item['manufacturer'] as String?) ?? '';
+                    final manufacturer =
+                        (item['manufacturer'] as String?) ?? '';
                     final price = (item['price'] as num?)?.toDouble() ?? 0.0;
                     final qty = (item['quantity'] as int?) ?? 1;
                     return Container(
@@ -458,11 +533,18 @@ class _CartScreenState extends State<CartScreen> {
                         ],
                       ),
                       child: ListTile(
-                        leading: const Icon(Icons.medication, color: Color(0xFF0C4556)),
-                        title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF0C4556))),
+                        leading: const Icon(Icons.medication,
+                            color: Color(0xFF0C4556)),
+                        title: Text(name,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF0C4556))),
                         subtitle: Text(
-                          (manufacturer.isNotEmpty ? manufacturer : 'Medicine') +
-                              ' • ₹' + price.toStringAsFixed(2),
+                          (manufacturer.isNotEmpty
+                                  ? manufacturer
+                                  : 'Medicine') +
+                              ' • ₹' +
+                              price.toStringAsFixed(2),
                           style: const TextStyle(color: Colors.grey),
                         ),
                         trailing: SizedBox(
@@ -473,16 +555,24 @@ class _CartScreenState extends State<CartScreen> {
                               IconButton(
                                 icon: const Icon(Icons.remove_circle_outline),
                                 onPressed: () async {
-                                  await _cartService.updateQuantity(item['id'] as String, qty - 1);
-                                  setState(() => _refreshKey++);
+                                  await _cartService.updateQuantity(
+                                      item['id'] as String, qty - 1);
+                                  setState(() {
+                                    _refreshKey++;
+                                    _lastCalculatedSubtotal = -1.0;
+                                  });
                                 },
                               ),
                               Text(qty.toString()),
                               IconButton(
                                 icon: const Icon(Icons.add_circle_outline),
                                 onPressed: () async {
-                                  await _cartService.updateQuantity(item['id'] as String, qty + 1);
-                                  setState(() => _refreshKey++);
+                                  await _cartService.updateQuantity(
+                                      item['id'] as String, qty + 1);
+                                  setState(() {
+                                    _refreshKey++;
+                                    _lastCalculatedSubtotal = -1.0;
+                                  });
                                 },
                               ),
                             ],
@@ -490,14 +580,14 @@ class _CartScreenState extends State<CartScreen> {
                         ),
                         dense: true,
                         minVerticalPadding: 8,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 6),
                         subtitleTextStyle: const TextStyle(color: Colors.grey),
                         onTap: () {},
                         isThreeLine: false,
                         // Show price under the title line
                         // Using trailing area for qty; include price in subtitle
                         // Already referenced via 'price' variable
-                        
                       ),
                     );
                   },
@@ -514,17 +604,20 @@ class _CartScreenState extends State<CartScreen> {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0C4556),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
-                  onPressed: _processingPayment ? null : () async {
-                    if (_selectedPaymentMethod == 'Razorpay') {
-                      // Process Razorpay payment
-                      await _processPayment(_cartTotal);
-                    } else {
-                      // Process COD order
-                      await _completeOrder(paymentMethod: 'COD');
-                    }
-                  },
+                  onPressed: _processingPayment
+                      ? null
+                      : () async {
+                          if (_selectedPaymentMethod == 'Razorpay') {
+                            // Process Razorpay payment
+                            await _processPayment(_cartTotal);
+                          } else {
+                            // Process COD order
+                            await _completeOrder(paymentMethod: 'COD');
+                          }
+                        },
                   child: _processingPayment
                       ? const SizedBox(
                           width: 20,
@@ -535,8 +628,11 @@ class _CartScreenState extends State<CartScreen> {
                           ),
                         )
                       : Text(
-                          _selectedPaymentMethod == 'Razorpay' ? 'Pay Now' : 'Place Order (COD)',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                          _selectedPaymentMethod == 'Razorpay'
+                              ? 'Pay Now'
+                              : 'Place Order (COD)',
+                          style: const TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.w600),
                         ),
                 ),
               ),
@@ -548,5 +644,3 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 }
-
-

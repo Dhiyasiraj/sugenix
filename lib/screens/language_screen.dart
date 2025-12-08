@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:sugenix/services/app_localization_service.dart';
 import 'package:sugenix/services/locale_notifier.dart';
 import 'package:sugenix/l10n/app_localizations.dart';
-import 'package:provider/provider.dart';
 
 class LanguageScreen extends StatefulWidget {
   const LanguageScreen({super.key});
@@ -33,7 +33,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
   Widget build(BuildContext context) {
     final localeNotifier = Provider.of<LocaleNotifier>(context);
     final l10n = AppLocalizations.of(context)!;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.language),
@@ -49,7 +49,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
           final locale = Locale(lang['code']!);
           final name = lang['name']!;
           final flag = lang['flag'] ?? '';
-          
+
           return ListTile(
             tileColor: Colors.white,
             shape: RoundedRectangleBorder(
@@ -95,5 +95,3 @@ class _LanguageScreenState extends State<LanguageScreen> {
     );
   }
 }
-
-

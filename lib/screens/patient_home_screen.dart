@@ -72,7 +72,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
         elevation: 0,
         title: TranslatedAppBarTitle('home', fallback: 'Home'),
       ),
-      body: _isLoading ? _buildShimmerLoading() : _buildContent(userName, currentTime),
+      body: _isLoading
+          ? _buildShimmerLoading()
+          : _buildContent(userName, currentTime),
     );
   }
 
@@ -85,14 +87,16 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
         highlightColor: Colors.grey[100]!,
         child: ListView(
           padding: ResponsiveHelper.getResponsivePadding(context),
-          children: List.generate(5, (index) => Container(
-            height: 100,
-            margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-          )),
+          children: List.generate(
+              5,
+              (index) => Container(
+                    height: 100,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  )),
         ),
       ),
     );
@@ -198,8 +202,6 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
     );
   }
 
-
-
   Widget _buildQuickActions() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,7 +267,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
             const SizedBox(width: 15),
             Expanded(
               child: _buildActionCard(
-                'Book Doctor',
+                'Appointments',
                 Icons.medical_services,
                 const Color(0xFF9C27B0),
                 () {
@@ -396,7 +398,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => DoctorDetailsScreen(doctor: doctor),
+                        builder: (context) =>
+                            DoctorDetailsScreen(doctor: doctor),
                       ),
                     );
                   },
@@ -503,6 +506,4 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
       ),
     );
   }
-
 }
-

@@ -117,7 +117,7 @@ class PlatformSettingsService {
       }
 
       final pharmacyAmount = orderTotal - platformFee;
-      final totalAmount = orderTotal;
+      final totalAmount = orderTotal + platformFee; // Total customer pays = subtotal + platform fee
 
       return {
         'orderTotal': orderTotal,
@@ -132,7 +132,7 @@ class PlatformSettingsService {
         'orderTotal': orderTotal,
         'platformFee': platformFee,
         'pharmacyAmount': orderTotal - platformFee,
-        'totalAmount': orderTotal,
+        'totalAmount': orderTotal + platformFee, // Total customer pays = subtotal + platform fee
       };
     }
   }
