@@ -34,9 +34,9 @@ class EmergencyService {
                 'longitude': position.longitude,
                 'address':
                     await PlatformLocationService.getAddressFromCoordinates(
-                      position.latitude,
-                      position.longitude,
-                    ),
+                  position.latitude,
+                  position.longitude,
+                ),
               }
             : null,
         'recentGlucoseReadings': recentReadings,
@@ -63,10 +63,8 @@ class EmergencyService {
     try {
       if (_auth.currentUser == null) return [];
 
-      QuerySnapshot snapshot = await _firestore
-          .collection('glucose_readings')
-          .limit(5)
-          .get();
+      QuerySnapshot snapshot =
+          await _firestore.collection('glucose_readings').limit(5).get();
 
       return snapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -121,8 +119,7 @@ class EmergencyService {
           ? 'Recent glucose readings: ${glucoseReadings.map((r) => '${r['value']} mg/dL').join(', ')}'
           : 'No recent glucose readings available';
 
-      String message =
-          '''
+      String message = '''
 🚨 EMERGENCY ALERT from Sugenix App 🚨
 
 ${customMessage ?? 'User has activated emergency SOS'}
@@ -169,9 +166,8 @@ Please check on the user immediately!
     try {
       if (_auth.currentUser == null) throw Exception('No user logged in');
 
-      QuerySnapshot activeAlerts = await _firestore
-          .collection('emergency_alerts')
-          .get();
+      QuerySnapshot activeAlerts =
+          await _firestore.collection('emergency_alerts').get();
       final userId = _auth.currentUser!.uid;
 
       // Filter by userId and status
@@ -196,30 +192,31 @@ Please check on the user immediately!
     if (_auth.currentUser == null) return Stream.value([]);
 
     final userId = _auth.currentUser!.uid;
-    return _firestore
-        .collection('emergency_alerts')
-        .snapshots()
-        .map(
-          (snapshot) {
-            final allAlerts = snapshot.docs.map((doc) {
-              Map<String, dynamic> data = doc.data();
-              data['id'] = doc.id;
-              return data;
-            }).toList();
-            
-            // Filter by userId and sort by timestamp
-            final filtered = allAlerts.where((a) => a['userId'] == userId).toList();
-            filtered.sort((a, b) {
-              final aTime = a['timestamp'];
-              final bTime = b['timestamp'];
-              if (aTime == null || bTime == null) return 0;
-              final aDate = aTime is Timestamp ? aTime.toDate() : (aTime is DateTime ? aTime : DateTime.now());
-              final bDate = bTime is Timestamp ? bTime.toDate() : (bTime is DateTime ? bTime : DateTime.now());
-              return bDate.compareTo(aDate); // Descending
-            });
-            return filtered;
-          },
-        );
+    return _firestore.collection('emergency_alerts').snapshots().map(
+      (snapshot) {
+        final allAlerts = snapshot.docs.map((doc) {
+          Map<String, dynamic> data = doc.data();
+          data['id'] = doc.id;
+          return data;
+        }).toList();
+
+        // Filter by userId and sort by timestamp
+        final filtered = allAlerts.where((a) => a['userId'] == userId).toList();
+        filtered.sort((a, b) {
+          final aTime = a['timestamp'];
+          final bTime = b['timestamp'];
+          if (aTime == null || bTime == null) return 0;
+          final aDate = aTime is Timestamp
+              ? aTime.toDate()
+              : (aTime is DateTime ? aTime : DateTime.now());
+          final bDate = bTime is Timestamp
+              ? bTime.toDate()
+              : (bTime is DateTime ? bTime : DateTime.now());
+          return bDate.compareTo(aDate); // Descending
+        });
+        return filtered;
+      },
+    );
   }
 
   // Check if emergency is active
@@ -227,9 +224,8 @@ Please check on the user immediately!
     try {
       if (_auth.currentUser == null) return false;
 
-      QuerySnapshot activeAlerts = await _firestore
-          .collection('emergency_alerts')
-          .get();
+      QuerySnapshot activeAlerts =
+          await _firestore.collection('emergency_alerts').get();
 
       return activeAlerts.docs.isNotEmpty;
     } catch (e) {
@@ -256,14 +252,14 @@ Please check on the user immediately!
         .doc(_auth.currentUser!.uid)
         .snapshots()
         .map((snapshot) {
-          if (snapshot.exists) {
-            Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
-            return List<Map<String, dynamic>>.from(
-              data['emergencyContacts'] ?? [],
-            );
-          }
-          return <Map<String, dynamic>>[];
-        });
+      if (snapshot.exists) {
+        Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
+        return List<Map<String, dynamic>>.from(
+          data['emergencyContacts'] ?? [],
+        );
+      }
+      return <Map<String, dynamic>>[];
+    });
   }
 
   // Add emergency contact
@@ -275,13 +271,16 @@ Please check on the user immediately!
     try {
       if (_auth.currentUser == null) throw Exception('No user logged in');
 
+      // Firestore does not allow sentinel values like FieldValue.serverTimestamp()
+      // inside arrayUnion elements. Use a client timestamp instead or perform a
+      // separate update. Here we use the local timestamp to avoid the invalid-data error.
       await _firestore.collection('users').doc(_auth.currentUser!.uid).update({
         'emergencyContacts': FieldValue.arrayUnion([
           {
             'name': name,
             'phone': phone,
             'relationship': relationship,
-            'addedAt': FieldValue.serverTimestamp(),
+            'addedAt': DateTime.now().toUtc(),
           },
         ]),
       });
