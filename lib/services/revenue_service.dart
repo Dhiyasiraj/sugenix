@@ -14,7 +14,7 @@ class RevenueService {
       consultationFee * 0.15, // Max 15%
     );
     final doctorFee = consultationFee - platformFee;
-    final totalFee = consultationFee;
+    final totalFee = consultationFee + platformFee; // Total customer pays = consultation fee + platform fee
 
     return {
       'totalFee': totalFee,
