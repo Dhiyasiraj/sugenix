@@ -46,6 +46,7 @@ flutter:
   
   assets:
     - assets/icon/logo.png
+    - assets/sugenix_logo.png.png
   
   generate: true
 
