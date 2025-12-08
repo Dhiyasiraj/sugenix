@@ -51,7 +51,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     return StreamBuilder<String>(
       stream: LanguageService.currentLanguageStream,
       builder: (context, snapshot) {
-        final languageCode = snapshot.data ?? LanguageService.getCurrentLanguage();
+        final languageCode =
+            snapshot.data ?? LanguageService.getCurrentLanguage();
         return _buildDashboard(context, languageCode);
       },
     );
@@ -59,7 +60,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
 
   Widget _buildDashboard(BuildContext context, String languageCode) {
     final padding = ResponsiveHelper.getResponsivePadding(context);
-    final title = _t('my_health_dashboard', languageCode, 'My Health Dashboard');
+    final title =
+        _t('my_health_dashboard', languageCode, 'My Health Dashboard');
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -100,8 +102,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   }
 
   Widget _buildSummaryRow(BuildContext context, String languageCode) {
-    final isWide = ResponsiveHelper.isTablet(context) || ResponsiveHelper.isDesktop(context);
-    final avg = _glucoseStats?['average'] as double?;
+    final isWide = ResponsiveHelper.isTablet(context) ||
+        ResponsiveHelper.isDesktop(context);
+    final avg = (_glucoseStats?['average'] as num?)?.toDouble();
     final normal = _glucoseStats?['normalReadings'] ?? 0;
     final high = _glucoseStats?['highReadings'] ?? 0;
     final low = _glucoseStats?['lowReadings'] ?? 0;
@@ -284,7 +287,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                     color: (item['color'] as Color).withOpacity(0.12),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(item['icon'] as IconData, color: item['color'] as Color),
+                  child: Icon(item['icon'] as IconData,
+                      color: item['color'] as Color),
                 ),
                 const SizedBox(height: 12),
                 Padding(
@@ -308,13 +312,15 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
 
   Widget _buildRecentReadings(String languageCode) {
     return _buildSection(
-      title: _t('recent_glucose_readings', languageCode, 'Recent Glucose Readings'),
+      title: _t(
+          'recent_glucose_readings', languageCode, 'Recent Glucose Readings'),
       child: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _glucoseService.getGlucoseReadings(),
         builder: (context, snapshot) {
           final readings = (snapshot.data ?? []).take(5).toList();
           if (readings.isEmpty) {
-            return _buildEmptyState(_t('no_readings_message', languageCode, 'No readings yet. Add your first reading.'));
+            return _buildEmptyState(_t('no_readings_message', languageCode,
+                'No readings yet. Add your first reading.'));
           }
           return Column(
             children: readings.map((reading) {
@@ -330,7 +336,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                     color: (status['color'] as Color).withOpacity(0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.monitor_heart, color: status['color'] as Color),
+                  child: Icon(Icons.monitor_heart,
+                      color: status['color'] as Color),
                 ),
                 title: Text(
                   '${value.toStringAsFixed(0)} mg/dL',
@@ -344,7 +351,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                   style: TextStyle(color: status['color'] as Color),
                 ),
                 trailing: Text(
-                  time != null ? DateFormat('MMM dd • hh:mm a').format(time) : '',
+                  time != null
+                      ? DateFormat('MMM dd • hh:mm a').format(time)
+                      : '',
                   style: const TextStyle(color: Colors.grey),
                 ),
               );
@@ -357,23 +366,24 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
 
   Widget _buildUpcomingAppointments(String languageCode) {
     return _buildSection(
-      title: _t('upcoming_appointments_section', languageCode, 'Upcoming Appointments'),
+      title: _t('upcoming_appointments_section', languageCode,
+          'Upcoming Appointments'),
       child: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _appointmentService.getUserAppointments(),
         builder: (context, snapshot) {
-          final appointments = (snapshot.data ?? [])
-              .where((a) {
-                final dt = _toDate(a['dateTime']);
-                final status = a['status'] as String? ?? '';
-                return dt != null && dt.isAfter(DateTime.now()) && status != 'cancelled';
-              })
-              .toList()
-              ..sort((a, b) {
-                final da = a['dateTime'] as DateTime?;
-                final db = b['dateTime'] as DateTime?;
-                if (da == null || db == null) return 0;
-                return da.compareTo(db);
-              });
+          final appointments = (snapshot.data ?? []).where((a) {
+            final dt = _toDate(a['dateTime']);
+            final status = a['status'] as String? ?? '';
+            return dt != null &&
+                dt.isAfter(DateTime.now()) &&
+                status != 'cancelled';
+          }).toList()
+            ..sort((a, b) {
+              final da = a['dateTime'] as DateTime?;
+              final db = b['dateTime'] as DateTime?;
+              if (da == null || db == null) return 0;
+              return da.compareTo(db);
+            });
           final nextAppointments = appointments.take(3).toList();
           if (nextAppointments.isEmpty) {
             return _buildEmptyState(
@@ -393,7 +403,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                     color: const Color(0xFF0C4556).withOpacity(0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.calendar_month, color: Color(0xFF0C4556)),
+                  child: const Icon(Icons.calendar_month,
+                      color: Color(0xFF0C4556)),
                 ),
                 title: Text(
                   doctor,
@@ -403,7 +414,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                   ),
                 ),
                 subtitle: Text(
-                  dt != null ? DateFormat('EEE, MMM dd • hh:mm a').format(dt) : '',
+                  dt != null
+                      ? DateFormat('EEE, MMM dd • hh:mm a').format(dt)
+                      : '',
                   style: const TextStyle(color: Colors.grey),
                 ),
               );
@@ -416,13 +429,15 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
 
   Widget _buildRecentOrders(String languageCode) {
     return _buildSection(
-      title: _t('recent_orders_section', languageCode, 'Recent Medicine Orders'),
+      title:
+          _t('recent_orders_section', languageCode, 'Recent Medicine Orders'),
       child: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _ordersService.getUserOrders(),
         builder: (context, snapshot) {
           final orders = (snapshot.data ?? []).take(5).toList();
           if (orders.isEmpty) {
-            return _buildEmptyState(_t('no_recent_orders', languageCode, 'No orders yet. Explore the e-pharmacy store.'));
+            return _buildEmptyState(_t('no_recent_orders', languageCode,
+                'No orders yet. Explore the e-pharmacy store.'));
           }
           return Column(
             children: orders.map((order) {
@@ -438,7 +453,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                     color: const Color(0xFF2196F3).withOpacity(0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.local_pharmacy, color: Color(0xFF2196F3)),
+                  child: const Icon(Icons.local_pharmacy,
+                      color: Color(0xFF2196F3)),
                 ),
                 title: Text(
                   '₹${total.toStringAsFixed(2)}',
@@ -465,7 +481,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
 
   Widget _buildMedicalRecords(String languageCode) {
     return _buildSection(
-      title: _t('latest_medical_records', languageCode, 'Latest Medical Records'),
+      title:
+          _t('latest_medical_records', languageCode, 'Latest Medical Records'),
       action: TextButton(
         onPressed: () => Navigator.push(
           context,
@@ -478,12 +495,14 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         builder: (context, snapshot) {
           final records = (snapshot.data ?? []).take(4).toList();
           if (records.isEmpty) {
-            return _buildEmptyState(_t('no_medical_records', languageCode, 'No records found. Upload prescriptions or reports.'));
+            return _buildEmptyState(_t('no_medical_records', languageCode,
+                'No records found. Upload prescriptions or reports.'));
           }
           return Column(
             children: records.map((record) {
               final title = record['title'] as String? ?? 'Record';
-              final type = record['recordType'] as String? ?? (record['type'] as String? ?? 'general');
+              final type = record['recordType'] as String? ??
+                  (record['type'] as String? ?? 'general');
               final dateString = record['recordDate'] as String?;
               DateTime? parsedDate;
               if (dateString != null) {
@@ -516,7 +535,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                   style: const TextStyle(color: Colors.grey),
                 ),
                 trailing: Text(
-                  parsedDate != null ? DateFormat('MMM dd').format(parsedDate) : '',
+                  parsedDate != null
+                      ? DateFormat('MMM dd').format(parsedDate)
+                      : '',
                   style: const TextStyle(color: Colors.grey),
                 ),
               );
@@ -613,5 +634,3 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     return null;
   }
 }
-
-

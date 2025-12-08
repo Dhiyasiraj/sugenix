@@ -8,14 +8,15 @@ import 'package:intl/intl.dart';
 
 class AdminPanelScreen extends StatefulWidget {
   final int? initialTab;
-  
+
   const AdminPanelScreen({super.key, this.initialTab});
 
   @override
   State<AdminPanelScreen> createState() => _AdminPanelScreenState();
 }
 
-class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerProviderStateMixin {
+class _AdminPanelScreenState extends State<AdminPanelScreen>
+    with SingleTickerProviderStateMixin {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late TabController _tabController;
 
@@ -39,7 +40,8 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   @override
   void didUpdateWidget(AdminPanelScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialTab != widget.initialTab && widget.initialTab != null) {
+    if (oldWidget.initialTab != widget.initialTab &&
+        widget.initialTab != null) {
       _tabController.animateTo(widget.initialTab!);
     }
   }
@@ -142,8 +144,10 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > 600;
-        final cardWidth = isWide ? (constraints.maxWidth - 48) / 4 : (constraints.maxWidth - 24) / 2;
-        
+        final cardWidth = isWide
+            ? (constraints.maxWidth - 48) / 4
+            : (constraints.maxWidth - 24) / 2;
+
         return Wrap(
           spacing: 12,
           runSpacing: 12,
@@ -151,19 +155,23 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
           children: [
             SizedBox(
               width: cardWidth,
-              child: _summaryCard(Icons.people, Colors.blue, 'Total Users', '$_totalUsers'),
+              child: _summaryCard(
+                  Icons.people, Colors.blue, 'Total Users', '$_totalUsers'),
             ),
             SizedBox(
               width: cardWidth,
-              child: _summaryCard(Icons.medical_services, Colors.green, 'Doctors', '$_doctors'),
+              child: _summaryCard(
+                  Icons.medical_services, Colors.green, 'Doctors', '$_doctors'),
             ),
             SizedBox(
               width: cardWidth,
-              child: _summaryCard(Icons.local_pharmacy, Colors.orange, 'Pharmacies', '$_pharmacies'),
+              child: _summaryCard(Icons.local_pharmacy, Colors.orange,
+                  'Pharmacies', '$_pharmacies'),
             ),
             SizedBox(
               width: cardWidth,
-              child: _summaryCard(Icons.receipt_long, Colors.purple, 'Orders', '$_orders'),
+              child: _summaryCard(
+                  Icons.receipt_long, Colors.purple, 'Orders', '$_orders'),
             ),
           ],
         );
@@ -415,7 +423,7 @@ class _UsersTab extends StatelessWidget {
             final createdAt = data['createdAt'] as Timestamp?;
             final isActive = data['isActive'] as bool? ?? true;
             final approvalStatus = data['approvalStatus'] as String?;
-            
+
             return InkWell(
               onTap: () => _showUserDetailsDialog(context, userId, data, role),
               borderRadius: BorderRadius.circular(12),
@@ -480,7 +488,8 @@ class _UsersTab extends StatelessWidget {
                                         ),
                                       ),
                                     ),
-                                  if (approvalStatus != null && approvalStatus != 'approved')
+                                  if (approvalStatus != null &&
+                                      approvalStatus != 'approved')
                                     Container(
                                       margin: const EdgeInsets.only(left: 4),
                                       padding: const EdgeInsets.symmetric(
@@ -540,14 +549,16 @@ class _UsersTab extends StatelessWidget {
                       const SizedBox(height: 8),
                       Text(
                         'Phone: $phone',
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 12),
                       ),
                     ],
                     if (createdAt != null) ...[
                       const SizedBox(height: 4),
                       Text(
                         'Joined: ${DateFormat('MMM dd, yyyy').format(createdAt.toDate())}',
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 12),
                       ),
                     ],
                   ],
@@ -598,7 +609,7 @@ class _UsersTab extends StatelessWidget {
     final createdAt = userData['createdAt'] as Timestamp?;
     final isActive = userData['isActive'] as bool? ?? true;
     final approvalStatus = userData['approvalStatus'] as String?;
-    
+
     // Fetch additional role-specific data
     Map<String, dynamic>? roleSpecificData;
     if (role == 'doctor') {
@@ -616,7 +627,7 @@ class _UsersTab extends StatelessWidget {
     }
 
     if (!context.mounted) return;
-    
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -672,11 +683,13 @@ class _UsersTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 _buildDetailRow('Role', role.toUpperCase()),
-                _buildDetailRow('Phone', phone.isNotEmpty ? phone : 'Not provided'),
+                _buildDetailRow(
+                    'Phone', phone.isNotEmpty ? phone : 'Not provided'),
                 if (createdAt != null)
                   _buildDetailRow(
                     'Joined',
-                    DateFormat('MMM dd, yyyy • hh:mm a').format(createdAt.toDate()),
+                    DateFormat('MMM dd, yyyy • hh:mm a')
+                        .format(createdAt.toDate()),
                   ),
                 _buildDetailRow(
                   'Status',
@@ -693,7 +706,7 @@ class _UsersTab extends StatelessWidget {
                             ? Colors.orange
                             : Colors.red,
                   ),
-                
+
                 // Role-specific details
                 if (role == 'doctor' && roleSpecificData != null) ...[
                   const SizedBox(height: 16),
@@ -729,7 +742,7 @@ class _UsersTab extends StatelessWidget {
                       roleSpecificData['licenseNumber'] as String,
                     ),
                 ],
-                
+
                 if (role == 'pharmacy' && roleSpecificData != null) ...[
                   const SizedBox(height: 16),
                   const Divider(),
@@ -754,7 +767,7 @@ class _UsersTab extends StatelessWidget {
                       roleSpecificData['licenseNumber'] as String,
                     ),
                 ],
-                
+
                 // Deactivate/Activate button for doctors and pharmacies
                 if (role == 'doctor' || role == 'pharmacy') ...[
                   const SizedBox(height: 24),
@@ -765,10 +778,12 @@ class _UsersTab extends StatelessWidget {
                     child: ElevatedButton.icon(
                       onPressed: () async {
                         Navigator.pop(context);
-                        await _toggleUserAccountStatus(context, userId, role, !isActive);
+                        await _toggleUserAccountStatus(
+                            context, userId, role, !isActive);
                       },
                       icon: Icon(isActive ? Icons.block : Icons.check_circle),
-                      label: Text(isActive ? 'Deactivate Account' : 'Activate Account'),
+                      label: Text(
+                          isActive ? 'Deactivate Account' : 'Activate Account'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: isActive ? Colors.red : Colors.green,
                         foregroundColor: Colors.white,
@@ -858,7 +873,8 @@ class _UsersTab extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(activate ? 'Activating account...' : 'Deactivating account...'),
+            content: Text(
+                activate ? 'Activating account...' : 'Deactivating account...'),
             duration: const Duration(seconds: 1),
           ),
         );
@@ -872,11 +888,17 @@ class _UsersTab extends StatelessWidget {
 
       // Also update in role-specific collection
       if (role == 'doctor') {
-        await FirebaseFirestore.instance.collection('doctors').doc(userId).update({
+        await FirebaseFirestore.instance
+            .collection('doctors')
+            .doc(userId)
+            .update({
           'isActive': activate,
         });
       } else if (role == 'pharmacy') {
-        await FirebaseFirestore.instance.collection('pharmacies').doc(userId).update({
+        await FirebaseFirestore.instance
+            .collection('pharmacies')
+            .doc(userId)
+            .update({
           'isActive': activate,
         });
       }
@@ -897,7 +919,8 @@ class _UsersTab extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to ${activate ? 'activate' : 'deactivate'} account: ${e.toString()}'),
+            content: Text(
+                'Failed to ${activate ? 'activate' : 'deactivate'} account: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -941,16 +964,17 @@ class _AllMedicalRecordsTab extends StatelessWidget {
                 (data['addedBy'] as String? ?? 'Unknown');
             final userId = data['userId'] as String? ?? '';
             final createdAt = data['createdAt'] as Timestamp?;
-            
+
             return FutureBuilder<DocumentSnapshot>(
               future: FirebaseFirestore.instance
                   .collection('users')
                   .doc(userId)
                   .get(),
               builder: (context, userSnapshot) {
-                final userData = userSnapshot.data?.data() as Map<String, dynamic>?;
+                final userData =
+                    userSnapshot.data?.data() as Map<String, dynamic>?;
                 final userName = userData?['name'] as String? ?? 'Unknown User';
-                
+
                 return Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -969,7 +993,8 @@ class _AllMedicalRecordsTab extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.description, color: Color(0xFF0C4556)),
+                          const Icon(Icons.description,
+                              color: Color(0xFF0C4556)),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -1009,7 +1034,8 @@ class _AllMedicalRecordsTab extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 16),
-                          Icon(Icons.person_add, size: 14, color: Colors.grey[600]),
+                          Icon(Icons.person_add,
+                              size: 14, color: Colors.grey[600]),
                           const SizedBox(width: 4),
                           Text(
                             'Added by: $addedBy',
@@ -1078,9 +1104,11 @@ class _PlatformSettingsTabState extends State<_PlatformSettingsTab> {
       final settings = await _platformSettings.getPlatformFeeSettings();
       setState(() {
         _selectedFeeType = settings['feeType'] as String? ?? 'percentage';
-        _feeValueController.text = (settings['feeValue'] as double? ?? 5.0).toString();
-        _minimumFeeController.text = (settings['minimumFee'] as double? ?? 0.0).toString();
-        final maxFee = settings['maximumFee'] as double?;
+        _feeValueController.text =
+            ((settings['feeValue'] as num?)?.toDouble() ?? 5.0).toString();
+        _minimumFeeController.text =
+            ((settings['minimumFee'] as num?)?.toDouble() ?? 0.0).toString();
+        final maxFee = (settings['maximumFee'] as num?)?.toDouble();
         _maximumFeeController.text = maxFee != null ? maxFee.toString() : '';
       });
     } catch (e) {
@@ -1209,7 +1237,8 @@ class _PlatformSettingsTabState extends State<_PlatformSettingsTab> {
                 const SizedBox(height: 12),
                 RadioListTile<String>(
                   title: const Text('Percentage'),
-                  subtitle: const Text('Fee calculated as percentage of order total'),
+                  subtitle:
+                      const Text('Fee calculated as percentage of order total'),
                   value: 'percentage',
                   groupValue: _selectedFeeType,
                   onChanged: (value) {
@@ -1236,10 +1265,16 @@ class _PlatformSettingsTabState extends State<_PlatformSettingsTab> {
                   controller: _feeValueController,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: _selectedFeeType == 'percentage' ? 'Fee Percentage (%)' : 'Fixed Fee (₹)',
-                    hintText: _selectedFeeType == 'percentage' ? 'e.g., 5 for 5%' : 'e.g., 10 for ₹10',
-                    prefixIcon: const Icon(Icons.percent, color: Color(0xFF0C4556)),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    labelText: _selectedFeeType == 'percentage'
+                        ? 'Fee Percentage (%)'
+                        : 'Fixed Fee (₹)',
+                    hintText: _selectedFeeType == 'percentage'
+                        ? 'e.g., 5 for 5%'
+                        : 'e.g., 10 for ₹10',
+                    prefixIcon:
+                        const Icon(Icons.percent, color: Color(0xFF0C4556)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -1249,8 +1284,10 @@ class _PlatformSettingsTabState extends State<_PlatformSettingsTab> {
                   decoration: InputDecoration(
                     labelText: 'Minimum Fee (₹) - Optional',
                     hintText: 'e.g., 5',
-                    prefixIcon: const Icon(Icons.arrow_downward, color: Color(0xFF0C4556)),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    prefixIcon: const Icon(Icons.arrow_downward,
+                        color: Color(0xFF0C4556)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -1260,8 +1297,10 @@ class _PlatformSettingsTabState extends State<_PlatformSettingsTab> {
                   decoration: InputDecoration(
                     labelText: 'Maximum Fee (₹) - Optional',
                     hintText: 'e.g., 100',
-                    prefixIcon: const Icon(Icons.arrow_upward, color: Color(0xFF0C4556)),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    prefixIcon: const Icon(Icons.arrow_upward,
+                        color: Color(0xFF0C4556)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
                 const SizedBox(height: 30),
@@ -1272,13 +1311,15 @@ class _PlatformSettingsTabState extends State<_PlatformSettingsTab> {
                     onPressed: _isSaving ? null : _saveSettings,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF0C4556),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                     child: _isSaving
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2),
                           )
                         : const Text(
                             'Save Settings',
@@ -1352,7 +1393,7 @@ class _AllOrdersTab extends StatelessWidget {
             final paymentMethod = data['paymentMethod'] as String? ?? 'COD';
             final createdAt = data['createdAt'] as Timestamp?;
             final items = data['items'] as List? ?? [];
-            
+
             return Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -1428,7 +1469,8 @@ class _AllOrdersTab extends StatelessWidget {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Icon(Icons.shopping_cart, size: 14, color: Colors.grey[600]),
+                      Icon(Icons.shopping_cart,
+                          size: 14, color: Colors.grey[600]),
                       const SizedBox(width: 4),
                       Text(
                         '${items.length} item(s)',
@@ -1453,7 +1495,8 @@ class _AllOrdersTab extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
+                        Icon(Icons.location_on,
+                            size: 14, color: Colors.grey[600]),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(

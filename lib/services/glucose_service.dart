@@ -175,7 +175,10 @@ class GlucoseService {
       }).toList();
 
       List<double> values = filteredDocs
-          .map((doc) => (doc.data() as Map<String, dynamic>)['value'] as double)
+          .map((doc) =>
+              ((doc.data() as Map<String, dynamic>)['value'] as num?)
+                  ?.toDouble() ??
+              0.0)
           .toList();
 
       if (values.isEmpty) {
@@ -264,9 +267,10 @@ class GlucoseService {
       List<String> recommendations = [];
 
       // Analyze patterns
-      double average =
-          readings.map((r) => r['value'] as double).reduce((a, b) => a + b) /
-              readings.length;
+      double average = readings
+              .map((r) => ((r['value'] as num?)?.toDouble() ?? 0.0))
+              .reduce((a, b) => a + b) /
+          readings.length;
 
       if (average > 150) {
         recommendations.add(

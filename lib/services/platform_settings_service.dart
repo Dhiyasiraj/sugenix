@@ -11,7 +11,7 @@ class PlatformSettingsService {
           .collection('platform_settings')
           .doc(_settingsDocId)
           .get();
-      
+
       if (doc.exists) {
         final data = doc.data() as Map<String, dynamic>;
         return {
@@ -74,10 +74,7 @@ class PlatformSettingsService {
     double? maximumFee,
   }) async {
     try {
-      await _firestore
-          .collection('platform_settings')
-          .doc(_settingsDocId)
-          .set({
+      await _firestore.collection('platform_settings').doc(_settingsDocId).set({
         'feeType': feeType,
         'feeValue': feeValue,
         'minimumFee': minimumFee ?? 0.0,
@@ -95,9 +92,9 @@ class PlatformSettingsService {
     try {
       final settings = await getPlatformFeeSettings();
       final feeType = settings['feeType'] as String;
-      final feeValue = settings['feeValue'] as double;
-      final minimumFee = settings['minimumFee'] as double;
-      final maximumFee = settings['maximumFee'] as double?;
+      final feeValue = (settings['feeValue'] as num?)?.toDouble() ?? 5.0;
+      final minimumFee = (settings['minimumFee'] as num?)?.toDouble() ?? 0.0;
+      final maximumFee = (settings['maximumFee'] as num?)?.toDouble();
 
       double platformFee = 0.0;
 
@@ -117,7 +114,8 @@ class PlatformSettingsService {
       }
 
       final pharmacyAmount = orderTotal - platformFee;
-      final totalAmount = orderTotal + platformFee; // Total customer pays = subtotal + platform fee
+      final totalAmount = orderTotal +
+          platformFee; // Total customer pays = subtotal + platform fee
 
       return {
         'orderTotal': orderTotal,
@@ -132,9 +130,9 @@ class PlatformSettingsService {
         'orderTotal': orderTotal,
         'platformFee': platformFee,
         'pharmacyAmount': orderTotal - platformFee,
-        'totalAmount': orderTotal + platformFee, // Total customer pays = subtotal + platform fee
+        'totalAmount': orderTotal +
+            platformFee, // Total customer pays = subtotal + platform fee
       };
     }
   }
 }
-

@@ -65,7 +65,8 @@ class _GlucoseHistoryScreenState extends State<GlucoseHistoryScreen> {
     try {
       final list = await _glucoseService.getGlucoseReadingsByDateRange(
         startDate: DateTime(_startDate.year, _startDate.month, _startDate.day),
-        endDate: DateTime(_endDate.year, _endDate.month, _endDate.day, 23, 59, 59),
+        endDate:
+            DateTime(_endDate.year, _endDate.month, _endDate.day, 23, 59, 59),
       );
       setState(() => _readings = list);
     } catch (_) {
@@ -84,12 +85,20 @@ class _GlucoseHistoryScreenState extends State<GlucoseHistoryScreen> {
     }
 
     final List<List<dynamic>> csvData = [
-      ['Date', 'Time', 'Value (mg/dL)', 'Type', 'Notes', 'AI Flagged', 'AI Analysis']
+      [
+        'Date',
+        'Time',
+        'Value (mg/dL)',
+        'Type',
+        'Notes',
+        'AI Flagged',
+        'AI Analysis'
+      ]
     ];
 
     final dateFormat = DateFormat('yyyy-MM-dd');
     final timeFormat = DateFormat('HH:mm:ss');
-    
+
     for (final r in _readings) {
       final ts = (r['timestamp'] as Timestamp?)?.toDate();
       csvData.add([
@@ -112,8 +121,8 @@ class _GlucoseHistoryScreenState extends State<GlucoseHistoryScreen> {
       final blob = html.Blob([bytes], 'text/csv');
       final url = html.Url.createObjectUrlFromBlob(blob);
       (html.AnchorElement(href: url)
-            ..setAttribute('download', fileName)
-            ..click());
+        ..setAttribute('download', fileName)
+        ..click());
       html.Url.revokeObjectUrl(url);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -161,7 +170,7 @@ class _GlucoseHistoryScreenState extends State<GlucoseHistoryScreen> {
     try {
       final pdf = pw.Document();
       final dateFormat = DateFormat('yyyy-MM-dd HH:mm');
-      
+
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
@@ -189,7 +198,8 @@ class _GlucoseHistoryScreenState extends State<GlucoseHistoryScreen> {
                 border: pw.TableBorder.all(color: PdfColors.grey300),
                 children: [
                   pw.TableRow(
-                    decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                    decoration:
+                        const pw.BoxDecoration(color: PdfColors.grey200),
                     children: [
                       _buildTableCell('Date & Time', isHeader: true),
                       _buildTableCell('Value (mg/dL)', isHeader: true),
@@ -200,14 +210,15 @@ class _GlucoseHistoryScreenState extends State<GlucoseHistoryScreen> {
                   ),
                   ..._readings.map((r) {
                     final ts = (r['timestamp'] as Timestamp?)?.toDate();
-                    final value = (r['value'] as double?) ?? 0.0;
+                    final value = ((r['value'] as num?)?.toDouble() ?? 0.0);
                     final type = (r['type'] as String?) ?? '';
                     final isFlagged = (r['isAIFlagged'] as bool?) ?? false;
                     final status = _getStatusText(value, isFlagged);
-                    
+
                     return pw.TableRow(
                       children: [
-                        _buildTableCell(ts != null ? dateFormat.format(ts) : '—'),
+                        _buildTableCell(
+                            ts != null ? dateFormat.format(ts) : '—'),
                         _buildTableCell(value.toStringAsFixed(0)),
                         _buildTableCell(type.toUpperCase()),
                         _buildTableCell(status),
@@ -301,7 +312,7 @@ class _GlucoseHistoryScreenState extends State<GlucoseHistoryScreen> {
     }
 
     final values = _readings
-        .map((r) => (r['value'] as double?) ?? 0.0)
+        .map((r) => ((r['value'] as num?)?.toDouble() ?? 0.0))
         .where((v) => v > 0)
         .toList();
 
@@ -369,7 +380,8 @@ class _GlucoseHistoryScreenState extends State<GlucoseHistoryScreen> {
           stream: LanguageService.currentLanguageStream,
           builder: (context, snapshot) {
             final languageCode = snapshot.data ?? 'en';
-            final title = LanguageService.translate('glucose_history', languageCode);
+            final title =
+                LanguageService.translate('glucose_history', languageCode);
             return Text(
               title == 'glucose_history' ? 'Glucose History' : title,
               style: TextStyle(
@@ -476,7 +488,8 @@ class _GlucoseHistoryScreenState extends State<GlucoseHistoryScreen> {
                 horizontal: ResponsiveHelper.isMobile(context) ? 16 : 24,
               ),
               child: Container(
-                padding: EdgeInsets.all(ResponsiveHelper.isMobile(context) ? 12 : 16),
+                padding: EdgeInsets.all(
+                    ResponsiveHelper.isMobile(context) ? 12 : 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
@@ -501,18 +514,23 @@ class _GlucoseHistoryScreenState extends State<GlucoseHistoryScreen> {
                       context,
                       'Avg',
                       _readings
-                          .map((r) => (r['value'] as double?) ?? 0.0)
-                          .where((v) => v > 0)
-                          .isEmpty
+                              .map((r) =>
+                                  ((r['value'] as num?)?.toDouble() ?? 0.0))
+                              .where((v) => v > 0)
+                              .isEmpty
                           ? '0'
                           : (_readings
-                                  .map((r) => (r['value'] as double?) ?? 0.0)
-                                  .where((v) => v > 0)
-                                  .reduce((a, b) => a + b) /
-                              _readings
-                                  .map((r) => (r['value'] as double?) ?? 0.0)
-                                  .where((v) => v > 0)
-                                  .length)
+                                      .map((r) =>
+                                          ((r['value'] as num?)?.toDouble() ??
+                                              0.0))
+                                      .where((v) => v > 0)
+                                      .reduce((a, b) => a + b) /
+                                  _readings
+                                      .map((r) =>
+                                          ((r['value'] as num?)?.toDouble() ??
+                                              0.0))
+                                      .where((v) => v > 0)
+                                      .length)
                               .toStringAsFixed(0),
                       Icons.trending_up,
                     ),
@@ -523,217 +541,247 @@ class _GlucoseHistoryScreenState extends State<GlucoseHistoryScreen> {
           SizedBox(height: ResponsiveHelper.isMobile(context) ? 12 : 16),
           Expanded(
             child: _readings.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.history,
-                              size: ResponsiveHelper.isMobile(context) ? 64 : 80,
-                              color: Colors.grey,
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.history,
+                          size: ResponsiveHelper.isMobile(context) ? 64 : 80,
+                          color: Colors.grey,
+                        ),
+                        SizedBox(
+                            height:
+                                ResponsiveHelper.isMobile(context) ? 16 : 20),
+                        Text(
+                          'No readings in selected range',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: ResponsiveHelper.getResponsiveFontSize(
+                              context,
+                              mobile: 14,
+                              tablet: 16,
+                              desktop: 18,
                             ),
-                            SizedBox(height: ResponsiveHelper.isMobile(context) ? 16 : 20),
-                            Text(
-                              'No readings in selected range',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: ResponsiveHelper.getResponsiveFontSize(
-                                  context,
-                                  mobile: 14,
-                                  tablet: 16,
-                                  desktop: 18,
-                                ),
-                              ),
-                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                    padding: ResponsiveHelper.getResponsivePadding(context),
+                    itemCount: _readings.length,
+                    separatorBuilder: (_, __) => SizedBox(
+                      height: ResponsiveHelper.isMobile(context) ? 8 : 12,
+                    ),
+                    itemBuilder: (context, index) {
+                      final r = _readings[index];
+                      final ts = (r['timestamp'] as Timestamp?)?.toDate();
+                      final value = ((r['value'] as num?)?.toDouble() ?? 0.0);
+                      final type = (r['type'] as String?) ?? '';
+                      final notes = (r['notes'] as String?) ?? '';
+                      final isFlagged = (r['isAIFlagged'] as bool?) ?? false;
+                      final statusColor = _getStatusColor(value);
+                      final statusLabel = _getStatusLabel(value);
+
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color:
+                                isFlagged ? Colors.orange : Colors.transparent,
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            )
                           ],
                         ),
-                      )
-                    : ListView.separated(
-                        padding: ResponsiveHelper.getResponsivePadding(context),
-                        itemCount: _readings.length,
-                        separatorBuilder: (_, __) => SizedBox(
-                          height: ResponsiveHelper.isMobile(context) ? 8 : 12,
-                        ),
-                        itemBuilder: (context, index) {
-                          final r = _readings[index];
-                          final ts = (r['timestamp'] as Timestamp?)?.toDate();
-                          final value = (r['value'] as double?) ?? 0.0;
-                          final type = (r['type'] as String?) ?? '';
-                          final notes = (r['notes'] as String?) ?? '';
-                          final isFlagged = (r['isAIFlagged'] as bool?) ?? false;
-                          final statusColor = _getStatusColor(value);
-                          final statusLabel = _getStatusLabel(value);
-
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isFlagged ? Colors.orange : Colors.transparent,
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.06),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                )
-                              ],
-                            ),
-                            child: Padding(
-                              padding: EdgeInsets.all(
-                                ResponsiveHelper.isMobile(context) ? 12 : 16,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Padding(
+                          padding: EdgeInsets.all(
+                            ResponsiveHelper.isMobile(context) ? 12 : 16,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
                                 children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: statusColor.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Icon(
-                                          Icons.bloodtype,
-                                          color: statusColor,
-                                          size: ResponsiveHelper.isMobile(context) ? 20 : 24,
-                                        ),
-                                      ),
-                                      SizedBox(
-                                        width: ResponsiveHelper.isMobile(context) ? 12 : 16,
-                                      ),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: statusColor.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.bloodtype,
+                                      color: statusColor,
+                                      size: ResponsiveHelper.isMobile(context)
+                                          ? 20
+                                          : 24,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: ResponsiveHelper.isMobile(context)
+                                        ? 12
+                                        : 16,
+                                  ),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
                                           children: [
-                                            Row(
-                                              children: [
-                                                Text(
-                                                  '${value.toStringAsFixed(0)} mg/dL',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: ResponsiveHelper.getResponsiveFontSize(
-                                                      context,
-                                                      mobile: 18,
-                                                      tablet: 20,
-                                                      desktop: 22,
-                                                    ),
-                                                    color: const Color(0xFF0C4556),
-                                                  ),
+                                            Text(
+                                              '${value.toStringAsFixed(0)} mg/dL',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: ResponsiveHelper
+                                                    .getResponsiveFontSize(
+                                                  context,
+                                                  mobile: 18,
+                                                  tablet: 20,
+                                                  desktop: 22,
                                                 ),
-                                                SizedBox(
-                                                  width: ResponsiveHelper.isMobile(context)
-                                                      ? 8
-                                                      : 12,
-                                                ),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: statusColor.withOpacity(0.1),
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                  child: Text(
-                                                    statusLabel,
-                                                    style: TextStyle(
-                                                      color: statusColor,
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: ResponsiveHelper.getResponsiveFontSize(
-                                                        context,
-                                                        mobile: 10,
-                                                        tablet: 11,
-                                                        desktop: 12,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                                if (isFlagged) ...[
-                                                  SizedBox(
-                                                    width: ResponsiveHelper.isMobile(context)
-                                                        ? 6
-                                                        : 8,
-                                                  ),
-                                                  Icon(
-                                                    Icons.warning,
-                                                    color: Colors.orange,
-                                                    size: ResponsiveHelper.isMobile(context)
-                                                        ? 16
-                                                        : 18,
-                                                  ),
-                                                ],
-                                              ],
+                                                color: const Color(0xFF0C4556),
+                                              ),
                                             ),
                                             SizedBox(
-                                              height: ResponsiveHelper.isMobile(context) ? 4 : 6,
+                                              width: ResponsiveHelper.isMobile(
+                                                      context)
+                                                  ? 8
+                                                  : 12,
                                             ),
-                                            Text(
-                                              '${type.toUpperCase()} • ${ts != null ? DateFormat('yyyy-MM-dd HH:mm').format(ts) : '—'}',
-                                              style: TextStyle(
-                                                color: Colors.grey[700],
-                                                fontSize: ResponsiveHelper.getResponsiveFontSize(
-                                                  context,
-                                                  mobile: 12,
-                                                  tablet: 13,
-                                                  desktop: 14,
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: statusColor
+                                                    .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                statusLabel,
+                                                style: TextStyle(
+                                                  color: statusColor,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: ResponsiveHelper
+                                                      .getResponsiveFontSize(
+                                                    context,
+                                                    mobile: 10,
+                                                    tablet: 11,
+                                                    desktop: 12,
+                                                  ),
                                                 ),
                                               ),
                                             ),
+                                            if (isFlagged) ...[
+                                              SizedBox(
+                                                width:
+                                                    ResponsiveHelper.isMobile(
+                                                            context)
+                                                        ? 6
+                                                        : 8,
+                                              ),
+                                              Icon(
+                                                Icons.warning,
+                                                color: Colors.orange,
+                                                size: ResponsiveHelper.isMobile(
+                                                        context)
+                                                    ? 16
+                                                    : 18,
+                                              ),
+                                            ],
                                           ],
+                                        ),
+                                        SizedBox(
+                                          height:
+                                              ResponsiveHelper.isMobile(context)
+                                                  ? 4
+                                                  : 6,
+                                        ),
+                                        Text(
+                                          '${type.toUpperCase()} • ${ts != null ? DateFormat('yyyy-MM-dd HH:mm').format(ts) : '—'}',
+                                          style: TextStyle(
+                                            color: Colors.grey[700],
+                                            fontSize: ResponsiveHelper
+                                                .getResponsiveFontSize(
+                                              context,
+                                              mobile: 12,
+                                              tablet: 13,
+                                              desktop: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (notes.isNotEmpty) ...[
+                                SizedBox(
+                                  height: ResponsiveHelper.isMobile(context)
+                                      ? 8
+                                      : 12,
+                                ),
+                                Container(
+                                  padding: EdgeInsets.all(
+                                    ResponsiveHelper.isMobile(context) ? 8 : 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(
+                                        Icons.note,
+                                        size: ResponsiveHelper.isMobile(context)
+                                            ? 16
+                                            : 18,
+                                        color: Colors.grey[600],
+                                      ),
+                                      SizedBox(
+                                        width:
+                                            ResponsiveHelper.isMobile(context)
+                                                ? 8
+                                                : 12,
+                                      ),
+                                      Expanded(
+                                        child: Text(
+                                          notes,
+                                          style: TextStyle(
+                                            color: Colors.grey[700],
+                                            fontSize: ResponsiveHelper
+                                                .getResponsiveFontSize(
+                                              context,
+                                              mobile: 12,
+                                              tablet: 13,
+                                              desktop: 14,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                  if (notes.isNotEmpty) ...[
-                                    SizedBox(
-                                      height: ResponsiveHelper.isMobile(context) ? 8 : 12,
-                                    ),
-                                    Container(
-                                      padding: EdgeInsets.all(
-                                        ResponsiveHelper.isMobile(context) ? 8 : 12,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[100],
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Icon(
-                                            Icons.note,
-                                            size: ResponsiveHelper.isMobile(context) ? 16 : 18,
-                                            color: Colors.grey[600],
-                                          ),
-                                          SizedBox(
-                                            width: ResponsiveHelper.isMobile(context) ? 8 : 12,
-                                          ),
-                                          Expanded(
-                                            child: Text(
-                                              notes,
-                                              style: TextStyle(
-                                                color: Colors.grey[700],
-                                                fontSize: ResponsiveHelper.getResponsiveFontSize(
-                                                  context,
-                                                  mobile: 12,
-                                                  tablet: 13,
-                                                  desktop: 14,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -781,5 +829,3 @@ class _GlucoseHistoryScreenState extends State<GlucoseHistoryScreen> {
     );
   }
 }
-
-

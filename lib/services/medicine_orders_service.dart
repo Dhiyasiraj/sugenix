@@ -19,9 +19,7 @@ class MedicineOrdersService {
       if (_auth.currentUser == null) throw Exception('No user logged in');
 
       // Check if item already exists in cart
-      QuerySnapshot existingItem = await _firestore
-          .collection('cart')
-          .get();
+      QuerySnapshot existingItem = await _firestore.collection('cart').get();
       final userId = _auth.currentUser!.uid;
 
       // Filter by userId and medicineId
@@ -60,21 +58,18 @@ class MedicineOrdersService {
     if (_auth.currentUser == null) return Stream.value([]);
 
     final userId = _auth.currentUser!.uid;
-    return _firestore
-        .collection('cart')
-        .snapshots()
-        .map(
-          (snapshot) {
-            final allItems = snapshot.docs.map((doc) {
-              Map<String, dynamic> data = doc.data();
-              data['id'] = doc.id;
-              return data;
-            }).toList();
-            
-            // Filter by userId
-            return allItems.where((item) => item['userId'] == userId).toList();
-          },
-        );
+    return _firestore.collection('cart').snapshots().map(
+      (snapshot) {
+        final allItems = snapshot.docs.map((doc) {
+          Map<String, dynamic> data = doc.data();
+          data['id'] = doc.id;
+          return data;
+        }).toList();
+
+        // Filter by userId
+        return allItems.where((item) => item['userId'] == userId).toList();
+      },
+    );
   }
 
   // Update cart item quantity
@@ -110,9 +105,7 @@ class MedicineOrdersService {
     try {
       if (_auth.currentUser == null) throw Exception('No user logged in');
 
-      QuerySnapshot cartItems = await _firestore
-          .collection('cart')
-          .get();
+      QuerySnapshot cartItems = await _firestore.collection('cart').get();
       final userId = _auth.currentUser!.uid;
 
       // Filter by userId
@@ -140,9 +133,7 @@ class MedicineOrdersService {
       if (_auth.currentUser == null) throw Exception('No user logged in');
 
       // Get cart items
-      QuerySnapshot cartItems = await _firestore
-          .collection('cart')
-          .get();
+      QuerySnapshot cartItems = await _firestore.collection('cart').get();
 
       if (cartItems.docs.isEmpty) {
         throw Exception('Cart is empty');
@@ -154,8 +145,8 @@ class MedicineOrdersService {
 
       for (var doc in cartItems.docs) {
         Map<String, dynamic> item = doc.data() as Map<String, dynamic>;
-        double itemTotal =
-            (item['price'] as double) * (item['quantity'] as int);
+        double itemTotal = ((item['price'] as num?)?.toDouble() ?? 0.0) *
+            (item['quantity'] as int? ?? 0);
         total += itemTotal;
 
         orderItems.add({
@@ -195,39 +186,38 @@ class MedicineOrdersService {
     if (_auth.currentUser == null) return Stream.value([]);
 
     final userId = _auth.currentUser!.uid;
-    return _firestore
-        .collection('orders')
-        .snapshots()
-        .map(
-          (snapshot) {
-            final allOrders = snapshot.docs.map((doc) {
-              Map<String, dynamic> data = doc.data();
-              data['id'] = doc.id;
-              return data;
-            }).toList();
-            
-            // Filter by userId and sort by createdAt
-            final filtered = allOrders.where((o) => o['userId'] == userId).toList();
-            filtered.sort((a, b) {
-              final aTime = a['createdAt'];
-              final bTime = b['createdAt'];
-              if (aTime == null || bTime == null) return 0;
-              final aDate = aTime is Timestamp ? aTime.toDate() : (aTime is DateTime ? aTime : DateTime.now());
-              final bDate = bTime is Timestamp ? bTime.toDate() : (bTime is DateTime ? bTime : DateTime.now());
-              return bDate.compareTo(aDate); // Descending
-            });
-            return filtered;
-          },
-        );
+    return _firestore.collection('orders').snapshots().map(
+      (snapshot) {
+        final allOrders = snapshot.docs.map((doc) {
+          Map<String, dynamic> data = doc.data();
+          data['id'] = doc.id;
+          return data;
+        }).toList();
+
+        // Filter by userId and sort by createdAt
+        final filtered = allOrders.where((o) => o['userId'] == userId).toList();
+        filtered.sort((a, b) {
+          final aTime = a['createdAt'];
+          final bTime = b['createdAt'];
+          if (aTime == null || bTime == null) return 0;
+          final aDate = aTime is Timestamp
+              ? aTime.toDate()
+              : (aTime is DateTime ? aTime : DateTime.now());
+          final bDate = bTime is Timestamp
+              ? bTime.toDate()
+              : (bTime is DateTime ? bTime : DateTime.now());
+          return bDate.compareTo(aDate); // Descending
+        });
+        return filtered;
+      },
+    );
   }
 
   // Get order by ID
   Future<Map<String, dynamic>?> getOrderById(String orderId) async {
     try {
-      DocumentSnapshot doc = await _firestore
-          .collection('orders')
-          .doc(orderId)
-          .get();
+      DocumentSnapshot doc =
+          await _firestore.collection('orders').doc(orderId).get();
       if (doc.exists) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         data['id'] = doc.id;
@@ -257,15 +247,13 @@ class MedicineOrdersService {
 
       List<String> imageUrls = await CloudinaryService.uploadImages(images);
 
-      
-      DocumentReference prescriptionRef = await _firestore
-          .collection('prescriptions')
-          .add({
-            'userId': _auth.currentUser!.uid,
-            'imageUrls': imageUrls,
-            'status': 'pending_verification',
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+      DocumentReference prescriptionRef =
+          await _firestore.collection('prescriptions').add({
+        'userId': _auth.currentUser!.uid,
+        'imageUrls': imageUrls,
+        'status': 'pending_verification',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
       return prescriptionRef.id;
     } catch (e) {
@@ -278,30 +266,32 @@ class MedicineOrdersService {
     if (_auth.currentUser == null) return Stream.value([]);
 
     final userId = _auth.currentUser!.uid;
-    return _firestore
-        .collection('prescriptions')
-        .snapshots()
-        .map(
-          (snapshot) {
-            final allPrescriptions = snapshot.docs.map((doc) {
-              Map<String, dynamic> data = doc.data();
-              data['id'] = doc.id;
-              return data;
-            }).toList();
-            
-            // Filter by userId and sort by createdAt
-            final filtered = allPrescriptions.where((p) => p['userId'] == userId).toList();
-            filtered.sort((a, b) {
-              final aTime = a['createdAt'];
-              final bTime = b['createdAt'];
-              if (aTime == null || bTime == null) return 0;
-              final aDate = aTime is Timestamp ? aTime.toDate() : (aTime is DateTime ? aTime : DateTime.now());
-              final bDate = bTime is Timestamp ? bTime.toDate() : (bTime is DateTime ? bTime : DateTime.now());
-              return bDate.compareTo(aDate); // Descending
-            });
-            return filtered;
-          },
-        );
+    return _firestore.collection('prescriptions').snapshots().map(
+      (snapshot) {
+        final allPrescriptions = snapshot.docs.map((doc) {
+          Map<String, dynamic> data = doc.data();
+          data['id'] = doc.id;
+          return data;
+        }).toList();
+
+        // Filter by userId and sort by createdAt
+        final filtered =
+            allPrescriptions.where((p) => p['userId'] == userId).toList();
+        filtered.sort((a, b) {
+          final aTime = a['createdAt'];
+          final bTime = b['createdAt'];
+          if (aTime == null || bTime == null) return 0;
+          final aDate = aTime is Timestamp
+              ? aTime.toDate()
+              : (aTime is DateTime ? aTime : DateTime.now());
+          final bDate = bTime is Timestamp
+              ? bTime.toDate()
+              : (bTime is DateTime ? bTime : DateTime.now());
+          return bDate.compareTo(aDate); // Descending
+        });
+        return filtered;
+      },
+    );
   }
 
   // Search medicines
@@ -312,20 +302,19 @@ class MedicineOrdersService {
       }
 
       final queryLower = query.toLowerCase();
-      
+
       // Search in medicines collection
-      QuerySnapshot snapshot = await _firestore
-          .collection('medicines')
-          .limit(20)
-          .get();
+      QuerySnapshot snapshot =
+          await _firestore.collection('medicines').limit(20).get();
 
       List<Map<String, dynamic>> results = [];
-      
+
       for (var doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
         final name = (data['name'] as String? ?? '').toLowerCase();
-        final description = (data['description'] as String? ?? '').toLowerCase();
-        
+        final description =
+            (data['description'] as String? ?? '').toLowerCase();
+
         // Check if query matches name or description
         if (name.contains(queryLower) || description.contains(queryLower)) {
           results.add({
@@ -342,10 +331,8 @@ class MedicineOrdersService {
 
       // Also try searching by description if no results
       if (results.isEmpty) {
-        final descSnapshot = await _firestore
-            .collection('medicines')
-            .limit(20)
-            .get();
+        final descSnapshot =
+            await _firestore.collection('medicines').limit(20).get();
 
         for (var doc in descSnapshot.docs) {
           final data = doc.data();
@@ -373,9 +360,7 @@ class MedicineOrdersService {
     try {
       if (_auth.currentUser == null) throw Exception('No user logged in');
 
-      QuerySnapshot orders = await _firestore
-          .collection('orders')
-          .get();
+      QuerySnapshot orders = await _firestore.collection('orders').get();
       final userId = _auth.currentUser!.uid;
 
       // Filter by userId
@@ -393,7 +378,7 @@ class MedicineOrdersService {
       for (var doc in filteredOrders) {
         Map<String, dynamic> order = doc.data() as Map<String, dynamic>;
         String status = order['status'] as String;
-        double total = (order['total'] as double?) ?? 0;
+        double total = (order['total'] as num?)?.toDouble() ?? 0.0;
 
         switch (status) {
           case 'pending':

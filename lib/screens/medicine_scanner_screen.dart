@@ -42,7 +42,8 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
                 onTap: () => Navigator.pop(context, ImageSource.camera),
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library, color: Color(0xFF0C4556)),
+                leading:
+                    const Icon(Icons.photo_library, color: Color(0xFF0C4556)),
                 title: const Text('Gallery'),
                 onTap: () => Navigator.pop(context, ImageSource.gallery),
               ),
@@ -66,7 +67,8 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Camera/Gallery access denied or unavailable. Please grant permissions in settings.'),
+              content: Text(
+                  'Camera/Gallery access denied or unavailable. Please grant permissions in settings.'),
               backgroundColor: Colors.orange,
               action: SnackBarAction(
                 label: 'OK',
@@ -213,12 +215,34 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
       setState(() {
         _isProcessing = false;
       });
-
       if (mounted) {
+        final msg = e.toString();
+        String userMessage = 'Failed to process image: $msg';
+        // Provide clearer guidance for common errors
+        if (msg.contains('429')) {
+          userMessage =
+              'Rate limit reached while processing the image. Please try again later.';
+        } else if (msg.toLowerCase().contains('timeout')) {
+          userMessage =
+              'The request timed out. Please check your connection and try again.';
+        } else if (msg.toLowerCase().contains('api key is not configured')) {
+          userMessage =
+              'Server not configured: API key missing. Contact support.';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to process image: ${e.toString()}'),
+            content: Text(userMessage),
             backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () {
+                if (_scannedImage != null) {
+                  _processImage(_scannedImage!);
+                }
+              },
+            ),
           ),
         );
       }

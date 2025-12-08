@@ -11,16 +11,18 @@ class GeminiService {
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
   static const String _textUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
-  
+
   // Check if API key is configured
-  static bool get isApiKeyConfigured => _apiKey.isNotEmpty && _apiKey != 'YOUR_GEMINI_API_KEY_HERE';
+  static bool get isApiKeyConfigured =>
+      _apiKey.isNotEmpty && _apiKey != 'YOUR_GEMINI_API_KEY_HERE';
 
   // Generate text response using Gemini
   static Future<String> generateText(String prompt) async {
     if (!isApiKeyConfigured) {
-      throw Exception('Gemini API key is not configured. Please set up your API key in gemini_service.dart');
+      throw Exception(
+          'Gemini API key is not configured. Please set up your API key in gemini_service.dart');
     }
-    
+
     try {
       final url = Uri.parse('$_textUrl?key=$_apiKey');
 
@@ -69,46 +71,82 @@ class GeminiService {
   // Extract text from image using Gemini Vision
   static Future<String> extractTextFromImage(XFile imageFile) async {
     if (!isApiKeyConfigured) {
-      throw Exception('Gemini API key is not configured. Please set up your API key in gemini_service.dart');
+      throw Exception(
+          'Gemini API key is not configured. Please set up your API key in gemini_service.dart');
     }
-    
-    try {
-      final bytes = await imageFile.readAsBytes();
-      final base64Image = base64Encode(bytes);
 
-      final url = Uri.parse('$_baseUrl?key=$_apiKey');
+    // Implement retries with exponential backoff for transient errors (429, 5xx)
+    const int maxRetries = 3;
+    int attempt = 0;
 
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'contents': [
-            {
-              'parts': [
-                {
-                  'text':
-                      'Extract all text from this medicine label image. Return only the medicine name, manufacturer, dosage, and any other visible text in a structured format.'
-                },
-                {
-                  'inline_data': {
-                    'mime_type': 'image/jpeg',
-                    'data': base64Image
+    final bytes = await imageFile.readAsBytes();
+    final base64Image = base64Encode(bytes);
+    final url = Uri.parse('$_baseUrl?key=$_apiKey');
+
+    while (true) {
+      attempt++;
+      try {
+        final response = await http
+            .post(
+              url,
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({
+                'contents': [
+                  {
+                    'parts': [
+                      {
+                        'text':
+                            'Extract all text from this medicine label image. Return only the medicine name, manufacturer, dosage, and any other visible text in a structured format.'
+                      },
+                      {
+                        'inline_data': {
+                          'mime_type': 'image/jpeg',
+                          'data': base64Image
+                        }
+                      }
+                    ]
                   }
-                }
-              ]
-            }
-          ]
-        }),
-      );
+                ]
+              }),
+            )
+            .timeout(const Duration(seconds: 30));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['candidates'][0]['content']['parts'][0]['text'] ?? '';
-      } else {
-        throw Exception('Failed to extract text: ${response.statusCode}');
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          return data['candidates'][0]['content']['parts'][0]['text'] ?? '';
+        }
+
+        // Handle rate limit / server errors with retry
+        if (response.statusCode == 429 ||
+            (response.statusCode >= 500 && response.statusCode < 600)) {
+          if (attempt <= maxRetries) {
+            final waitMs = 500 * (1 << (attempt - 1)); // exponential backoff
+            await Future.delayed(Duration(milliseconds: waitMs));
+            continue; // retry
+          } else {
+            final body = response.body;
+            throw Exception(
+                'Failed to extract text: ${response.statusCode} - $body');
+          }
+        }
+
+        // Non-retryable error
+        throw Exception(
+            'Failed to extract text: ${response.statusCode} - ${response.body}');
+      } catch (e) {
+        // If we timed out or had a transient network error, retry up to maxRetries
+        final errStr = e.toString();
+        if (attempt <= maxRetries &&
+            (errStr.contains('timeout') ||
+                errStr.contains('SocketException'))) {
+          final waitMs = 500 * (1 << (attempt - 1));
+          await Future.delayed(Duration(milliseconds: waitMs));
+          continue;
+        }
+
+        // No more retries or unrecoverable error
+        throw Exception('Error extracting text: ${e.toString()}');
       }
-    } catch (e) {
-      throw Exception('Error extracting text: ${e.toString()}');
     }
   }
 

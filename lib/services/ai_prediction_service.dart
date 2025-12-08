@@ -11,12 +11,14 @@ class AIPredictionService {
       if (_auth.currentUser == null) throw Exception('No user logged in');
 
       // Get recent glucose readings
-      QuerySnapshot snapshot = await _firestore
-          .collection('glucose_readings')
-          .get();
+      QuerySnapshot snapshot =
+          await _firestore.collection('glucose_readings').get();
 
       List<double> values = snapshot.docs
-          .map((doc) => (doc.data() as Map<String, dynamic>)['value'] as double)
+          .map((doc) =>
+              ((doc.data() as Map<String, dynamic>)['value'] as num?)
+                  ?.toDouble() ??
+              0.0)
           .toList();
 
       if (values.isEmpty) {
@@ -81,12 +83,14 @@ class AIPredictionService {
       if (_auth.currentUser == null) throw Exception('No user logged in');
 
       // Get recent glucose readings
-      QuerySnapshot snapshot = await _firestore
-          .collection('glucose_readings')
-          .get();
+      QuerySnapshot snapshot =
+          await _firestore.collection('glucose_readings').get();
 
       List<double> values = snapshot.docs
-          .map((doc) => (doc.data() as Map<String, dynamic>)['value'] as double)
+          .map((doc) =>
+              ((doc.data() as Map<String, dynamic>)['value'] as num?)
+                  ?.toDouble() ??
+              0.0)
           .toList();
 
       if (values.isEmpty) {
@@ -154,7 +158,8 @@ class AIPredictionService {
       String overallStatus = 'stable';
       if (hypoRisk['risk'] == 'high' || hyperRisk['risk'] == 'high') {
         overallStatus = 'needs_attention';
-      } else if (hypoRisk['risk'] == 'medium' || hyperRisk['risk'] == 'medium') {
+      } else if (hypoRisk['risk'] == 'medium' ||
+          hyperRisk['risk'] == 'medium') {
         overallStatus = 'monitor';
       }
 
@@ -165,7 +170,8 @@ class AIPredictionService {
         'lastUpdated': DateTime.now(),
       };
     } catch (e) {
-      throw Exception('Failed to get overall health prediction: ${e.toString()}');
+      throw Exception(
+          'Failed to get overall health prediction: ${e.toString()}');
     }
   }
 
@@ -187,12 +193,14 @@ class AIPredictionService {
     try {
       if (_auth.currentUser == null) throw Exception('No user logged in');
 
-      QuerySnapshot snapshot = await _firestore
-          .collection('glucose_readings')
-          .get();
+      QuerySnapshot snapshot =
+          await _firestore.collection('glucose_readings').get();
 
       List<double> values = snapshot.docs
-          .map((doc) => (doc.data() as Map<String, dynamic>)['value'] as double)
+          .map((doc) =>
+              ((doc.data() as Map<String, dynamic>)['value'] as num?)
+                  ?.toDouble() ??
+              0.0)
           .toList();
 
       if (values.length < 5) {
@@ -203,10 +211,12 @@ class AIPredictionService {
       }
 
       // Simple trend calculation
-      double firstHalf = values.sublist(0, values.length ~/ 2).reduce((a, b) => a + b) /
-          (values.length ~/ 2);
-      double secondHalf = values.sublist(values.length ~/ 2).reduce((a, b) => a + b) /
-          (values.length - values.length ~/ 2);
+      double firstHalf =
+          values.sublist(0, values.length ~/ 2).reduce((a, b) => a + b) /
+              (values.length ~/ 2);
+      double secondHalf =
+          values.sublist(values.length ~/ 2).reduce((a, b) => a + b) /
+              (values.length - values.length ~/ 2);
 
       String trend = 'stable';
       if (secondHalf > firstHalf + 20) {
@@ -239,4 +249,3 @@ class AIPredictionService {
     }
   }
 }
-

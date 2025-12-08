@@ -26,20 +26,22 @@ class WellnessService {
 
       for (var doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        
+
         // Personalize based on user data
-        final glucoseLevel = glucoseStats['average'] as double? ?? 100.0;
-        final diabetesType = userProfile?['diabetesType'] as String? ?? 'Type 1';
-        
+        final glucoseLevel =
+            (glucoseStats['average'] as num?)?.toDouble() ?? 100.0;
+        final diabetesType =
+            userProfile?['diabetesType'] as String? ?? 'Type 1';
+
         // Check if recommendation applies to user's condition
         final applicableTo = data['applicableTo'] as List<dynamic>? ?? [];
-        if (applicableTo.isEmpty || 
-            applicableTo.contains(diabetesType) || 
+        if (applicableTo.isEmpty ||
+            applicableTo.contains(diabetesType) ||
             applicableTo.contains('all')) {
-          
           // Adjust priority based on glucose level for medication recommendations
           if (category == 'medication' && glucoseLevel > 180) {
-            data['priority'] = (data['priority'] as int? ?? 5) - 1; // Higher priority for high glucose
+            data['priority'] = (data['priority'] as int? ?? 5) -
+                1; // Higher priority for high glucose
           }
 
           recommendations.add({
@@ -59,7 +61,8 @@ class WellnessService {
       }
 
       // Sort by priority
-      recommendations.sort((a, b) => (a['priority'] as int).compareTo(b['priority'] as int));
+      recommendations.sort(
+          (a, b) => (a['priority'] as int).compareTo(b['priority'] as int));
 
       return recommendations;
     } catch (e) {
@@ -133,4 +136,3 @@ class WellnessService {
     }
   }
 }
-
