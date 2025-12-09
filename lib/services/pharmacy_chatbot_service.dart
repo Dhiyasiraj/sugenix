@@ -2,10 +2,12 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'ultramessage_service.dart';
 
 class PharmacyChatbotService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final UltraMessageService _ultraMessageService = UltraMessageService();
 
   // Gemini API configuration
   static const String _geminiApiKey = 'AIzaSyAbOgEcLbLwautxmYSE6ZgkCwZYAFX8Tig';
@@ -568,6 +570,261 @@ Format clearly with sections and actionable advice.''';
     } catch (e) {
       print('Error getting comprehensive advice: $e');
       return 'Error: ${e.toString()}';
+    }
+  }
+
+  /// Send chat response via WhatsApp
+  ///
+  /// Example:
+  /// ```dart
+  /// await sendChatResponseViaWhatsApp(
+  ///   phoneNumber: '919876543210',
+  ///   message: 'Your glucose is high, please reduce sugar intake',
+  ///   chatId: 'chat_123'
+  /// );
+  /// ```
+  Future<Map<String, dynamic>> sendChatResponseViaWhatsApp({
+    required String phoneNumber,
+    required String message,
+    String? chatId,
+  }) async {
+    try {
+      final result = await _ultraMessageService.sendWhatsAppMessage(
+        to: phoneNumber,
+        message: message,
+        id: chatId,
+      );
+
+      if (result['success'] == true) {
+        // Update message with WhatsApp delivery status
+        if (chatId != null) {
+          final userId = _auth.currentUser?.uid;
+          if (userId != null) {
+            await _firestore
+                .collection('users')
+                .doc(userId)
+                .collection('pharmacy_chats')
+                .doc(chatId)
+                .update({
+              'whatsappDelivered': true,
+              'whatsappDeliveryTime': FieldValue.serverTimestamp(),
+              'whatsappMessageId': result['messageId'],
+            }).catchError((_) {
+              // Message not found in pharmacy chats, ignore
+            });
+          }
+        }
+      }
+
+      return result;
+    } catch (e) {
+      print('Error sending chat response via WhatsApp: $e');
+      return {
+        'success': false,
+        'error': 'Exception: $e',
+      };
+    }
+  }
+
+  /// Send glucose alert via WhatsApp
+  ///
+  /// Example:
+  /// ```dart
+  /// await sendGlucoseAlertViaWhatsApp(
+  ///   phoneNumber: '919876543210',
+  ///   glucoseValue: 245,
+  ///   status: 'high'
+  /// );
+  /// ```
+  Future<Map<String, dynamic>> sendGlucoseAlertViaWhatsApp({
+    required String phoneNumber,
+    required double glucoseValue,
+    required String status, // high, low, normal
+  }) async {
+    try {
+      return await _ultraMessageService.sendHealthAlert(
+        to: phoneNumber,
+        alertType: status == 'high'
+            ? 'glucose_high'
+            : status == 'low'
+                ? 'glucose_low'
+                : 'glucose_high',
+        data: {'value': glucoseValue.toStringAsFixed(1)},
+      );
+    } catch (e) {
+      print('Error sending glucose alert via WhatsApp: $e');
+      return {
+        'success': false,
+        'error': 'Exception: $e',
+      };
+    }
+  }
+
+  /// Send medicine recommendation via WhatsApp
+  ///
+  /// Example:
+  /// ```dart
+  /// await sendMedicineRecommendationViaWhatsApp(
+  ///   phoneNumber: '919876543210',
+  ///   medicineName: 'Metformin',
+  ///   dosage: '500mg',
+  ///   frequency: 'Twice daily'
+  /// );
+  /// ```
+  Future<Map<String, dynamic>> sendMedicineRecommendationViaWhatsApp({
+    required String phoneNumber,
+    required String medicineName,
+    required String dosage,
+    required String frequency,
+  }) async {
+    try {
+      String message = '''💊 *Medicine Recommendation*
+
+Medicine: $medicineName
+Dosage: $dosage
+Frequency: $frequency
+
+✅ Instructions:
+• Take with food
+• Do not skip doses
+• Consult doctor if side effects
+
+Time: ${DateTime.now().toString().split('.')[0]}''';
+
+      return await sendChatResponseViaWhatsApp(
+        phoneNumber: phoneNumber,
+        message: message,
+      );
+    } catch (e) {
+      print('Error sending medicine recommendation: $e');
+      return {
+        'success': false,
+        'error': 'Exception: $e',
+      };
+    }
+  }
+
+  /// Check WhatsApp instance status
+  /// Returns true if instance is connected
+  Future<bool> checkWhatsAppInstanceStatus() async {
+    try {
+      final status = await _ultraMessageService.getInstanceStatus();
+      return status['connected'] == true;
+    } catch (e) {
+      print('Error checking WhatsApp status: $e');
+      return false;
+    }
+  }
+
+  /// Get user's phone number from Firebase
+  ///
+  /// This fetches the WhatsApp phone number stored in user profile
+  Future<String?> getUserPhoneNumber() async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) return null;
+
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data() ?? {};
+        return data['phoneNumber'] ?? data['whatsappPhone'];
+      }
+
+      return null;
+    } catch (e) {
+      print('Error getting user phone number: $e');
+      return null;
+    }
+  }
+
+  /// Send pharmacy notification (availability, price drop, reminder)
+  ///
+  /// Example:
+  /// ```dart
+  /// await sendPharmacyNotificationViaWhatsApp(
+  ///   phoneNumber: '919876543210',
+  ///   medicineName: 'Insulin',
+  ///   action: 'available'
+  /// );
+  /// ```
+  Future<Map<String, dynamic>> sendPharmacyNotificationViaWhatsApp({
+    required String phoneNumber,
+    required String medicineName,
+    required String action, // available, outofstock, price_drop, reminder
+  }) async {
+    try {
+      return await _ultraMessageService.sendMedicineNotification(
+        to: phoneNumber,
+        medicineName: medicineName,
+        action: action,
+      );
+    } catch (e) {
+      print('Error sending pharmacy notification: $e');
+      return {
+        'success': false,
+        'error': 'Exception: $e',
+      };
+    }
+  }
+
+  /// Broadcast message to multiple users
+  ///
+  /// Example:
+  /// ```dart
+  /// await broadcastMessageViaWhatsApp(
+  ///   phoneNumbers: ['919876543210', '919876543211'],
+  ///   message: 'Urgent: Medicine recall',
+  ///   messageType: 'alert'
+  /// );
+  /// ```
+  Future<Map<String, dynamic>> broadcastMessageViaWhatsApp({
+    required List<String> phoneNumbers,
+    required String message,
+    String messageType = 'info', // info, alert, urgent
+  }) async {
+    try {
+      final results = <String, dynamic>{};
+      int successCount = 0;
+      int failureCount = 0;
+
+      // Add emoji based on message type
+      String finalMessage = message;
+      if (messageType == 'alert') {
+        finalMessage = '⚠️ $message';
+      } else if (messageType == 'urgent') {
+        finalMessage = '🚨 $message';
+      } else if (messageType == 'info') {
+        finalMessage = 'ℹ️ $message';
+      }
+
+      for (String phoneNumber in phoneNumbers) {
+        final result = await _ultraMessageService.sendWhatsAppMessage(
+          to: phoneNumber,
+          message: finalMessage,
+        );
+
+        if (result['success'] == true) {
+          successCount++;
+        } else {
+          failureCount++;
+        }
+
+        results[phoneNumber] = result;
+      }
+
+      return {
+        'success': failureCount == 0,
+        'successCount': successCount,
+        'failureCount': failureCount,
+        'details': results,
+      };
+    } catch (e) {
+      print('Error broadcasting message: $e');
+      return {
+        'success': false,
+        'error': 'Exception: $e',
+      };
     }
   }
 }
