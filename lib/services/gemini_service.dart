@@ -14,7 +14,7 @@ class GeminiService {
 
   // Check if API key is configured
   static bool get isApiKeyConfigured =>
-      _apiKey.isNotEmpty && _apiKey != 'YOUR_GEMINI_API_KEY_HERE';
+      _apiKey.isNotEmpty && _apiKey != 'AIzaSyAbOgEcLbLwautxmYSE6ZgkCwZYAFX8Tig';
 
   // Generate text response using Gemini
   static Future<String> generateText(String prompt) async {
@@ -437,5 +437,218 @@ Please provide helpful, accurate medical advice for diabetes management. If the 
     }
 
     return medicines;
+  }
+
+  // Scan medicine image and extract text using Gemini Vision
+  static Future<Map<String, dynamic>> scanMedicineImage(
+      String imagePath) async {
+    if (!isApiKeyConfigured) {
+      throw Exception('Gemini API key is not configured');
+    }
+
+    try {
+      final file = XFile(imagePath);
+      final bytes = await file.readAsBytes();
+      final base64Image = base64Encode(bytes);
+
+      final url = Uri.parse('$_baseUrl?key=$_apiKey');
+
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'contents': [
+                {
+                  'parts': [
+                    {
+                      'text':
+                          '''Analyze this medicine/pharmaceutical product image and extract ALL visible text and information. Then provide:
+
+1. **Medicine Name**: The exact name of the medicine
+2. **Active Ingredients**: List all active ingredients if visible
+3. **Strength/Dosage**: The strength or dosage mentioned
+4. **Manufacturer**: Company name
+5. **Batch/Lot Number**: If visible
+6. **Expiry Date**: Expiration date if shown
+7. **Storage Instructions**: How to store
+8. **Uses/Indications**: What this medicine is used for (extract from packaging if available)
+9. **Side Effects**: List the side effects (extract from packaging if available)
+10. **Warnings/Precautions**: Any warnings or precautions
+11. **Dosage Instructions**: How to take the medicine
+
+Please be thorough and extract everything visible on the medicine packaging.'''
+                    },
+                    {
+                      'inlineData': {
+                        'mimeType': 'image/jpeg',
+                        'data': base64Image,
+                      }
+                    }
+                  ]
+                }
+              ]
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final extractedText =
+            data['candidates']?[0]?['content']?['parts']?[0]?['text'] ?? '';
+
+        return {
+          'success': true,
+          'rawText': extractedText,
+          'parsed': _parseMedicineInfo(extractedText),
+        };
+      } else {
+        return {
+          'success': false,
+          'error': 'Failed to scan image: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'Error scanning medicine: ${e.toString()}',
+      };
+    }
+  }
+
+  // Extract and analyze text from user input
+  static Future<Map<String, dynamic>> analyzeMedicineText(
+      String extractedText) async {
+    if (!isApiKeyConfigured) {
+      throw Exception('Gemini API key is not configured');
+    }
+
+    try {
+      final url = Uri.parse('$_textUrl?key=$_apiKey');
+
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'contents': [
+                {
+                  'parts': [
+                    {
+                      'text':
+                          '''Based on this medicine information, provide detailed analysis:
+
+TEXT FROM MEDICINE PACKAGING:
+$extractedText
+
+Please extract and provide in a clear format:
+
+1. **Medicine Name**: 
+2. **Active Ingredients**: 
+3. **Strength/Dosage**: 
+4. **Manufacturer**: 
+5. **Batch Number**: 
+6. **Expiry Date**: 
+7. **Storage Instructions**: 
+8. **USES/INDICATIONS** (What is this medicine used for?): 
+9. **SIDE EFFECTS** (List potential side effects): 
+10. **Warnings/Precautions**: 
+11. **Dosage Instructions**: 
+
+Make sure to provide detailed information about USES and SIDE EFFECTS.'''
+                    }
+                  ]
+                }
+              ]
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final analysisText =
+            data['candidates']?[0]?['content']?['parts']?[0]?['text'] ?? '';
+
+        return {
+          'success': true,
+          'analysis': analysisText,
+          'parsed': _parseMedicineInfo(analysisText),
+        };
+      } else {
+        return {
+          'success': false,
+          'error': 'Failed to analyze text: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'Error analyzing medicine text: ${e.toString()}',
+      };
+    }
+  }
+
+  // Parse medicine information from Gemini response
+  static Map<String, dynamic> _parseMedicineInfo(String text) {
+    try {
+      final usesMatch = RegExp(
+        r'(?:USES?|INDICATIONS?)\s*(?:\*\*)?:?\s*\n?\s*((?:[^\n]*\n?)*?)(?=\n\n|SIDE EFFECTS|WARNINGS|STORAGE|PRECAUTIONS|$)',
+        caseSensitive: false,
+      ).firstMatch(text);
+
+      final sideEffectsMatch = RegExp(
+        r'(?:SIDE\s*EFFECTS?)\s*(?:\*\*)?:?\s*\n?\s*((?:[^\n]*\n?)*?)(?=\n\n|WARNINGS|STORAGE|PRECAUTIONS|DOSAGE|$)',
+        caseSensitive: false,
+      ).firstMatch(text);
+
+      final medicineNameMatch = RegExp(
+        r'(?:MEDICINE\s*NAME|NAME)\s*(?:\*\*)?:?\s*\n?\s*([^\n]+)',
+        caseSensitive: false,
+      ).firstMatch(text);
+
+      final ingredientsMatch = RegExp(
+        r'(?:ACTIVE\s*INGREDIENTS?|INGREDIENTS?)\s*(?:\*\*)?:?\s*\n?\s*((?:[^\n]*\n?)*?)(?=\n\n|STRENGTH|MANUFACTURER|$)',
+        caseSensitive: false,
+      ).firstMatch(text);
+
+      final expiryMatch = RegExp(
+        r'(?:EXPIRY\s*DATE|EXPIRATION)\s*(?:\*\*)?:?\s*\n?\s*([^\n]+)',
+        caseSensitive: false,
+      ).firstMatch(text);
+
+      return {
+        'medicineName':
+            _cleanText(medicineNameMatch?.group(1) ?? 'Not available'),
+        'uses': _cleanText(usesMatch?.group(1) ?? 'Not available'),
+        'sideEffects':
+            _cleanText(sideEffectsMatch?.group(1) ?? 'Not available'),
+        'ingredients':
+            _cleanText(ingredientsMatch?.group(1) ?? 'Not available'),
+        'expiryDate': _cleanText(expiryMatch?.group(1) ?? 'Not available'),
+        'fullText': text,
+      };
+    } catch (e) {
+      return {
+        'medicineName': 'Parse error',
+        'uses': 'Could not parse',
+        'sideEffects': 'Could not parse',
+        'ingredients': 'Could not parse',
+        'expiryDate': 'Could not parse',
+        'fullText': text,
+      };
+    }
+  }
+
+  // Clean extracted text
+  static String _cleanText(String text) {
+    return text
+        .replaceAll(RegExp(r'\*\*'), '')
+        .replaceAll(RegExp(r'\*'), '')
+        .replaceAll(RegExp(r'###\s*'), '')
+        .replaceAll(RegExp(r'^[-•*]\s*'), '')
+        .trim()
+        .split('\n')
+        .where((line) => line.trim().isNotEmpty)
+        .join('\n');
   }
 }

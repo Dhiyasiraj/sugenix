@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sugenix/services/emergency_service.dart';
+import 'package:sugenix/services/sos_alert_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:sugenix/services/language_service.dart';
 
@@ -12,8 +13,10 @@ class EmergencyScreen extends StatefulWidget {
 
 class _EmergencyScreenState extends State<EmergencyScreen> {
   final EmergencyService _emergencyService = EmergencyService();
+  final SOSAlertService _sosAlertService = SOSAlertService();
   bool _isEmergencyActive = false;
   int _countdown = 5;
+  bool _isSending = false;
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +123,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
 
   Widget _buildSOSButton() {
     final buttonSize = ResponsiveHelper.isMobile(context) ? 180.0 : 200.0;
-    
+
     return GestureDetector(
       onTapDown: (_) => _startEmergency(),
       onTapUp: (_) => _cancelEmergency(),
@@ -160,7 +163,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
 
   Widget _buildCountdownDisplay() {
     final size = ResponsiveHelper.isMobile(context) ? 130.0 : 150.0;
-    
+
     return Container(
       width: size,
       height: size,
@@ -258,36 +261,118 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   }
 
   Future<void> _activateEmergency() async {
+    setState(() {
+      _isSending = true;
+    });
+
     try {
-      await _emergencyService.sendEmergencyAlert();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Emergency activated! Contacts notified."),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
-        );
+      // Trigger SOS alert with WhatsApp notifications
+      final result = await _sosAlertService.triggerSOSAlert();
+
+      if (result['success']) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "🚨 SOS Activated! ${result['contactsNotified']} contacts notified via WhatsApp",
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+
+          // Show detailed notification status
+          _showNotificationStatus(result['notificationDetails']);
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Failed to activate SOS: ${result['error']}"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Failed to activate emergency: ${e.toString()}"),
+            content: Text("Error: ${e.toString()}"),
             backgroundColor: Colors.red,
           ),
         );
       }
+    } finally {
+      setState(() {
+        _isSending = false;
+      });
     }
+  }
+
+  void _showNotificationStatus(List<Map<String, dynamic>> notificationDetails) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('🚨 SOS Alert Sent'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Emergency notifications sent to:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              ...notificationDetails.map((detail) {
+                final status =
+                    detail['status'] == 'sent' ? '✅ Sent' : '❌ Failed';
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Text(
+                    '${status} - ${detail['contact']}\n📱 ${detail['phone']}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                );
+              }).toList(),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _cancelEmergency() async {
     try {
-      await _emergencyService.cancelEmergencyAlert();
+      // Get the current SOS alert history to cancel the most recent one
+      final alertHistory = await _sosAlertService.getSOSAlertHistory(limit: 1);
+
+      if (alertHistory.isNotEmpty) {
+        final alertId = alertHistory[0]['id'];
+        await _sosAlertService.cancelSOSAlert(alertId: alertId);
+      }
+
       setState(() {
         _isEmergencyActive = false;
         _countdown = 5;
       });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("🛑 SOS Alert Cancelled"),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

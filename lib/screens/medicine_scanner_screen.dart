@@ -98,24 +98,21 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
     });
 
     try {
-      // Step 1: Extract text from image using Gemini Vision
-      final extractedText = await GeminiService.extractTextFromImage(image);
+      // Step 1: Scan medicine image using Gemini Vision with text extraction
+      final scanResult = await GeminiService.scanMedicineImage(image.path);
 
-      // Step 2: Extract medicine name from text
-      String medicineName = _extractMedicineName(extractedText);
-
-      if (medicineName.isEmpty) {
-        // Try to get medicine name from Gemini analysis
-        final analysis = await GeminiService.generateText(
-            'From this text extracted from a medicine label, identify the medicine name: $extractedText\n\nReturn only the medicine name.');
-        medicineName = analysis.trim();
+      if (!scanResult['success']) {
+        throw Exception(scanResult['error'] ?? 'Failed to scan medicine');
       }
 
-      if (medicineName.isEmpty) {
+      final parsed = scanResult['parsed'] ?? {};
+      String medicineName = parsed['medicineName'] ?? '';
+
+      if (medicineName.isEmpty || medicineName == 'Not available') {
         throw Exception('Could not identify medicine name from image');
       }
 
-      // Step 3: Check if medicine exists in pharmacy database
+      // Step 2: Check if medicine exists in pharmacy database
       List<Map<String, dynamic>> pharmacyMedicines = [];
       try {
         pharmacyMedicines =
@@ -124,10 +121,7 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
         // Continue even if search fails
       }
 
-      // Step 4: Get medicine information from Gemini
-      final geminiInfo = await GeminiService.getMedicineInfo(medicineName);
-
-      // Step 5: If found in pharmacy, use pharmacy data; otherwise use Gemini data
+      // Step 3: If found in pharmacy, use pharmacy data; otherwise use Gemini data
       Map<String, dynamic> medicineData;
       if (pharmacyMedicines.isNotEmpty) {
         _medicineFoundInPharmacy = true;
@@ -135,62 +129,59 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
         medicineData = {
           'name': pharmacyMedicines.first['name'] ?? medicineName,
           'manufacturer': pharmacyMedicines.first['manufacturer'] ??
-              geminiInfo['manufacturer'] ??
+              parsed['medicineName'] ??
               '',
-          'type': pharmacyMedicines.first['type'] ?? geminiInfo['form'] ?? '',
-          'activeIngredient': pharmacyMedicines.first['activeIngredient'] ?? '',
-          'strength': pharmacyMedicines.first['strength'] ??
-              geminiInfo['strength'] ??
+          'type': pharmacyMedicines.first['type'] ?? 'Medicine',
+          'activeIngredient': pharmacyMedicines.first['activeIngredient'] ??
+              parsed['ingredients'] ??
               '',
-          'form': pharmacyMedicines.first['form'] ?? geminiInfo['form'] ?? '',
+          'strength': pharmacyMedicines.first['strength'] ?? '',
+          'form': pharmacyMedicines.first['form'] ?? '',
           'uses': pharmacyMedicines.first['uses'] is List
               ? (pharmacyMedicines.first['uses'] as List)
                   .map((e) => e.toString())
                   .toList()
-              : (geminiInfo['uses'] is List
-                  ? List<String>.from(geminiInfo['uses'])
+              : (parsed['uses'] != null && parsed['uses'] != 'Not available'
+                  ? (parsed['uses'] as String).split('\n')
                   : []),
-          'dosage':
-              pharmacyMedicines.first['dosage'] ?? geminiInfo['dosage'] ?? '',
+          'dosage': pharmacyMedicines.first['dosage'] ?? parsed['uses'] ?? '',
           'precautions': pharmacyMedicines.first['precautions'] is List
               ? (pharmacyMedicines.first['precautions'] as List)
                   .map((e) => e.toString())
                   .toList()
-              : (geminiInfo['precautions'] is List
-                  ? List<String>.from(geminiInfo['precautions'])
-                  : []),
+              : [],
           'sideEffects': pharmacyMedicines.first['sideEffects'] is List
               ? (pharmacyMedicines.first['sideEffects'] as List)
                   .map((e) => e.toString())
                   .toList()
-              : (geminiInfo['sideEffects'] is List
-                  ? List<String>.from(geminiInfo['sideEffects'])
+              : (parsed['sideEffects'] != null &&
+                      parsed['sideEffects'] != 'Not available'
+                  ? (parsed['sideEffects'] as String).split('\n')
                   : []),
           'price': pharmacyMedicines.first['price'] ?? 0.0,
-          'priceRange': geminiInfo['priceRange'] ?? '',
+          'priceRange': '',
           'available': true,
         };
       } else {
         _medicineFoundInPharmacy = false;
         medicineData = {
           'name': medicineName,
-          'manufacturer': geminiInfo['manufacturer'] ?? '',
-          'type': geminiInfo['form'] ?? '',
-          'activeIngredient': '',
-          'strength': geminiInfo['strength'] ?? '',
-          'form': geminiInfo['form'] ?? '',
-          'uses': geminiInfo['uses'] is List
-              ? List<String>.from(geminiInfo['uses'])
+          'manufacturer': parsed['medicineName'] ?? '',
+          'type': 'Medicine',
+          'activeIngredient': parsed['ingredients'] ?? '',
+          'strength': '',
+          'form': '',
+          'uses': parsed['uses'] != null && parsed['uses'] != 'Not available'
+              ? (parsed['uses'] as String).split('\n')
               : [],
-          'dosage': geminiInfo['dosage'] ?? '',
-          'precautions': geminiInfo['precautions'] is List
-              ? List<String>.from(geminiInfo['precautions'])
-              : [],
-          'sideEffects': geminiInfo['sideEffects'] is List
-              ? List<String>.from(geminiInfo['sideEffects'])
+          'dosage': '',
+          'precautions': [],
+          'sideEffects': parsed['sideEffects'] != null &&
+                  parsed['sideEffects'] != 'Not available'
+              ? (parsed['sideEffects'] as String).split('\n')
               : [],
           'price': 0.0,
-          'priceRange': geminiInfo['priceRange'] ?? '',
+          'priceRange': '',
           'available': false,
         };
       }
