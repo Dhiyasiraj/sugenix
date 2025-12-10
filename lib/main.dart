@@ -38,6 +38,9 @@ import 'package:sugenix/services/app_localization_service.dart';
 import 'package:sugenix/services/locale_notifier.dart';
 import 'package:sugenix/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/foundation.dart';
+import 'package:sugenix/screens/web_landing_screen.dart';
+import 'package:sugenix/screens/unsupported_role_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -125,7 +128,7 @@ class _SugenixAppState extends State<SugenixApp> {
           fillColor: Colors.grey[100],
         ),
       ),
-      home: const SplashScreen(),
+      home: kIsWeb ? const WebLandingScreen() : const SplashScreen(),
       routes: {
         '/login': (context) => const Login(),
         '/signup': (context) => const Signup(),
@@ -190,19 +193,25 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   List<Widget> get _screens {
     if (_userRole == 'admin') {
-      return [
-        const AdminPanelScreen(initialTab: 0), // Users
-        const AdminPanelScreen(initialTab: 1), // Doctors
-        const AdminPanelScreen(initialTab: 2), // Pharmacies
-        const AdminPanelScreen(initialTab: 3), // Revenue
-      ];
+      if (kIsWeb) {
+        return [
+          const AdminPanelScreen(initialTab: 0), // Users
+          const AdminPanelScreen(initialTab: 1), // Doctors
+          const AdminPanelScreen(initialTab: 2), // Pharmacies
+          const AdminPanelScreen(initialTab: 3), // Revenue
+        ];
+      }
+      return [const UnsupportedRoleScreen(role: 'Admin (Web Only)')];
     } else if (_userRole == 'pharmacy') {
-      return [
-        const PharmacyDashboardScreen(),
-        const PharmacyOrdersScreen(),
-        const PharmacyInventoryScreen(),
-        const ProfileScreen(),
-      ];
+      if (kIsWeb) {
+        return [
+          const PharmacyDashboardScreen(),
+          const PharmacyOrdersScreen(),
+          const PharmacyInventoryScreen(),
+          const ProfileScreen(),
+        ];
+      }
+      return [const UnsupportedRoleScreen(role: 'Pharmacy (Web Only)')];
     } else if (_userRole == 'doctor') {
       return [
         const DoctorDashboardScreen(),
@@ -222,6 +231,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   List<BottomNavigationBarItem> _getNavItems(AppLocalizations l10n) {
     if (_userRole == 'admin') {
+      if (!kIsWeb) {
+        return [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.block, size: 24),
+            activeIcon: Icon(Icons.block, size: 24),
+            label: l10n.dashboard,
+          ),
+        ];
+      }
       return [
         BottomNavigationBarItem(
           icon: Icon(Icons.people_outlined, size: 24),
@@ -245,6 +263,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         ),
       ];
     } else if (_userRole == 'pharmacy') {
+      if (!kIsWeb) {
+        return [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.block, size: 24),
+            activeIcon: Icon(Icons.block, size: 24),
+            label: l10n.dashboard,
+          ),
+        ];
+      }
       return [
         BottomNavigationBarItem(
           icon: Icon(Icons.dashboard_outlined, size: 24),
