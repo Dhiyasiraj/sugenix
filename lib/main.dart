@@ -194,12 +194,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   List<Widget> get _screens {
     if (_userRole == 'admin') {
       if (kIsWeb) {
-        return [
-          const AdminPanelScreen(initialTab: 0), // Users
-          const AdminPanelScreen(initialTab: 1), // Doctors
-          const AdminPanelScreen(initialTab: 2), // Pharmacies
-          const AdminPanelScreen(initialTab: 3), // Revenue
-        ];
+        // Admin on web uses sidebar navigation, no bottom nav needed
+        return [const AdminPanelScreen()];
       }
       return [const UnsupportedRoleScreen(role: 'Admin (Web Only)')];
     } else if (_userRole == 'pharmacy') {
@@ -345,6 +341,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
+    }
+
+    // For admin on web, show admin panel directly without bottom navigation
+    if (_userRole == 'admin' && kIsWeb) {
+      return _screens[0];
     }
 
     final screenWidth = MediaQuery.of(context).size.width;

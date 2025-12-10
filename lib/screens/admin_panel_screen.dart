@@ -3,8 +3,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sugenix/services/revenue_service.dart';
 import 'package:sugenix/services/doctor_service.dart';
 import 'package:sugenix/services/platform_settings_service.dart';
+import 'package:sugenix/services/auth_service.dart';
 import 'package:sugenix/screens/admin_panel_pharmacy_tab.dart';
+import 'package:sugenix/screens/web_landing_screen.dart';
 import 'package:intl/intl.dart';
+
+enum AdminPage {
+  dashboard,
+  users,
+  doctors,
+  pharmacies,
+  revenue,
+  settings,
+  records,
+  orders,
+}
 
 class AdminPanelScreen extends StatefulWidget {
   final int? initialTab;
@@ -15,41 +28,61 @@ class AdminPanelScreen extends StatefulWidget {
   State<AdminPanelScreen> createState() => _AdminPanelScreenState();
 }
 
-class _AdminPanelScreenState extends State<AdminPanelScreen>
-    with SingleTickerProviderStateMixin {
+class _AdminPanelScreenState extends State<AdminPanelScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  late TabController _tabController;
+  final AuthService _authService = AuthService();
+  AdminPage _selectedPage = AdminPage.dashboard;
+  bool _sidebarCollapsed = false;
 
   int _totalUsers = 0;
   int _doctors = 0;
   int _pharmacies = 0;
   int _orders = 0;
   bool _loadingStats = true;
+  String? _adminName;
+  String? _adminEmail;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(
-      length: 7,
-      initialIndex: widget.initialTab ?? 0,
-      vsync: this,
-    );
     _loadStats();
-  }
-
-  @override
-  void didUpdateWidget(AdminPanelScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialTab != widget.initialTab &&
-        widget.initialTab != null) {
-      _tabController.animateTo(widget.initialTab!);
+    _loadAdminInfo();
+    // Map initialTab to AdminPage if provided
+    if (widget.initialTab != null) {
+      _selectedPage = _getPageFromIndex(widget.initialTab!);
     }
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  AdminPage _getPageFromIndex(int index) {
+    switch (index) {
+      case 0:
+        return AdminPage.users;
+      case 1:
+        return AdminPage.doctors;
+      case 2:
+        return AdminPage.pharmacies;
+      case 3:
+        return AdminPage.revenue;
+      case 4:
+        return AdminPage.settings;
+      case 5:
+        return AdminPage.records;
+      case 6:
+        return AdminPage.orders;
+      default:
+        return AdminPage.dashboard;
+    }
+  }
+
+  Future<void> _loadAdminInfo() async {
+    final user = _authService.currentUser;
+    if (user != null) {
+      final profile = await _authService.getUserProfile();
+      setState(() {
+        _adminName = profile?['name'] as String? ?? user.email?.split('@')[0];
+        _adminEmail = user.email;
+      });
+    }
   }
 
   Future<void> _loadStats() async {
@@ -87,92 +120,404 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Admin Panel'),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF0C4556),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: const Color(0xFF0C4556),
-          isScrollable: true,
-          tabs: const [
-            Tab(text: 'Users'),
-            Tab(text: 'Doctors'),
-            Tab(text: 'Pharmacies'),
-            Tab(text: 'Revenue'),
-            Tab(text: 'Settings'),
-            Tab(text: 'Records'),
-            Tab(text: 'Orders'),
-          ],
-        ),
-      ),
       backgroundColor: const Color(0xFFF5F6F8),
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _buildSummary(),
+      body: Row(
+        children: [
+          // Sidebar
+          _buildSidebar(),
+          // Main content area
+          Expanded(
+            child: Column(
+              children: [
+                // Top header bar
+                _buildHeaderBar(),
+                // Content area
+                Expanded(
+                  child: _buildContent(),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  const _UsersTab(),
-                  const _DoctorsApprovalTab(),
-                  const PharmaciesApprovalTab(),
-                  const _RevenueTab(),
-                  const _PlatformSettingsTab(),
-                  const _AllMedicalRecordsTab(),
-                  const _AllOrdersTab(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebar() {
+    return Container(
+      width: _sidebarCollapsed ? 80 : 280,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(2, 0),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Logo/Brand section
+          Container(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0C4556),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.admin_panel_settings,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+                if (!_sidebarCollapsed) ...[
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Sugenix',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0C4556),
+                          ),
+                        ),
+                        Text(
+                          'Admin Portal',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
-              ),
+              ],
             ),
+          ),
+          const Divider(height: 1),
+          // Navigation menu
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              children: [
+                _buildMenuItem(
+                  icon: Icons.dashboard_outlined,
+                  title: 'Dashboard',
+                  page: AdminPage.dashboard,
+                ),
+                _buildMenuItem(
+                  icon: Icons.people_outlined,
+                  title: 'Users',
+                  page: AdminPage.users,
+                ),
+                _buildMenuItem(
+                  icon: Icons.medical_services_outlined,
+                  title: 'Doctors',
+                  page: AdminPage.doctors,
+                ),
+                _buildMenuItem(
+                  icon: Icons.local_pharmacy_outlined,
+                  title: 'Pharmacies',
+                  page: AdminPage.pharmacies,
+                ),
+                _buildMenuItem(
+                  icon: Icons.account_balance_wallet_outlined,
+                  title: 'Revenue',
+                  page: AdminPage.revenue,
+                ),
+                _buildMenuItem(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'Orders',
+                  page: AdminPage.orders,
+                ),
+                _buildMenuItem(
+                  icon: Icons.description_outlined,
+                  title: 'Medical Records',
+                  page: AdminPage.records,
+                ),
+                _buildMenuItem(
+                  icon: Icons.settings_outlined,
+                  title: 'Settings',
+                  page: AdminPage.settings,
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          // Collapse button
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: IconButton(
+              icon: Icon(
+                _sidebarCollapsed ? Icons.chevron_right : Icons.chevron_left,
+                color: const Color(0xFF0C4556),
+              ),
+              onPressed: () {
+                setState(() {
+                  _sidebarCollapsed = !_sidebarCollapsed;
+                });
+              },
+              tooltip: _sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String title,
+    required AdminPage page,
+  }) {
+    final isSelected = _selectedPage == page;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedPage = page;
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF0C4556).withOpacity(0.1)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: isSelected
+              ? Border.all(
+                  color: const Color(0xFF0C4556).withOpacity(0.3),
+                  width: 1,
+                )
+              : null,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? const Color(0xFF0C4556) : Colors.grey[600],
+              size: 24,
+            ),
+            if (!_sidebarCollapsed) ...[
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    color: isSelected
+                        ? const Color(0xFF0C4556)
+                        : Colors.grey[700],
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
+  Widget _buildHeaderBar() {
+    return Container(
+      height: 70,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Page title
+          Text(
+            _getPageTitle(),
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0C4556),
+            ),
+          ),
+          const Spacer(),
+          // User info and logout
+          Row(
+            children: [
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    _adminName ?? 'Admin',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0C4556),
+                    ),
+                  ),
+                  if (_adminEmail != null)
+                    Text(
+                      _adminEmail!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              CircleAvatar(
+                backgroundColor: const Color(0xFF0C4556),
+                child: Text(
+                  (_adminName ?? 'A')[0].toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              IconButton(
+                icon: const Icon(Icons.logout, color: Colors.red),
+                onPressed: _handleLogout,
+                tooltip: 'Logout',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getPageTitle() {
+    switch (_selectedPage) {
+      case AdminPage.dashboard:
+        return 'Dashboard';
+      case AdminPage.users:
+        return 'Users';
+      case AdminPage.doctors:
+        return 'Doctors';
+      case AdminPage.pharmacies:
+        return 'Pharmacies';
+      case AdminPage.revenue:
+        return 'Revenue';
+      case AdminPage.orders:
+        return 'Orders';
+      case AdminPage.records:
+        return 'Medical Records';
+      case AdminPage.settings:
+        return 'Platform Settings';
+    }
+  }
+
+  Widget _buildContent() {
+    if (_selectedPage == AdminPage.dashboard) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: _buildSummary(),
+      );
+    }
+    
+    // For other pages, let them handle their own scrolling
+    return _buildPageContent();
+  }
+
+
+  Widget _buildPageContent() {
+    switch (_selectedPage) {
+      case AdminPage.dashboard:
+        return const SizedBox.shrink(); // Summary already shown above
+      case AdminPage.users:
+        return const _UsersTab();
+      case AdminPage.doctors:
+        return const _DoctorsApprovalTab();
+      case AdminPage.pharmacies:
+        return const PharmaciesApprovalTab();
+      case AdminPage.revenue:
+        return const _RevenueTab();
+      case AdminPage.orders:
+        return const _AllOrdersTab();
+      case AdminPage.records:
+        return const _AllMedicalRecordsTab();
+      case AdminPage.settings:
+        return const _PlatformSettingsTab();
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _authService.signOut();
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const WebLandingScreen()),
+          (route) => false,
+        );
+      }
+    }
+  }
+
   Widget _buildSummary() {
     if (_loadingStats) {
-      return const SizedBox.shrink();
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40),
+          child: CircularProgressIndicator(),
+        ),
+      );
     }
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth > 600;
-        final cardWidth = isWide
-            ? (constraints.maxWidth - 48) / 4
-            : (constraints.maxWidth - 24) / 2;
-
-        return Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          alignment: WrapAlignment.start,
+        return GridView.count(
+          crossAxisCount: 4,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 20,
+          mainAxisSpacing: 20,
+          childAspectRatio: constraints.maxWidth > 1200 ? 5.0 : 4.5,
           children: [
-            SizedBox(
-              width: cardWidth,
-              child: _summaryCard(
-                  Icons.people, Colors.blue, 'Total Users', '$_totalUsers'),
-            ),
-            SizedBox(
-              width: cardWidth,
-              child: _summaryCard(
-                  Icons.medical_services, Colors.green, 'Doctors', '$_doctors'),
-            ),
-            SizedBox(
-              width: cardWidth,
-              child: _summaryCard(Icons.local_pharmacy, Colors.orange,
-                  'Pharmacies', '$_pharmacies'),
-            ),
-            SizedBox(
-              width: cardWidth,
-              child: _summaryCard(
-                  Icons.receipt_long, Colors.purple, 'Orders', '$_orders'),
-            ),
+            _summaryCard(
+                Icons.people, Colors.blue, 'Total Users', '$_totalUsers'),
+            _summaryCard(
+                Icons.medical_services, Colors.green, 'Doctors', '$_doctors'),
+            _summaryCard(
+                Icons.local_pharmacy, Colors.orange, 'Pharmacies', '$_pharmacies'),
+            _summaryCard(
+                Icons.receipt_long, Colors.purple, 'Orders', '$_orders'),
           ],
         );
       },
@@ -181,7 +526,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
 
   Widget _summaryCard(IconData icon, Color color, String title, String value) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -193,32 +538,46 @@ class _AdminPanelScreenState extends State<AdminPanelScreen>
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
               color: color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color),
+            child: Icon(icon, color: color, size: 18),
           ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.grey,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Color(0xFF0C4556),
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 9,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Color(0xFF0C4556),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    height: 1.0,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
         ],
@@ -235,7 +594,7 @@ class _RevenueTab extends StatelessWidget {
     final revenueService = RevenueService();
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -396,31 +755,105 @@ class _UsersTab extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
-          .orderBy('createdAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Center(
-            child: Text('No users found', style: TextStyle(color: Colors.grey)),
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator(),
+            ),
           );
         }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading users: ${snapshot.error}',
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No users found',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Sort documents by createdAt if available
+        final sortedDocs = List<QueryDocumentSnapshot>.from(docs);
+        sortedDocs.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>?;
+          final bData = b.data() as Map<String, dynamic>?;
+          
+          if (aData == null || bData == null) return 0;
+          
+          final aCreatedAt = aData['createdAt'];
+          final bCreatedAt = bData['createdAt'];
+          
+          if (aCreatedAt is Timestamp && bCreatedAt is Timestamp) {
+            return bCreatedAt.compareTo(aCreatedAt); // Descending
+          }
+          return 0;
+        });
+
         return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: docs.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          padding: const EdgeInsets.all(24),
+          itemCount: sortedDocs.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, i) {
-            final doc = docs[i];
-            final data = doc.data() as Map<String, dynamic>;
+            final doc = sortedDocs[i];
+            final rawData = doc.data();
+            if (rawData == null) {
+              return const SizedBox.shrink();
+            }
+            final data = rawData as Map<String, dynamic>;
             final userId = doc.id;
             final name = data['name'] as String? ?? 'Unknown';
             final email = data['email'] as String? ?? '';
             final role = data['role'] as String? ?? 'user';
             final phone = data['phone'] as String? ?? '';
-            final createdAt = data['createdAt'] as Timestamp?;
+            final createdAtRaw = data['createdAt'];
+            final createdAt = createdAtRaw is Timestamp ? createdAtRaw : null;
             final isActive = data['isActive'] as bool? ?? true;
             final approvalStatus = data['approvalStatus'] as String?;
 
@@ -937,33 +1370,122 @@ class _AllMedicalRecordsTab extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('medical_records')
-          .orderBy('createdAt', descending: true)
-          .limit(100)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Center(
-            child:
-                Text('No records found', style: TextStyle(color: Colors.grey)),
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator(),
+            ),
           );
         }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading records: ${snapshot.error}',
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.description_outlined, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No records found',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.description_outlined, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No records found',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Sort documents by createdAt if available
+        final sortedDocs = List<QueryDocumentSnapshot>.from(docs);
+        sortedDocs.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>?;
+          final bData = b.data() as Map<String, dynamic>?;
+          
+          if (aData == null || bData == null) return 0;
+          
+          final aCreatedAt = aData['createdAt'];
+          final bCreatedAt = bData['createdAt'];
+          
+          if (aCreatedAt is Timestamp && bCreatedAt is Timestamp) {
+            return bCreatedAt.compareTo(aCreatedAt); // Descending
+          }
+          return 0;
+        });
+
+        // Limit to 100 items
+        final limitedDocs = sortedDocs.take(100).toList();
+
         return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: docs.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          padding: const EdgeInsets.all(24),
+          itemCount: limitedDocs.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, i) {
-            final data = docs[i].data() as Map<String, dynamic>;
+            final rawData = limitedDocs[i].data();
+            if (rawData == null) {
+              return const SizedBox.shrink();
+            }
+            final data = rawData as Map<String, dynamic>;
             final title = (data['title'] as String?) ?? 'Record';
             final type = (data['recordType'] as String?) ??
                 (data['type'] as String? ?? '');
             final addedBy = (data['addedByName'] as String?) ??
                 (data['addedBy'] as String? ?? 'Unknown');
             final userId = data['userId'] as String? ?? '';
-            final createdAt = data['createdAt'] as Timestamp?;
+            final createdAtRaw = data['createdAt'];
+            final createdAt = createdAtRaw is Timestamp ? createdAtRaw : null;
 
             return FutureBuilder<DocumentSnapshot>(
               future: FirebaseFirestore.instance
@@ -1188,11 +1710,16 @@ class _PlatformSettingsTabState extends State<_PlatformSettingsTab> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40),
+          child: CircularProgressIndicator(),
+        ),
+      );
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1365,26 +1892,100 @@ class _AllOrdersTab extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('orders')
-          .orderBy('createdAt', descending: true)
-          .limit(100)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Center(
-            child:
-                Text('No orders found', style: TextStyle(color: Colors.grey)),
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator(),
+            ),
           );
         }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading orders: ${snapshot.error}',
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No orders found',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Sort documents by createdAt if available
+        final sortedDocs = List<QueryDocumentSnapshot>.from(docs);
+        sortedDocs.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>?;
+          final bData = b.data() as Map<String, dynamic>?;
+          
+          if (aData == null || bData == null) return 0;
+          
+          final aCreatedAt = aData['createdAt'];
+          final bCreatedAt = bData['createdAt'];
+          
+          if (aCreatedAt is Timestamp && bCreatedAt is Timestamp) {
+            return bCreatedAt.compareTo(aCreatedAt); // Descending
+          }
+          return 0;
+        });
+
+        // Limit to 100 items
+        final limitedDocs = sortedDocs.take(100).toList();
+
         return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: docs.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          padding: const EdgeInsets.all(24),
+          itemCount: limitedDocs.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, i) {
-            final data = docs[i].data() as Map<String, dynamic>;
+            final rawData = limitedDocs[i].data();
+            if (rawData == null) {
+              return const SizedBox.shrink();
+            }
+            final data = rawData as Map<String, dynamic>;
             final total = (data['total'] as num?)?.toDouble() ?? 0.0;
             final status = (data['status'] as String?) ?? 'placed';
             final address = (data['address'] as String?) ?? '';

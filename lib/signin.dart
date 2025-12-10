@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:sugenix/Login.dart';
 import 'package:sugenix/main.dart';
 import 'package:sugenix/services/auth_service.dart';
@@ -79,6 +80,37 @@ class _SignupState extends State<Signup> {
                         'Your journey to smarter diabetes care starts here',
                   ),
                   const SizedBox(height: 40),
+                  if (kIsWeb)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 20),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0C4556).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFF0C4556).withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.local_pharmacy,
+                            color: Color(0xFF0C4556),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Web registration is exclusive to pharmacies.',
+                              style: TextStyle(
+                                color: Colors.grey[800],
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   Center(
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
@@ -300,62 +332,68 @@ class _SignupState extends State<Signup> {
   }
 
   Future<void> _handleSignup() async {
-    // Ask for role first
-    final role = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TranslatedText(
-                  'continue_as',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0C4556),
+    // On web, only allow pharmacy registration
+    String? role;
+    if (kIsWeb) {
+      role = 'pharmacy';
+    } else {
+      // Ask for role first on mobile
+      role = await showModalBottomSheet<String>(
+        context: context,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (context) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TranslatedText(
+                    'continue_as',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0C4556),
+                    ),
+                    fallback: 'Continue as',
                   ),
-                  fallback: 'Continue as',
-                ),
-                const SizedBox(height: 16),
-                LanguageBuilder(
-                  builder: (context, languageCode) {
-                    return Column(
-                      children: [
-                        _buildRoleTile(
-                            'user',
-                            Icons.person,
-                            LanguageService.translate(
-                                'patient_user', languageCode)),
-                        const SizedBox(height: 8),
-                        _buildRoleTile(
-                            'doctor',
-                            Icons.medical_services,
-                            LanguageService.translate(
-                                'doctor_diabetologist', languageCode)),
-                        const SizedBox(height: 8),
-                        _buildRoleTile(
-                            'pharmacy',
-                            Icons.local_pharmacy,
-                            LanguageService.translate(
-                                'pharmacy', languageCode)),
-                      ],
-                    );
-                  },
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  LanguageBuilder(
+                    builder: (context, languageCode) {
+                      return Column(
+                        children: [
+                          _buildRoleTile(
+                              'user',
+                              Icons.person,
+                              LanguageService.translate(
+                                  'patient_user', languageCode)),
+                          const SizedBox(height: 8),
+                          _buildRoleTile(
+                              'doctor',
+                              Icons.medical_services,
+                              LanguageService.translate(
+                                  'doctor_diabetologist', languageCode)),
+                          const SizedBox(height: 8),
+                          _buildRoleTile(
+                              'pharmacy',
+                              Icons.local_pharmacy,
+                              LanguageService.translate(
+                                  'pharmacy', languageCode)),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
-    );
+          );
+        },
+      );
+    }
 
     if (role == null) {
       return;
@@ -398,6 +436,9 @@ class _SignupState extends State<Signup> {
         gender: _selectedGender,
         diabetesType: _selectedDiabetesType,
       );
+
+      // Set the user role
+      await _authService.setUserRole(role);
 
       if (mounted) {
         // Redirect based on chosen role

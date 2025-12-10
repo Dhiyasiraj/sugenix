@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:sugenix/screens/web_landing_screen.dart';
 
 class PharmacyRegistrationScreen extends StatefulWidget {
   const PharmacyRegistrationScreen({super.key});
@@ -50,10 +52,29 @@ class _PharmacyRegistrationScreenState extends State<PharmacyRegistrationScreen>
       }, SetOptions(merge: true));
 
       if (!mounted) return;
+      
+      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pharmacy profile created')),
+        const SnackBar(
+          content: Text('Pharmacy profile created successfully! Please wait for admin approval.'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 4),
+        ),
       );
-      Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+      
+      // Sign out and redirect to landing page since approval is pending
+      await FirebaseAuth.instance.signOut();
+      if (mounted) {
+        if (kIsWeb) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const WebLandingScreen()),
+            (_) => false,
+          );
+        } else {
+          Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+        }
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed: ${e.toString()}')),
