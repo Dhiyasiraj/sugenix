@@ -54,19 +54,19 @@ class SplashScreen extends StatelessWidget {
                   Transform.translate(
                     offset: Offset(0, -15),
                     child: Image.asset(
-                      'assets/sugenix_logo.png.png',
-                      height: logoSize,
-                      width: logoSize,
+                    'assets/sugenix_logo.png.png',
+                    height: logoSize,
+                    width: logoSize,
                     ),
                   ),
                   Transform.translate(
                     offset: Offset(-65, logoSize * 0.12),
                     child: Text(
-                      "SUGENIX",
-                      style: TextStyle(
-                        color: Color(0xFF0C4556),
-                        fontSize: titleSize,
-                        fontWeight: FontWeight.w600,
+                    "SUGENIX",
+                    style: TextStyle(
+                      color: Color(0xFF0C4556),
+                      fontSize: titleSize,
+                      fontWeight: FontWeight.w600,
                         letterSpacing: 3.0,
                         fontFamily: 'Zen Antique',
                       ),

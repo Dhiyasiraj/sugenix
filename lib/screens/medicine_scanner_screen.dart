@@ -100,13 +100,34 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
     try {
       // Step 1: Scan medicine image using Gemini Vision with text extraction
       final scanResult = await GeminiService.scanMedicineImage(image.path);
+      final rawText = scanResult['rawText'] as String? ?? '';
 
       if (!scanResult['success']) {
         throw Exception(scanResult['error'] ?? 'Failed to scan medicine');
       }
 
-      final parsed = scanResult['parsed'] ?? {};
+      final parsed = Map<String, dynamic>.from(scanResult['parsed'] ?? {});
       String medicineName = parsed['medicineName'] ?? '';
+      String usesText = parsed['uses'] ?? '';
+      String sideEffectsText = parsed['sideEffects'] ?? '';
+
+      // Fallback: if uses or side effects are missing, re-analyze extracted text
+      if (rawText.isNotEmpty &&
+          (_isValueUnavailable(usesText) || _isValueUnavailable(sideEffectsText))) {
+        final analysis = await GeminiService.analyzeMedicineText(rawText);
+        if (analysis['success'] == true) {
+          final extraParsed = Map<String, dynamic>.from(analysis['parsed'] ?? {});
+          usesText = _isValueUnavailable(usesText)
+              ? (extraParsed['uses'] ?? usesText)
+              : usesText;
+          sideEffectsText = _isValueUnavailable(sideEffectsText)
+              ? (extraParsed['sideEffects'] ?? sideEffectsText)
+              : sideEffectsText;
+        }
+      }
+
+      final List<String> usesList = _normalizeList(usesText);
+      final List<String> sideEffectsList = _normalizeList(sideEffectsText);
 
       if (medicineName.isEmpty || medicineName == 'Not available') {
         throw Exception('Could not identify medicine name from image');
@@ -141,9 +162,7 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
               ? (pharmacyMedicines.first['uses'] as List)
                   .map((e) => e.toString())
                   .toList()
-              : (parsed['uses'] != null && parsed['uses'] != 'Not available'
-                  ? (parsed['uses'] as String).split('\n')
-                  : []),
+              : usesList,
           'dosage': pharmacyMedicines.first['dosage'] ?? parsed['uses'] ?? '',
           'precautions': pharmacyMedicines.first['precautions'] is List
               ? (pharmacyMedicines.first['precautions'] as List)
@@ -154,10 +173,7 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
               ? (pharmacyMedicines.first['sideEffects'] as List)
                   .map((e) => e.toString())
                   .toList()
-              : (parsed['sideEffects'] != null &&
-                      parsed['sideEffects'] != 'Not available'
-                  ? (parsed['sideEffects'] as String).split('\n')
-                  : []),
+              : sideEffectsList,
           'price': pharmacyMedicines.first['price'] ?? 0.0,
           'priceRange': '',
           'available': true,
@@ -171,15 +187,10 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
           'activeIngredient': parsed['ingredients'] ?? '',
           'strength': '',
           'form': '',
-          'uses': parsed['uses'] != null && parsed['uses'] != 'Not available'
-              ? (parsed['uses'] as String).split('\n')
-              : [],
+          'uses': usesList,
           'dosage': '',
           'precautions': [],
-          'sideEffects': parsed['sideEffects'] != null &&
-                  parsed['sideEffects'] != 'Not available'
-              ? (parsed['sideEffects'] as String).split('\n')
-              : [],
+          'sideEffects': sideEffectsList,
           'price': 0.0,
           'priceRange': '',
           'available': false,
@@ -240,20 +251,23 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
     }
   }
 
-  String _extractMedicineName(String text) {
-    // Simple extraction - look for common medicine name patterns
-    final lines = text.split('\n');
-    for (var line in lines) {
-      final trimmed = line.trim();
-      if (trimmed.isNotEmpty &&
-          trimmed.length > 3 &&
-          trimmed.length < 50 &&
-          !trimmed.toLowerCase().contains('mg') &&
-          !trimmed.toLowerCase().contains('ml')) {
-        return trimmed;
-      }
-    }
-    return '';
+  List<String> _normalizeList(String? value) {
+    if (value == null) return [];
+    final cleaned = value
+        .split('\n')
+        .map((e) => e.trim())
+        .where((e) =>
+            e.isNotEmpty &&
+            !_isValueUnavailable(e) &&
+            e.toLowerCase() != 'not specified')
+        .toList();
+    return cleaned;
+  }
+
+  bool _isValueUnavailable(String? value) {
+    if (value == null) return true;
+    final v = value.trim().toLowerCase();
+    return v.isEmpty || v.contains('not available') || v.contains('could not parse');
   }
 
   @override
