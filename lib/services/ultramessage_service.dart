@@ -58,6 +58,18 @@ class UltraMessageService {
       final instanceId = credentials['instanceId']!;
       final apiToken = credentials['apiToken']!;
 
+      // Check if credentials are configured
+      if (instanceId == 'YOUR_INSTANCE_ID' || 
+          apiToken == 'YOUR_API_TOKEN' ||
+          instanceId.isEmpty || 
+          apiToken.isEmpty) {
+        print('⚠️ Ultramessage credentials not configured. WhatsApp alerts will not be sent.');
+        return {
+          'success': false,
+          'error': 'WhatsApp service not configured. Please configure Ultramessage credentials.',
+        };
+      }
+
       // Generate unique message ID if not provided
       final messageId = id ?? DateTime.now().millisecondsSinceEpoch.toString();
 

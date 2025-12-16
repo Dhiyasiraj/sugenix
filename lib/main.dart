@@ -93,14 +93,15 @@ class SugenixApp extends StatefulWidget {
 class _SugenixAppState extends State<SugenixApp> {
   @override
   Widget build(BuildContext context) {
-    final localeNotifier = Provider.of<LocaleNotifier>(context);
-
-    return MaterialApp(
-      title: 'Sugenix - Diabetes Management',
-      debugShowCheckedModeBanner: false,
-      locale: localeNotifier.locale,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
+    // Use Consumer to rebuild MaterialApp when locale changes
+    return Consumer<LocaleNotifier>(
+      builder: (context, localeNotifier, child) {
+        return MaterialApp(
+          title: 'Sugenix - Diabetes Management',
+          debugShowCheckedModeBanner: false,
+          locale: localeNotifier.locale,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData(
         primarySwatch: Colors.teal,
         primaryColor: const Color(0xFF0C4556),
@@ -152,6 +153,8 @@ class _SugenixAppState extends State<SugenixApp> {
         '/emergency-contacts': (context) => const EmergencyContactsScreen(),
         '/pharmacy-dashboard': (context) => const PharmacyDashboardScreen(),
         '/prescription-upload': (context) => const PrescriptionUploadScreen(),
+        },
+        );
       },
     );
   }

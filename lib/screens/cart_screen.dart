@@ -12,6 +12,8 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
+  bool _showSuccessAnimation = false;
+
   final MedicineCartService _cartService = MedicineCartService();
   final AuthService _authService = AuthService();
   final PlatformSettingsService _platformSettings = PlatformSettingsService();
@@ -170,16 +172,36 @@ class _CartScreenState extends State<CartScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Order placed successfully! Order ID: #$finalOrderId'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      // For COD, show success animation
+      if (paymentMethod == 'COD') {
+        setState(() {
+          _showSuccessAnimation = true;
+        });
+
+        // Wait for animation
+        await Future.delayed(const Duration(seconds: 3));
+
+        if (!mounted) return;
+
+        setState(() {
+          _showSuccessAnimation = false;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('Order placed successfully! Order ID: #$finalOrderId'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
 
       Navigator.pop(context);
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _showSuccessAnimation = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Order failed: ${e.toString()}'),
@@ -276,15 +298,41 @@ class _CartScreenState extends State<CartScreen> {
           'is_guest': _isGuest.toString(),
         },
       );
+      // Payment dialog opened successfully, processingPayment will be set to false
+      // when payment completes (success or error)
     } catch (e) {
       setState(() {
         _processingPayment = false;
       });
       if (mounted) {
+        String errorMessage = 'Failed to open payment';
+        final errorStr = e.toString().toLowerCase();
+
+        if (errorStr.contains('not configured') ||
+            errorStr.contains('rzp_test_your_key') ||
+            (errorStr.contains('razorpay') && errorStr.contains('key'))) {
+          errorMessage =
+              'Payment service not configured. Please configure Razorpay API key.\n'
+              'Get free test keys (no KYC) from: https://dashboard.razorpay.com/app/keys';
+        } else if (errorStr.contains('invalid') &&
+            errorStr.contains('format')) {
+          errorMessage =
+              'Invalid key format. Key should start with "rzp_test_" or "rzp_live_"';
+        } else if (errorStr.contains('email')) {
+          errorMessage = 'Invalid email format';
+        } else if (errorStr.contains('phone')) {
+          errorMessage = 'Invalid phone number format';
+        } else if (errorStr.contains('amount')) {
+          errorMessage = 'Invalid payment amount';
+        } else {
+          errorMessage = 'Failed to open payment. Please try again.';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to open payment: ${e.toString()}'),
+            content: Text(errorMessage),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -312,332 +360,440 @@ class _CartScreenState extends State<CartScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              key: ValueKey(_refreshKey),
-              future: _cartService.getCartItems(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final items = snapshot.data ?? [];
-                if (items.isEmpty) {
-                  // Reset totals when cart is empty
-                  if (_cartTotal != 0.0) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) {
-                        setState(() {
-                          _cartSubtotal = 0.0;
-                          _platformFee = 0.0;
-                          _cartTotal = 0.0;
-                          _lastCalculatedSubtotal = -1.0;
+          Column(
+            children: [
+              Expanded(
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  key: ValueKey(_refreshKey),
+                  future: _cartService.getCartItems(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final items = snapshot.data ?? [];
+                    if (items.isEmpty) {
+                      // Reset totals when cart is empty
+                      if (_cartTotal != 0.0) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            setState(() {
+                              _cartSubtotal = 0.0;
+                              _platformFee = 0.0;
+                              _cartTotal = 0.0;
+                              _lastCalculatedSubtotal = -1.0;
+                            });
+                          }
                         });
                       }
-                    });
-                  }
-                  return const Center(
-                    child: Text('Your cart is empty',
-                        style: TextStyle(color: Colors.grey)),
-                  );
-                }
-                double subtotal = 0.0;
-                for (final i in items) {
-                  final price = (i['price'] as num?)?.toDouble() ?? 0.0;
-                  final qty = (i['quantity'] as int?) ?? 1;
-                  subtotal += price * qty;
-                }
-
-                // Calculate platform fee and total (only if subtotal changed)
-                if (subtotal != _lastCalculatedSubtotal) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _calculateCartTotals(subtotal);
-                  });
-                }
-                return ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: items.length + 1,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    if (index == items.length) {
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.06),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            )
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (_isGuest) ...[
-                              const Text('Customer Details',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16)),
-                              const SizedBox(height: 8),
-                              TextField(
-                                controller: _nameController,
-                                decoration: const InputDecoration(
-                                  hintText: 'Full Name',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.person),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextField(
-                                controller: _emailController,
-                                decoration: const InputDecoration(
-                                  hintText: 'Email Address',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.email),
-                                ),
-                                keyboardType: TextInputType.emailAddress,
-                              ),
-                              const SizedBox(height: 8),
-                              TextField(
-                                controller: _phoneController,
-                                decoration: const InputDecoration(
-                                  hintText: 'Phone Number',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.phone),
-                                ),
-                                keyboardType: TextInputType.phone,
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                            const Text('Delivery Address',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 16)),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _addressController,
-                              decoration: const InputDecoration(
-                                hintText: 'Enter delivery address',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.location_on),
-                              ),
-                              maxLines: 3,
-                            ),
-                            const SizedBox(height: 16),
-                            const Text('Payment Method',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 16)),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: RadioListTile<String>(
-                                    title: const Text('Cash on Delivery'),
-                                    value: 'COD',
-                                    groupValue: _selectedPaymentMethod,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _selectedPaymentMethod = value!;
-                                      });
-                                    },
-                                    contentPadding: EdgeInsets.zero,
-                                  ),
-                                ),
-                                Expanded(
-                                  child: RadioListTile<String>(
-                                    title: const Text('Online Payment'),
-                                    value: 'Razorpay',
-                                    groupValue: _selectedPaymentMethod,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _selectedPaymentMethod = value!;
-                                      });
-                                    },
-                                    contentPadding: EdgeInsets.zero,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            const Divider(),
-                            const SizedBox(height: 12),
-                            // Price breakdown
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Subtotal',
-                                    style: TextStyle(
-                                        fontSize: 14, color: Colors.grey)),
-                                Text(
-                                  '₹${_cartSubtotal.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                      fontSize: 14, color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Platform Fee',
-                                    style: TextStyle(
-                                        fontSize: 14, color: Colors.grey)),
-                                Text(
-                                  '₹${_platformFee.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                      fontSize: 14, color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            const Divider(),
-                            const SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Total Amount',
-                                    style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold)),
-                                Text('₹${_cartTotal.toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF0C4556))),
-                              ],
-                            ),
-                          ],
-                        ),
+                      return const Center(
+                        child: Text('Your cart is empty',
+                            style: TextStyle(color: Colors.grey)),
                       );
                     }
+                    double subtotal = 0.0;
+                    for (final i in items) {
+                      final price = (i['price'] as num?)?.toDouble() ?? 0.0;
+                      final qty = (i['quantity'] as int?) ?? 1;
+                      subtotal += price * qty;
+                    }
 
-                    final item = items[index];
-                    final name = (item['name'] as String?) ?? '';
-                    final manufacturer =
-                        (item['manufacturer'] as String?) ?? '';
-                    final price = (item['price'] as num?)?.toDouble() ?? 0.0;
-                    final qty = (item['quantity'] as int?) ?? 1;
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          )
-                        ],
-                      ),
-                      child: ListTile(
-                        leading: const Icon(Icons.medication,
-                            color: Color(0xFF0C4556)),
-                        title: Text(name,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF0C4556))),
-                        subtitle: Text(
-                          (manufacturer.isNotEmpty
-                                  ? manufacturer
-                                  : 'Medicine') +
-                              ' • ₹' +
-                              price.toStringAsFixed(2),
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                        trailing: SizedBox(
-                          width: 140,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.remove_circle_outline),
-                                onPressed: () async {
-                                  await _cartService.updateQuantity(
-                                      item['id'] as String, qty - 1);
-                                  setState(() {
-                                    _refreshKey++;
-                                    _lastCalculatedSubtotal = -1.0;
-                                  });
-                                },
-                              ),
-                              Text(qty.toString()),
-                              IconButton(
-                                icon: const Icon(Icons.add_circle_outline),
-                                onPressed: () async {
-                                  await _cartService.updateQuantity(
-                                      item['id'] as String, qty + 1);
-                                  setState(() {
-                                    _refreshKey++;
-                                    _lastCalculatedSubtotal = -1.0;
-                                  });
-                                },
-                              ),
+                    // Calculate platform fee and total (only if subtotal changed)
+                    if (subtotal != _lastCalculatedSubtotal) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _calculateCartTotals(subtotal);
+                      });
+                    }
+                    return ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: items.length + 1,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        if (index == items.length) {
+                          return Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.06),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                )
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (_isGuest) ...[
+                                  const Text('Customer Details',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16)),
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    controller: _nameController,
+                                    decoration: const InputDecoration(
+                                      hintText: 'Full Name',
+                                      border: OutlineInputBorder(),
+                                      prefixIcon: Icon(Icons.person),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    controller: _emailController,
+                                    decoration: const InputDecoration(
+                                      hintText: 'Email Address',
+                                      border: OutlineInputBorder(),
+                                      prefixIcon: Icon(Icons.email),
+                                    ),
+                                    keyboardType: TextInputType.emailAddress,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    controller: _phoneController,
+                                    decoration: const InputDecoration(
+                                      hintText: 'Phone Number',
+                                      border: OutlineInputBorder(),
+                                      prefixIcon: Icon(Icons.phone),
+                                    ),
+                                    keyboardType: TextInputType.phone,
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
+                                const Text('Delivery Address',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16)),
+                                const SizedBox(height: 8),
+                                TextField(
+                                  controller: _addressController,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Enter delivery address',
+                                    border: OutlineInputBorder(),
+                                    prefixIcon: Icon(Icons.location_on),
+                                  ),
+                                  maxLines: 3,
+                                ),
+                                const SizedBox(height: 16),
+                                const Text('Payment Method',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16)),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: RadioListTile<String>(
+                                        title: const Text('Cash on Delivery'),
+                                        value: 'COD',
+                                        groupValue: _selectedPaymentMethod,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _selectedPaymentMethod = value!;
+                                          });
+                                        },
+                                        contentPadding: EdgeInsets.zero,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: RadioListTile<String>(
+                                        title: const Text('Online Payment'),
+                                        value: 'Razorpay',
+                                        groupValue: _selectedPaymentMethod,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _selectedPaymentMethod = value!;
+                                          });
+                                        },
+                                        contentPadding: EdgeInsets.zero,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                const Divider(),
+                                const SizedBox(height: 12),
+                                // Price breakdown
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text('Subtotal',
+                                        style: TextStyle(
+                                            fontSize: 14, color: Colors.grey)),
+                                    Text(
+                                      '₹${_cartSubtotal.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                          fontSize: 14, color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text('Platform Fee',
+                                        style: TextStyle(
+                                            fontSize: 14, color: Colors.grey)),
+                                    Text(
+                                      '₹${_platformFee.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                          fontSize: 14, color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                const Divider(),
+                                const SizedBox(height: 12),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text('Total Amount',
+                                        style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold)),
+                                    Text('₹${_cartTotal.toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF0C4556))),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        final item = items[index];
+                        final name = (item['name'] as String?) ?? '';
+                        final manufacturer =
+                            (item['manufacturer'] as String?) ?? '';
+                        final price =
+                            (item['price'] as num?)?.toDouble() ?? 0.0;
+                        final qty = (item['quantity'] as int?) ?? 1;
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.06),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              )
                             ],
                           ),
-                        ),
-                        dense: true,
-                        minVerticalPadding: 8,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 6),
-                        subtitleTextStyle: const TextStyle(color: Colors.grey),
-                        onTap: () {},
-                        isThreeLine: false,
-                        // Show price under the title line
-                        // Using trailing area for qty; include price in subtitle
-                        // Already referenced via 'price' variable
-                      ),
+                          child: ListTile(
+                            leading: const Icon(Icons.medication,
+                                color: Color(0xFF0C4556)),
+                            title: Text(name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF0C4556))),
+                            subtitle: Text(
+                              (manufacturer.isNotEmpty
+                                      ? manufacturer
+                                      : 'Medicine') +
+                                  ' • ₹' +
+                                  price.toStringAsFixed(2),
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                            trailing: SizedBox(
+                              width: 140,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  IconButton(
+                                    icon:
+                                        const Icon(Icons.remove_circle_outline),
+                                    onPressed: () async {
+                                      await _cartService.updateQuantity(
+                                          item['id'] as String, qty - 1);
+                                      setState(() {
+                                        _refreshKey++;
+                                        _lastCalculatedSubtotal = -1.0;
+                                      });
+                                    },
+                                  ),
+                                  Text(qty.toString()),
+                                  IconButton(
+                                    icon: const Icon(Icons.add_circle_outline),
+                                    onPressed: () async {
+                                      await _cartService.updateQuantity(
+                                          item['id'] as String, qty + 1);
+                                      setState(() {
+                                        _refreshKey++;
+                                        _lastCalculatedSubtotal = -1.0;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            dense: true,
+                            minVerticalPadding: 8,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 6),
+                            subtitleTextStyle:
+                                const TextStyle(color: Colors.grey),
+                            onTap: () {},
+                            isThreeLine: false,
+                            // Show price under the title line
+                            // Using trailing area for qty; include price in subtitle
+                            // Already referenced via 'price' variable
+                          ),
+                        );
+                      },
                     );
                   },
-                );
-              },
-            ),
-          ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0C4556),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0C4556),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: _processingPayment || _showSuccessAnimation
+                          ? null
+                          : () async {
+                              // Check if form is already filled
+                              final address = _addressController.text.trim();
+                              final name = _isGuest
+                                  ? _nameController.text.trim()
+                                  : (_userProfile?['name'] ?? 'User');
+                              final email = _isGuest
+                                  ? _emailController.text.trim()
+                                  : (_userProfile?['email'] ??
+                                      _authService.currentUser?.email ??
+                                      '');
+                              final phone = _isGuest
+                                  ? _phoneController.text.trim()
+                                  : (_userProfile?['phone'] ?? '');
+
+                              // For COD, if form is already filled, proceed directly
+                              if (_selectedPaymentMethod == 'COD') {
+                                if (address.isNotEmpty &&
+                                    name.isNotEmpty &&
+                                    email.isNotEmpty &&
+                                    phone.isNotEmpty) {
+                                  // Form is already filled, proceed with order
+                                  await _completeOrder(paymentMethod: 'COD');
+                                } else {
+                                  // Show error to fill form
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Please fill in all details before placing order'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              } else {
+                                // Process Razorpay payment
+                                await _processPayment(_cartTotal);
+                              }
+                            },
+                      child: _processingPayment
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              _selectedPaymentMethod == 'Razorpay'
+                                  ? 'Pay Now'
+                                  : 'Place Order (COD)',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                    ),
                   ),
-                  onPressed: _processingPayment
-                      ? null
-                      : () async {
-                          if (_selectedPaymentMethod == 'Razorpay') {
-                            // Process Razorpay payment
-                            await _processPayment(_cartTotal);
-                          } else {
-                            // Process COD order
-                            await _completeOrder(paymentMethod: 'COD');
-                          }
+                ),
+              ),
+            ],
+          ),
+          // Success animation overlay
+          if (_showSuccessAnimation)
+            Container(
+              color: Colors.black54,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(32),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.0, end: 1.0),
+                        duration: const Duration(milliseconds: 500),
+                        builder: (context, value, child) {
+                          return Transform.scale(
+                            scale: value,
+                            child: Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                                size: 60,
+                              ),
+                            ),
+                          );
                         },
-                  child: _processingPayment
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : Text(
-                          _selectedPaymentMethod == 'Razorpay'
-                              ? 'Pay Now'
-                              : 'Place Order (COD)',
-                          style: const TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Booking Completed',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0C4556),
                         ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Successfully!',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.green,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
       backgroundColor: const Color(0xFFF5F6F8),

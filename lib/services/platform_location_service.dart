@@ -75,23 +75,21 @@ class PlatformLocationService {
     }
   }
 
-  // Get address from coordinates (simplified for web)
+  // Get address from coordinates
   static Future<String> getAddressFromCoordinates(
     double latitude,
     double longitude,
   ) async {
     try {
-      if (kIsWeb) {
-        // For web, return coordinates as string
-        return 'Lat: ${latitude.toStringAsFixed(4)}, Lng: ${longitude.toStringAsFixed(4)}';
-      } else {
-        // For mobile, use geocoding
-        // Note: Placemark is not available in geolocator package
-        // You would need to use a separate geocoding package like 'geocoding'
-        return 'Lat: ${latitude.toStringAsFixed(4)}, Lng: ${longitude.toStringAsFixed(4)}';
-      }
+      // For both web and mobile, create a Google Maps link
+      // You can enhance this by using a geocoding API service
+      final mapsUrl = 'https://maps.google.com/?q=$latitude,$longitude';
+      
+      // Return formatted location string with coordinates
+      return 'Latitude: ${latitude.toStringAsFixed(6)}, Longitude: ${longitude.toStringAsFixed(6)}\n'
+             'Map: $mapsUrl';
     } catch (e) {
-      return 'Unknown location';
+      return 'Latitude: ${latitude.toStringAsFixed(6)}, Longitude: ${longitude.toStringAsFixed(6)}';
     }
   }
 }

@@ -1,17 +1,28 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+/// EmailJS Service for sending emails (Admin approvals, notifications)
+/// 
+/// Setup Instructions:
+/// 1. Sign up at https://www.emailjs.com/
+/// 2. Create an Email Service (Gmail, Outlook, etc.)
+/// 3. Create an email template with these variables:
+///    - {{to_email}} - Recipient email
+///    - {{to_name}} - Recipient name
+///    - {{subject}} - Email subject
+///    - {{title}} - Email title
+///    - {{message}} - Email message body
+///    - {{app_name}} - App name (Sugenix)
+/// 4. Get credentials from EmailJS dashboard
+/// 5. Replace the values below with your actual credentials
 class EmailJSService {
   // EmailJS Configuration
-  // TODO: Replace these with your actual EmailJS credentials
+  // ⚠️ IMPORTANT: Replace these with your actual EmailJS credentials
   // Get these from https://www.emailjs.com/
-  // 1. Sign up at https://www.emailjs.com/
-  // 2. Create an email service (Gmail, Outlook, etc.)
-  // 3. Create ONE email template (see EMAILJS_SETUP.md for template content)
-  // 4. Get your Public Key from Account > API Keys
-  static const String _serviceId = 'service_f6ka8jm'; // Your EmailJS Service ID
-  static const String _templateId = 'template_u50mo7i'; // Your Single Template ID
-  static const String _publicKey = 'CHxG3ZYeXEUuvz1MA'; // Your EmailJS Public Key
+  // Current values are placeholders - emails won't work until replaced
+  static const String _serviceId = 'service_f6ka8jm'; // TODO: Replace with your EmailJS Service ID
+  static const String _templateId = 'template_u50mo7i'; // TODO: Replace with your EmailJS Template ID
+  static const String _publicKey = 'CHxG3ZYeXEUuvz1MA'; // TODO: Replace with your EmailJS Public Key (User ID)
   static const String _baseUrl = 'https://api.emailjs.com/api/v1.0/email/send';
 
   /// Send approval email to pharmacy or doctor
@@ -78,14 +89,23 @@ Sugenix Team''';
       );
 
       if (response.statusCode == 200) {
-        print('Approval email sent successfully to $recipientEmail');
+        print('✅ Approval email sent successfully to $recipientEmail');
         return true;
       } else {
-        print('EmailJS Error: ${response.statusCode} - ${response.body}');
+        final errorBody = response.body;
+        print('❌ EmailJS Error: ${response.statusCode} - $errorBody');
+        // Check if it's a configuration error
+        if (response.statusCode == 400 || response.statusCode == 401) {
+          print('⚠️ EmailJS credentials may be incorrect. Please check service_id, template_id, and public_key.');
+        }
         return false;
       }
     } catch (e) {
-      print('EmailJS Error: $e');
+      print('❌ EmailJS Exception: $e');
+      // Check if credentials are placeholders
+      if (_serviceId.contains('service_') && _serviceId.length < 20) {
+        print('⚠️ EmailJS credentials appear to be placeholders. Please configure with your actual EmailJS credentials.');
+      }
       return false;
     }
   }
@@ -144,14 +164,23 @@ We appreciate your interest in joining the Sugenix platform.'''
       );
 
       if (response.statusCode == 200) {
-        print('Rejection email sent successfully to $recipientEmail');
+        print('✅ Rejection email sent successfully to $recipientEmail');
         return true;
       } else {
-        print('EmailJS Error: ${response.statusCode} - ${response.body}');
+        final errorBody = response.body;
+        print('❌ EmailJS Error: ${response.statusCode} - $errorBody');
+        // Check if it's a configuration error
+        if (response.statusCode == 400 || response.statusCode == 401) {
+          print('⚠️ EmailJS credentials may be incorrect. Please check service_id, template_id, and public_key.');
+        }
         return false;
       }
     } catch (e) {
-      print('EmailJS Error: $e');
+      print('❌ EmailJS Exception: $e');
+      // Check if credentials are placeholders
+      if (_serviceId.contains('service_') && _serviceId.length < 20) {
+        print('⚠️ EmailJS credentials appear to be placeholders. Please configure with your actual EmailJS credentials.');
+      }
       return false;
     }
   }

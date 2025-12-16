@@ -1,30 +1,52 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class GeminiService {
-  // Replace with your actual Gemini API key
+  // Default Gemini API key. For production, keep this empty and store key in
+  // Firestore at: app_config/gemini (field: apiKey)
   // IMPORTANT: Get your API key from https://makersuite.google.com/app/apikey
-  // For production, use environment variables or secure storage
-  static const String _apiKey = 'AIzaSyAbOgEcLbLwautxmYSE6ZgkCwZYAFX8Tig';
+  static const String _apiKey = 'AIzaSyAPQr6I9Q1dIC6_Q-L3I3xlULH5sE3fYfs';
   static const String _baseUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
   static const String _textUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
 
-  // Check if API key is configured
-  static bool get isApiKeyConfigured =>
-      _apiKey.isNotEmpty && _apiKey != 'AIzaSyAbOgEcLbLwautxmYSE6ZgkCwZYAFX8Tig';
+  // Helper: fetch API key from Firestore (app_config/gemini -> apiKey)
+  static Future<String?> _getApiKeyFromFirestore() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('app_config')
+          .doc('gemini')
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data() ?? {};
+        final key =
+            (data['apiKey'] ?? data['api_key'] ?? data['key']) as String?;
+        if (key != null && key.trim().isNotEmpty) return key.trim();
+      }
+    } catch (e) {
+      // ignore and fallback
+    }
+    return null;
+  }
+
+  // Get the effective API key (Firestore -> default constant)
+  static Future<String> _getEffectiveApiKey() async {
+    final fromFs = await _getApiKeyFromFirestore();
+    if (fromFs != null && fromFs.isNotEmpty) return fromFs;
+    if (_apiKey.isNotEmpty) return _apiKey;
+    throw Exception(
+        'Gemini API key not configured. Add a document `app_config/gemini` with field `apiKey` or set the key in code.');
+  }
 
   // Generate text response using Gemini
   static Future<String> generateText(String prompt) async {
-    if (!isApiKeyConfigured) {
-      throw Exception(
-          'Gemini API key is not configured. Please set up your API key in gemini_service.dart');
-    }
-
     try {
-      final url = Uri.parse('$_textUrl?key=$_apiKey');
+      final key = await _getEffectiveApiKey();
+      final url = Uri.parse('$_textUrl?key=$key');
 
       final response = await http
           .post(
@@ -70,10 +92,7 @@ class GeminiService {
 
   // Extract text from image using Gemini Vision
   static Future<String> extractTextFromImage(XFile imageFile) async {
-    if (!isApiKeyConfigured) {
-      throw Exception(
-          'Gemini API key is not configured. Please set up your API key in gemini_service.dart');
-    }
+    final key = await _getEffectiveApiKey();
 
     // Implement retries with exponential backoff for transient errors (429, 5xx)
     const int maxRetries = 3;
@@ -81,7 +100,7 @@ class GeminiService {
 
     final bytes = await imageFile.readAsBytes();
     final base64Image = base64Encode(bytes);
-    final url = Uri.parse('$_baseUrl?key=$_apiKey');
+    final url = Uri.parse('$_baseUrl?key=$key');
 
     while (true) {
       attempt++;
@@ -442,16 +461,14 @@ Please provide helpful, accurate medical advice for diabetes management. If the 
   // Scan medicine image and extract text using Gemini Vision
   static Future<Map<String, dynamic>> scanMedicineImage(
       String imagePath) async {
-    if (!isApiKeyConfigured) {
-      throw Exception('Gemini API key is not configured');
-    }
+    final key = await _getEffectiveApiKey();
 
     try {
       final file = XFile(imagePath);
       final bytes = await file.readAsBytes();
       final base64Image = base64Encode(bytes);
 
-      final url = Uri.parse('$_baseUrl?key=$_apiKey');
+      final url = Uri.parse('$_baseUrl?key=$key');
 
       final response = await http
           .post(
@@ -519,12 +536,10 @@ Please be thorough and extract everything visible on the medicine packaging.'''
   // Extract and analyze text from user input
   static Future<Map<String, dynamic>> analyzeMedicineText(
       String extractedText) async {
-    if (!isApiKeyConfigured) {
-      throw Exception('Gemini API key is not configured');
-    }
+    final key = await _getEffectiveApiKey();
 
     try {
-      final url = Uri.parse('$_textUrl?key=$_apiKey');
+      final url = Uri.parse('$_textUrl?key=$key');
 
       final response = await http
           .post(

@@ -64,40 +64,65 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
       // Step 1: Upload prescription
       final id = await _ordersService.uploadPrescription(_selectedImages);
       
-      // Step 2: Analyze prescription using Gemini
+      // Step 2: Analyze prescription using Gemini (if API key is available)
       if (_selectedImages.isNotEmpty) {
-        final extractedText = await GeminiService.extractTextFromImage(_selectedImages.first);
-        final medicines = await GeminiService.analyzePrescription(extractedText);
-        
-        // Step 3: Check availability in pharmacy
-        for (var medicine in medicines) {
-          final medicineName = medicine['name'] ?? '';
-          if (medicineName.isNotEmpty) {
-            try {
-              final pharmacyMedicines = await _medicineService.searchMedicines(medicineName);
-              if (pharmacyMedicines.isNotEmpty) {
-                _availableMedicines.add({
-                  ...medicine,
-                  'pharmacyData': pharmacyMedicines.first,
-                });
-              } else {
-                // Get info from Gemini for unavailable medicines
-                final geminiInfo = await GeminiService.getMedicineInfo(medicineName);
-                _unavailableMedicines.add({
-                  ...medicine,
-                  'geminiInfo': geminiInfo,
-                });
+        try {
+          final extractedText = await GeminiService.extractTextFromImage(_selectedImages.first);
+          final medicines = await GeminiService.analyzePrescription(extractedText);
+          
+          // Step 3: Check availability in pharmacy
+          for (var medicine in medicines) {
+            final medicineName = medicine['name'] ?? '';
+            if (medicineName.isNotEmpty) {
+              try {
+                final pharmacyMedicines = await _medicineService.searchMedicines(medicineName);
+                if (pharmacyMedicines.isNotEmpty) {
+                  _availableMedicines.add({
+                    ...medicine,
+                    'pharmacyData': pharmacyMedicines.first,
+                  });
+                } else {
+                  // Get info from Gemini for unavailable medicines
+                  try {
+                    final geminiInfo = await GeminiService.getMedicineInfo(medicineName);
+                    _unavailableMedicines.add({
+                      ...medicine,
+                      'geminiInfo': geminiInfo,
+                    });
+                  } catch (e) {
+                    // If Gemini info fails, just add medicine without info
+                    _unavailableMedicines.add(medicine);
+                  }
+                }
+              } catch (e) {
+                // If search fails, mark as unavailable
+                _unavailableMedicines.add(medicine);
               }
-            } catch (e) {
-              // If search fails, mark as unavailable
-              _unavailableMedicines.add(medicine);
             }
           }
+          
+          setState(() {
+            _suggestedMedicines = medicines;
+          });
+        } catch (e) {
+          // If Gemini API is not configured, still allow upload but skip analysis
+          final errorMsg = e.toString().toLowerCase();
+          if (errorMsg.contains('api key') || errorMsg.contains('not configured')) {
+            // API key missing - skip analysis but allow upload
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Prescription uploaded. AI analysis requires API key configuration.'),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          } else {
+            // Other error - rethrow to be caught by outer catch
+            rethrow;
+          }
         }
-        
-        setState(() {
-          _suggestedMedicines = medicines;
-        });
       }
       
       if (!mounted) return;

@@ -28,9 +28,10 @@ class PharmacyOrdersScreen extends StatelessWidget {
       ),
       backgroundColor: const Color(0xFFF5F6F8),
       body: StreamBuilder<QuerySnapshot>(
+        // Query all orders and filter client-side so pharmacies can see
+        // orders assigned to them and unassigned (pending) orders to claim.
         stream: FirebaseFirestore.instance
             .collection('orders')
-            .where('pharmacyId', isEqualTo: userId)
             .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
@@ -40,11 +41,25 @@ class PharmacyOrdersScreen extends StatelessWidget {
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return const Center(
-              child: Text('No orders yet', style: TextStyle(color: Colors.grey)),
+              child:
+                  Text('No orders yet', style: TextStyle(color: Colors.grey)),
             );
           }
 
-          final orders = snapshot.data!.docs;
+          // Filter orders: assigned to this pharmacy OR pending/unassigned
+          final orders = snapshot.data!.docs.where((doc) {
+            final order = doc.data() as Map<String, dynamic>;
+            final assigned = order['pharmacyId'] as String?;
+            final status = (order['status'] as String?) ?? 'pending';
+            return assigned == userId || status == 'pending';
+          }).toList();
+
+          if (orders.isEmpty) {
+            return const Center(
+              child:
+                  Text('No orders yet', style: TextStyle(color: Colors.grey)),
+            );
+          }
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -55,11 +70,13 @@ class PharmacyOrdersScreen extends StatelessWidget {
               final total = (order['total'] as num?)?.toDouble() ?? 0.0;
               final subtotal = (order['subtotal'] as num?)?.toDouble();
               final platformFee = (order['platformFee'] as num?)?.toDouble();
-              final pharmacyAmount = (order['pharmacyAmount'] as num?)?.toDouble();
+              final pharmacyAmount =
+                  (order['pharmacyAmount'] as num?)?.toDouble();
               final status = order['status'] as String? ?? 'pending';
               final createdAt = order['createdAt'] as Timestamp?;
               final items = order['items'] as List<dynamic>? ?? [];
-              final customerName = order['customerName'] as String? ?? 'Unknown';
+              final customerName =
+                  order['customerName'] as String? ?? 'Unknown';
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -90,7 +107,8 @@ class PharmacyOrdersScreen extends StatelessWidget {
                         Text(
                           DateFormat('MMM dd, yyyy • hh:mm a')
                               .format(createdAt.toDate()),
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          style:
+                              const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                     ],
                   ),
@@ -141,13 +159,18 @@ class PharmacyOrdersScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           ...items.map((item) {
-                            final name = item['name'] as String? ?? 'Unknown';
+                            final name = (item['medicineName'] as String?) ??
+                                (item['name'] as String?) ??
+                                (item['medicine_name'] as String?) ??
+                                'Unknown';
                             final quantity = item['quantity'] as int? ?? 0;
-                            final price = (item['price'] as num?)?.toDouble() ?? 0.0;
+                            final price =
+                                (item['price'] as num?)?.toDouble() ?? 0.0;
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 8),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
                                     child: Text('$name x$quantity'),
@@ -162,30 +185,47 @@ class PharmacyOrdersScreen extends StatelessWidget {
                               ),
                             );
                           }),
-                          if (subtotal != null || platformFee != null || pharmacyAmount != null) ...[
+                          if (subtotal != null ||
+                              platformFee != null ||
+                              pharmacyAmount != null) ...[
                             const Divider(),
                             if (subtotal != null)
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('Subtotal:', style: TextStyle(color: Colors.grey)),
-                                  Text('₹${subtotal.toStringAsFixed(2)}', style: const TextStyle(color: Colors.grey)),
+                                  const Text('Subtotal:',
+                                      style: TextStyle(color: Colors.grey)),
+                                  Text('₹${subtotal.toStringAsFixed(2)}',
+                                      style:
+                                          const TextStyle(color: Colors.grey)),
                                 ],
                               ),
                             if (platformFee != null)
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('Platform Fee:', style: TextStyle(color: Colors.grey)),
-                                  Text('₹${platformFee.toStringAsFixed(2)}', style: const TextStyle(color: Colors.grey)),
+                                  const Text('Platform Fee:',
+                                      style: TextStyle(color: Colors.grey)),
+                                  Text('₹${platformFee.toStringAsFixed(2)}',
+                                      style:
+                                          const TextStyle(color: Colors.grey)),
                                 ],
                               ),
                             if (pharmacyAmount != null)
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('Your Revenue:', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.green)),
-                                  Text('₹${pharmacyAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.green)),
+                                  const Text('Your Revenue:',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.green)),
+                                  Text('₹${pharmacyAmount.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.green)),
                                 ],
                               ),
                           ],
@@ -302,4 +342,3 @@ class PharmacyOrdersScreen extends StatelessWidget {
     }
   }
 }
-

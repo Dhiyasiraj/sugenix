@@ -99,7 +99,30 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
 
     try {
       // Step 1: Scan medicine image using Gemini Vision with text extraction
-      final scanResult = await GeminiService.scanMedicineImage(image.path);
+      Map<String, dynamic> scanResult;
+      try {
+        scanResult = await GeminiService.scanMedicineImage(image.path);
+      } catch (e) {
+        final errorMsg = e.toString().toLowerCase();
+        if (errorMsg.contains('api key') || errorMsg.contains('not configured')) {
+          // API key missing - show user-friendly message
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('AI scanning requires API key configuration. Please configure Gemini API key to use this feature.'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+          setState(() {
+            _isProcessing = false;
+          });
+          return;
+        }
+        rethrow;
+      }
+      
       final rawText = scanResult['rawText'] as String? ?? '';
 
       if (!scanResult['success']) {

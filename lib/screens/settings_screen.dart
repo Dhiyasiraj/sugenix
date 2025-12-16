@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:sugenix/services/auth_service.dart';
 import 'package:sugenix/services/language_service.dart';
 import 'package:sugenix/services/glucose_service.dart';
+import 'package:sugenix/services/app_localization_service.dart';
+import 'package:sugenix/services/locale_notifier.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -124,6 +127,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _showLanguagePicker(BuildContext context) async {
     final languages = LanguageService.getSupportedLanguages();
     String tempSelected = _selectedLanguage;
+    final localeNotifier = Provider.of<LocaleNotifier>(context, listen: false);
     await showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -156,6 +160,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     tempSelected = val;
                     setState(() => _selectedLanguage = val);
                     LanguageService.setSelectedLanguage(val);
+                    // Also update the app locale
+                    localeNotifier.setLocale(Locale(val));
+                    AppLocalizationService.saveLocale(Locale(val));
                     Navigator.pop(ctx);
                   },
                   title: Text(

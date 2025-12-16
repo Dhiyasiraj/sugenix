@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sugenix/Login.dart';
@@ -431,9 +430,8 @@ class _SignupState extends State<Signup> {
         password: _passwordController.text,
         name: _nameController.text.trim(),
         phone: '', // Optional field
-        dateOfBirth: DateTime.now()
-            .subtract(const Duration(days: 365 * 25)), // Default age 25
-        gender: _selectedGender,
+        dateOfBirth: null, // User can add from profile later
+        gender: null, // User can add from profile later
         diabetesType: _selectedDiabetesType,
       );
 
