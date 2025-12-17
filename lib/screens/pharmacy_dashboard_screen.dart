@@ -2,32 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
+import 'package:sugenix/screens/pharmacy_add_medicine_form.dart';
 
 class PharmacyDashboardScreen extends StatefulWidget {
   const PharmacyDashboardScreen({super.key});
 
   @override
-  State<PharmacyDashboardScreen> createState() => _PharmacyDashboardScreenState();
+  State<PharmacyDashboardScreen> createState() =>
+      _PharmacyDashboardScreenState();
 }
 
 class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  
-  final _nameController = TextEditingController();
-  final _genericNameController = TextEditingController();
-  final _manufacturerController = TextEditingController();
-  final _dosageController = TextEditingController();
-  final _formController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _usesController = TextEditingController();
-  final _sideEffectsController = TextEditingController();
-  final _precautionsController = TextEditingController();
-  final _stockController = TextEditingController();
-  
-  bool _requiresPrescription = false;
-  bool _isLoading = false;
+
+  // Dashboard no longer hosts the add-medicine form directly.
+  // The form has been moved to a reusable screen/widget and will be opened
+  // from Inventory FAB or via the button below.
   List<Map<String, dynamic>> _medicines = [];
   int _totalOrders = 0;
   double _totalRevenue = 0.0;
@@ -57,8 +48,8 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
         if (data['status'] != 'cancelled') {
           totalOrders++;
           // Use pharmacyAmount (after platform fee deduction) for revenue
-          revenue += (data['pharmacyAmount'] as num?)?.toDouble() ?? 
-                     ((data['total'] as num?)?.toDouble() ?? 0.0);
+          revenue += (data['pharmacyAmount'] as num?)?.toDouble() ??
+              ((data['total'] as num?)?.toDouble() ?? 0.0);
         }
       }
 
@@ -98,77 +89,12 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
   }
 
   Future<void> _addMedicine() async {
-    if (_nameController.text.trim().isEmpty || _priceController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill required fields')),
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-    try {
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) throw Exception('Not authenticated');
-
-      final uses = _usesController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-      final sideEffects = _sideEffectsController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-      final precautions = _precautionsController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-
-      await _firestore.collection('medicines').add({
-        'name': _nameController.text.trim(),
-        'genericName': _genericNameController.text.trim(),
-        'manufacturer': _manufacturerController.text.trim(),
-        'dosage': _dosageController.text.trim(),
-        'form': _formController.text.trim(),
-        'price': double.tryParse(_priceController.text) ?? 0.0,
-        'stock': int.tryParse(_stockController.text) ?? 0,
-        'description': _descriptionController.text.trim(),
-        'uses': uses,
-        'sideEffects': sideEffects,
-        'precautions': precautions,
-        'requiresPrescription': _requiresPrescription,
-        'pharmacyId': userId,
-        'available': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      _clearForm();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Medicine added successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to add medicine: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+    // Form handling moved to `PharmacyAddMedicineForm`.
+    // Keep placeholder to maintain API surface if other code calls this method.
   }
 
   void _clearForm() {
-    _nameController.clear();
-    _genericNameController.clear();
-    _manufacturerController.clear();
-    _dosageController.clear();
-    _formController.clear();
-    _priceController.clear();
-    _stockController.clear();
-    _descriptionController.clear();
-    _usesController.clear();
-    _sideEffectsController.clear();
-    _precautionsController.clear();
-    _requiresPrescription = false;
+    // Form moved; nothing to clear in dashboard now.
   }
 
   Future<void> _deleteMedicine(String medicineId) async {
@@ -217,16 +143,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _genericNameController.dispose();
-    _manufacturerController.dispose();
-    _dosageController.dispose();
-    _formController.dispose();
-    _priceController.dispose();
-    _descriptionController.dispose();
-    _usesController.dispose();
-    _sideEffectsController.dispose();
-    _precautionsController.dispose();
+    // No form controllers to dispose here anymore.
     super.dispose();
   }
 
@@ -238,7 +155,8 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
         appBar: AppBar(
           title: const Text(
             'Pharmacy Dashboard',
-            style: TextStyle(color: Color(0xFF0C4556), fontWeight: FontWeight.bold),
+            style: TextStyle(
+                color: Color(0xFF0C4556), fontWeight: FontWeight.bold),
           ),
           backgroundColor: Colors.white,
           foregroundColor: const Color(0xFF0C4556),
@@ -256,13 +174,100 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
             Expanded(
               child: TabBarView(
                 children: [
-                  _buildAddMedicineForm(),
+                  _buildInteractiveAddPanel(),
                   _buildMedicinesList(),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildInteractiveAddPanel() {
+    // Dummy interactive cards that match the current app style. Each card
+    // shows sample product info and a CTA to open the real Add Medicine form.
+    final sample = {
+      'name': 'Metformin XR',
+      'manufacturer': 'HealthCorp',
+      'price': 199.0,
+      'stock': 42,
+      'uses': ['Diabetes management'],
+    };
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Quick Add (Preview)',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0C4556))),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0C4556).withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child:
+                        const Icon(Icons.medication, color: Color(0xFF0C4556)),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(sample['name']! as String,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 6),
+                        Text('${sample['manufacturer']} • ₹${sample['price']}',
+                            style: const TextStyle(color: Colors.grey)),
+                        const SizedBox(height: 6),
+                        Text('Stock: ${sample['stock']}',
+                            style: TextStyle(
+                                color: ((sample['stock'] as int?) ?? 0) > 10
+                                    ? Colors.green
+                                    : Colors.red)),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      // Open the reusable Add Medicine form
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const PharmacyAddMedicineForm()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0C4556)),
+                    child: const Text('Open Form'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text('Tips',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, color: Colors.grey[700])),
+          const SizedBox(height: 8),
+          Text(
+              '• Use the form to add medicines with accurate stock and pricing.'),
+          Text('• Manage your inventory from the Inventory screen.'),
+        ],
       ),
     );
   }
@@ -304,7 +309,8 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -344,85 +350,16 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     );
   }
 
-  Widget _buildAddMedicineForm() {
-    return SingleChildScrollView(
-      padding: ResponsiveHelper.getResponsivePadding(context),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildTextField(_nameController, 'Medicine Name *', Icons.medication),
-          const SizedBox(height: 12),
-          _buildTextField(_genericNameController, 'Generic Name', Icons.science),
-          const SizedBox(height: 12),
-          _buildTextField(_manufacturerController, 'Manufacturer', Icons.business),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _buildTextField(_dosageController, 'Dosage', Icons.straighten)),
-              const SizedBox(width: 12),
-              Expanded(child: _buildTextField(_formController, 'Form (Tablet/Capsule)', Icons.medication_liquid)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildTextField(
-                  _priceController,
-                  'Price (₹) *',
-                  Icons.currency_rupee,
-                  keyboardType: TextInputType.number,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildTextField(
-                  _stockController,
-                  'Stock Quantity *',
-                  Icons.inventory,
-                  keyboardType: TextInputType.number,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _buildTextField(_descriptionController, 'Description', Icons.description, maxLines: 3),
-          const SizedBox(height: 12),
-          _buildTextField(_usesController, 'Uses (comma separated)', Icons.info, maxLines: 2),
-          const SizedBox(height: 12),
-          _buildTextField(_sideEffectsController, 'Side Effects (comma separated)', Icons.warning, maxLines: 2),
-          const SizedBox(height: 12),
-          _buildTextField(_precautionsController, 'Precautions (comma separated)', Icons.health_and_safety, maxLines: 2),
-          const SizedBox(height: 12),
-          SwitchListTile(
-            title: const Text('Requires Prescription'),
-            value: _requiresPrescription,
-            onChanged: (value) => setState(() => _requiresPrescription = value),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _addMedicine,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0C4556),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: _isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Add Medicine', style: TextStyle(color: Colors.white, fontSize: 16)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // The original add-medicine form was moved to a reusable screen
+  // (`PharmacyAddMedicineForm`) and is opened from this dashboard's
+  // interactive panel or from the Inventory FAB. The large inline form
+  // has been removed to avoid duplicated controllers and compilation errors.
 
   Widget _buildMedicinesList() {
     if (_medicines.isEmpty) {
       return const Center(
-        child: Text('No medicines added yet', style: TextStyle(color: Colors.grey)),
+        child: Text('No medicines added yet',
+            style: TextStyle(color: Colors.grey)),
       );
     }
 
@@ -444,7 +381,8 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
               children: [
                 Text('₹${(medicine['price'] ?? 0.0).toStringAsFixed(2)}'),
                 if (medicine['requiresPrescription'] == true)
-                  const Text('Prescription Required', style: TextStyle(color: Colors.orange, fontSize: 12)),
+                  const Text('Prescription Required',
+                      style: TextStyle(color: Colors.orange, fontSize: 12)),
               ],
             ),
             trailing: IconButton(
@@ -457,23 +395,5 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
     );
   }
 
-  Widget _buildTextField(
-    TextEditingController controller,
-    String label,
-    IconData icon, {
-    TextInputType? keyboardType,
-    int maxLines = 1,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      maxLines: maxLines,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: const Color(0xFF0C4556)),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
+  // Dashboard does not need the inline text field helper anymore.
 }
-

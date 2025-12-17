@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sugenix/widgets/translated_text.dart';
+import 'package:sugenix/screens/pharmacy_add_medicine_form.dart';
 import 'package:sugenix/screens/pharmacy_product_form_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -41,7 +42,8 @@ class PharmacyInventoryScreen extends StatelessWidget {
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return const Center(
-              child: Text('No medicines in inventory', style: TextStyle(color: Colors.grey)),
+              child: Text('No medicines in inventory',
+                  style: TextStyle(color: Colors.grey)),
             );
           }
 
@@ -84,7 +86,8 @@ class PharmacyInventoryScreen extends StatelessWidget {
                               width: 60,
                               height: 60,
                               color: Colors.grey[200],
-                              child: const Center(child: CircularProgressIndicator()),
+                              child: const Center(
+                                  child: CircularProgressIndicator()),
                             ),
                             errorWidget: (context, url, error) => Container(
                               padding: const EdgeInsets.all(12),
@@ -158,7 +161,8 @@ class PharmacyInventoryScreen extends StatelessWidget {
                       const SizedBox(width: 8),
                       IconButton(
                         icon: const Icon(Icons.edit, size: 20),
-                        onPressed: () => _editMedicine(context, medicineId, medicine),
+                        onPressed: () =>
+                            _editMedicine(context, medicineId, medicine),
                         color: const Color(0xFF0C4556),
                       ),
                       IconButton(
@@ -176,10 +180,11 @@ class PharmacyInventoryScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
+          // Open the dashboard-style Add Medicine form
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const PharmacyProductFormScreen(),
+              builder: (context) => const PharmacyAddMedicineForm(),
             ),
           );
         },
@@ -248,4 +253,3 @@ class PharmacyInventoryScreen extends StatelessWidget {
     }
   }
 }
-

@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sugenix/services/medicine_orders_service.dart';
-import 'package:sugenix/services/gemini_service.dart';
+import 'package:sugenix/services/huggingface_service.dart';
 import 'package:sugenix/services/medicine_database_service.dart';
 import 'package:sugenix/screens/medicine_catalog_screen.dart';
 
@@ -64,40 +64,65 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
       // Step 1: Upload prescription
       final id = await _ordersService.uploadPrescription(_selectedImages);
       
-      // Step 2: Analyze prescription using Gemini
+      // Step 2: Analyze prescription using Hugging Face AI
       if (_selectedImages.isNotEmpty) {
-        final extractedText = await GeminiService.extractTextFromImage(_selectedImages.first);
-        final medicines = await GeminiService.analyzePrescription(extractedText);
-        
-        // Step 3: Check availability in pharmacy
-        for (var medicine in medicines) {
-          final medicineName = medicine['name'] ?? '';
-          if (medicineName.isNotEmpty) {
-            try {
-              final pharmacyMedicines = await _medicineService.searchMedicines(medicineName);
-              if (pharmacyMedicines.isNotEmpty) {
-                _availableMedicines.add({
-                  ...medicine,
-                  'pharmacyData': pharmacyMedicines.first,
-                });
-              } else {
-                // Get info from Gemini for unavailable medicines
-                final geminiInfo = await GeminiService.getMedicineInfo(medicineName);
-                _unavailableMedicines.add({
-                  ...medicine,
-                  'geminiInfo': geminiInfo,
-                });
+        try {
+          final extractedText = await HuggingFaceService.extractTextFromImage(_selectedImages.first);
+          final medicines = await HuggingFaceService.analyzePrescription(extractedText);
+          
+          // Step 3: Check availability in pharmacy
+          for (var medicine in medicines) {
+            final medicineName = medicine['name'] ?? '';
+            if (medicineName.isNotEmpty) {
+              try {
+                final pharmacyMedicines = await _medicineService.searchMedicines(medicineName);
+                if (pharmacyMedicines.isNotEmpty) {
+                  _availableMedicines.add({
+                    ...medicine,
+                    'pharmacyData': pharmacyMedicines.first,
+                  });
+                } else {
+                  // Get info from Hugging Face for unavailable medicines
+                  try {
+                    final hfInfo = await HuggingFaceService.getMedicineInfo(medicineName);
+                    _unavailableMedicines.add({
+                      ...medicine,
+                      'geminiInfo': hfInfo, // Keep key name for compatibility
+                    });
+                  } catch (e) {
+                    // If Hugging Face info fails, just add medicine without info
+                    _unavailableMedicines.add(medicine);
+                  }
+                }
+              } catch (e) {
+                // If search fails, mark as unavailable
+                _unavailableMedicines.add(medicine);
               }
-            } catch (e) {
-              // If search fails, mark as unavailable
-              _unavailableMedicines.add(medicine);
             }
           }
+          
+          setState(() {
+            _suggestedMedicines = medicines;
+          });
+        } catch (e) {
+          // If Hugging Face API fails, still allow upload but skip analysis
+          final errorMsg = e.toString().toLowerCase();
+          if (errorMsg.contains('timeout') || errorMsg.contains('connection')) {
+            // Network error - skip analysis but allow upload
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Prescription uploaded. AI analysis failed - please check your internet connection.'),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          } else {
+            // Other error - rethrow to be caught by outer catch
+            rethrow;
+          }
         }
-        
-        setState(() {
-          _suggestedMedicines = medicines;
-        });
       }
       
       if (!mounted) return;
@@ -466,8 +491,12 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
               ),
             ] else if (geminiInfo != null) ...[
               const SizedBox(height: 8),
-              if (geminiInfo['priceRange'] != null)
+              if (geminiInfo['amount'] != null && geminiInfo['amount'].toString().isNotEmpty)
+                Text('Package Size: ${geminiInfo['amount']}'),
+              if (geminiInfo['priceRange'] != null && geminiInfo['priceRange'].toString().isNotEmpty)
                 Text('Estimated Price: ${geminiInfo['priceRange']}'),
+              if (medicine['dosage'] != null && medicine['dosage'].toString().isNotEmpty)
+                Text('Dosage: ${medicine['dosage']}'),
               if (geminiInfo['uses'] != null && geminiInfo['uses'] is List) ...[
                 const SizedBox(height: 8),
                 const Text('Uses:', style: TextStyle(fontWeight: FontWeight.w600)),

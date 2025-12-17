@@ -21,13 +21,36 @@ class AppointmentService {
     try {
       if (_auth.currentUser == null) throw Exception('No user logged in');
 
-      // Check if slot is available
-      final existingAppointment = await _firestore
+      // Check if slot is available for this specific doctor and dateTime
+      // Get all appointments for this doctor and filter client-side to avoid index issues
+      final allAppointments = await _firestore
           .collection('appointments')
+          .where('doctorId', isEqualTo: doctorId)
           .get();
 
-      if (existingAppointment.docs.isNotEmpty) {
-        throw Exception('This time slot is already booked');
+      // Check if any appointment conflicts with this time slot (within 30 minutes)
+      for (var doc in allAppointments.docs) {
+        final existingData = doc.data();
+        final existingStatus = existingData['status'] as String?;
+        
+        // Only check active appointments
+        if (existingStatus != 'scheduled' && existingStatus != 'confirmed' && existingStatus != 'pending') {
+          continue;
+        }
+        
+        final existingDateTime = (existingData['dateTime'] as Timestamp?)?.toDate();
+        if (existingDateTime == null) continue;
+        
+        // Check if same day
+        if (existingDateTime.year == dateTime.year &&
+            existingDateTime.month == dateTime.month &&
+            existingDateTime.day == dateTime.day) {
+          // Check if time slot conflicts (within 30 minutes)
+          final timeDifference = (existingDateTime.difference(dateTime).inMinutes).abs();
+          if (timeDifference < 30) {
+            throw Exception('This time slot is already booked');
+          }
+        }
       }
 
       // Calculate fees

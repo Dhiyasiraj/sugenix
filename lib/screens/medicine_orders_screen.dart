@@ -211,17 +211,7 @@ class _MedicineOrdersScreenState extends State<MedicineOrdersScreen> {
         "icon": Icons.description,
         "color": Colors.green,
       },
-      {
-        "title": "Order status",
-        "icon": Icons.assignment,
-        "color": Colors.orange,
-      },
-      {"title": "Order history", "icon": Icons.history, "color": Colors.purple},
-      {
-        "title": "Payments & Refunds",
-        "icon": Icons.payment,
-        "color": Colors.red,
-      },
+      
       {"title": "Help & Support", "icon": Icons.help, "color": Colors.teal},
     ];
 

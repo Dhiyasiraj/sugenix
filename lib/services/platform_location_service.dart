@@ -35,9 +35,27 @@ class PlatformLocationService {
           return null;
         }
 
-        return await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-        );
+        // Use lower accuracy if high accuracy fails (works better without SIM/WiFi)
+        try {
+          return await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+            timeLimit: const Duration(seconds: 10),
+          );
+        } catch (e) {
+          // Fallback to lower accuracy if high accuracy fails (e.g., no SIM, no WiFi)
+          try {
+            return await Geolocator.getCurrentPosition(
+              desiredAccuracy: LocationAccuracy.medium,
+              timeLimit: const Duration(seconds: 10),
+            );
+          } catch (e2) {
+            // Last resort: use low accuracy
+            return await Geolocator.getCurrentPosition(
+              desiredAccuracy: LocationAccuracy.low,
+              timeLimit: const Duration(seconds: 10),
+            );
+          }
+        }
       }
     } catch (e) {
       return null;
@@ -75,23 +93,21 @@ class PlatformLocationService {
     }
   }
 
-  // Get address from coordinates (simplified for web)
+  // Get address from coordinates
   static Future<String> getAddressFromCoordinates(
     double latitude,
     double longitude,
   ) async {
     try {
-      if (kIsWeb) {
-        // For web, return coordinates as string
-        return 'Lat: ${latitude.toStringAsFixed(4)}, Lng: ${longitude.toStringAsFixed(4)}';
-      } else {
-        // For mobile, use geocoding
-        // Note: Placemark is not available in geolocator package
-        // You would need to use a separate geocoding package like 'geocoding'
-        return 'Lat: ${latitude.toStringAsFixed(4)}, Lng: ${longitude.toStringAsFixed(4)}';
-      }
+      // For both web and mobile, create a Google Maps link
+      // You can enhance this by using a geocoding API service
+      final mapsUrl = 'https://maps.google.com/?q=$latitude,$longitude';
+      
+      // Return formatted location string with coordinates
+      return 'Latitude: ${latitude.toStringAsFixed(6)}, Longitude: ${longitude.toStringAsFixed(6)}\n'
+             'Map: $mapsUrl';
     } catch (e) {
-      return 'Unknown location';
+      return 'Latitude: ${latitude.toStringAsFixed(6)}, Longitude: ${longitude.toStringAsFixed(6)}';
     }
   }
 }

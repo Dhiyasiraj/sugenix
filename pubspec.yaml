@@ -33,6 +33,9 @@ dependencies:
   csv: ^5.0.2
   razorpay_flutter: ^1.3.1
   cloudinary_public: ^0.21.0
+  telephony: ^0.2.0
+  flutter_dotenv: ^5.1.0
+
 
 dependency_overrides:
   firebase_auth_web: ^6.0.4
@@ -49,6 +52,7 @@ flutter:
   assets:
     - assets/icon/logo.png
     - assets/sugenix_logo.png.png
+    - .env
   
   generate: true
 

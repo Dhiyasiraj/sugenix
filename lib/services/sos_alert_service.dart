@@ -1,20 +1,13 @@
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sugenix/services/platform_location_service.dart';
+import 'package:sugenix/services/ultramessage_service.dart';
+import 'package:geolocator/geolocator.dart';
 
 class SOSAlertService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  // Ultramessage Configuration
-  static const String _ultraMessageApiKey =
-      'YOUR_ULTRAMESSAGE_API_KEY'; // Replace with actual key
-  static const String _ultraMessageInstanceId =
-      'YOUR_INSTANCE_ID'; // Replace with actual instance ID
-  static const String _ultraMessageBaseUrl =
-      'https://api.ultramessage.com/api/v1';
+  final UltraMessageService _ultraMessageService = UltraMessageService();
 
   // Generate SOS message with location
   static String _generateSOSMessage({
@@ -30,8 +23,10 @@ class SOSAlertService {
 *Alert Type:* Medical Emergency - Diabetic Crisis
 
 *Location Details:*
-${address != null ? 'Address: $address' : 'GPS Coordinates: $latitude, $longitude'}
-${latitude != null && longitude != null ? 'View Location: https://maps.google.com/?q=$latitude,$longitude' : ''}
+${address != null ? 'Address: $address' : ''}
+${latitude != null && longitude != null 
+    ? 'GPS Coordinates: $latitude, $longitude\nView Location: https://maps.google.com/?q=$latitude,$longitude' 
+    : 'Location: Not available'}
 
 *Recent Glucose Readings:*
 ''';
@@ -39,8 +34,10 @@ ${latitude != null && longitude != null ? 'View Location: https://maps.google.co
     if (recentReadings.isNotEmpty) {
       for (int i = 0; i < recentReadings.length && i < 3; i++) {
         final reading = recentReadings[i];
-        message +=
-            '\n• ${reading['value']} mg/dL (${reading['type']}) - ${reading['timestamp']}';
+        final value = reading['value'] ?? 'N/A';
+        final type = reading['type'] ?? 'Unknown';
+        final timestamp = reading['timestamp'] ?? 'Unknown time';
+        message += '\n• $value mg/dL ($type) - $timestamp';
       }
     } else {
       message += '\nNo recent readings available';
@@ -49,8 +46,6 @@ ${latitude != null && longitude != null ? 'View Location: https://maps.google.co
     message += '''
 
 *Emergency Contact Information:*
-Tap the link below to see more details and contact information.
-
 Please respond immediately! This is a critical health emergency.
 
 *Sent from: Sugenix - Diabetes Management App*
@@ -60,46 +55,26 @@ Please respond immediately! This is a critical health emergency.
   }
 
   // Send SOS alert via WhatsApp using Ultramessage
-  static Future<bool> sendSOSViaWhatsApp({
+  Future<bool> _sendSOSViaWhatsApp({
     required String phoneNumber,
     required String message,
   }) async {
     try {
-      // Ensure phone number is in correct format (with country code)
-      String formattedPhone = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
-      if (!formattedPhone.startsWith('+')) {
-        formattedPhone =
-            '+91$formattedPhone'; // Add India country code if not present
+      // Ensure phone number is in correct format (remove +, keep only digits)
+      String formattedPhone = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
+      // Add country code if missing (assume India +91)
+      if (formattedPhone.length == 10) {
+        formattedPhone = '91$formattedPhone';
       }
 
-      final url = Uri.parse('$_ultraMessageBaseUrl/messages/chat/send');
+      final result = await _ultraMessageService.sendWhatsAppMessage(
+        to: formattedPhone,
+        message: message,
+      );
 
-      final response = await http
-          .post(
-            url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $_ultraMessageApiKey',
-            },
-            body: jsonEncode({
-              'instance_id': _ultraMessageInstanceId,
-              'phone_number': formattedPhone,
-              'message': message,
-            }),
-          )
-          .timeout(const Duration(seconds: 30));
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final responseData = jsonDecode(response.body);
-        return responseData['success'] == true ||
-            responseData['status'] == 'success';
-      } else {
-        print(
-            'WhatsApp send failed: ${response.statusCode} - ${response.body}');
-        return false;
-      }
+      return result['success'] == true;
     } catch (e) {
-      print('Error sending WhatsApp: $e');
+      print('Error sending WhatsApp via Ultramessage: $e');
       return false;
     }
   }
@@ -120,14 +95,50 @@ Please respond immediately! This is a critical health emergency.
       final userData = userDoc.data();
       final userName = userData?['name'] ?? 'User';
 
-      // Get current location
-      final position = await PlatformLocationService.getCurrentLocation();
+      // Get current location with proper permission handling
+      Position? position;
       String? address;
-      if (position != null) {
-        address = await PlatformLocationService.getAddressFromCoordinates(
-          position.latitude,
-          position.longitude,
-        );
+      
+      try {
+        // Request location permission first
+        final hasPermission = await PlatformLocationService.hasLocationPermission();
+        if (!hasPermission) {
+          final granted = await PlatformLocationService.requestLocationPermission();
+          if (!granted) {
+            // Permission denied, continue without location
+            print('Location permission denied - SOS will continue without location');
+          }
+        }
+        
+        // Get current location (works with GPS even without SIM card)
+        // Timeout after 8 seconds to not delay SOS too much
+        try {
+          position = await PlatformLocationService.getCurrentLocation();
+        } catch (e) {
+          print('Location request failed: $e - SOS will continue without location');
+          position = null;
+        }
+        
+        if (position != null) {
+          final pos = position; // Local variable
+          try {
+            address = await PlatformLocationService.getAddressFromCoordinates(
+              pos.latitude,
+              pos.longitude,
+            ).timeout(const Duration(seconds: 3), onTimeout: () {
+              return 'Latitude: ${pos.latitude.toStringAsFixed(6)}, Longitude: ${pos.longitude.toStringAsFixed(6)}';
+            });
+          } catch (e) {
+            print('Error getting address: $e');
+            // Continue with coordinates only
+            address = 'Latitude: ${pos.latitude.toStringAsFixed(6)}, Longitude: ${pos.longitude.toStringAsFixed(6)}';
+          }
+        } else {
+          print('Location not available - SOS will continue without location (this is OK, may be due to no SIM/WiFi)');
+        }
+      } catch (e) {
+        print('Error getting location: $e - SOS will continue without location');
+        // Continue without location - SOS should still work
       }
 
       // Get recent glucose readings
@@ -180,7 +191,7 @@ Please respond immediately! This is a critical health emergency.
           final contactName = contact['name'] ?? 'Emergency Contact';
 
           if (phoneNumber.isNotEmpty) {
-            final success = await sendSOSViaWhatsApp(
+            final success = await _sendSOSViaWhatsApp(
               phoneNumber: phoneNumber,
               message: sosMessage,
             );

@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:sugenix/services/platform_image_service.dart';
 import 'package:sugenix/services/medicine_database_service.dart';
-import 'package:sugenix/services/gemini_service.dart';
+import 'package:sugenix/services/huggingface_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/services/medicine_cart_service.dart';
@@ -98,8 +98,31 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
     });
 
     try {
-      // Step 1: Scan medicine image using Gemini Vision with text extraction
-      final scanResult = await GeminiService.scanMedicineImage(image.path);
+      // Step 1: Scan medicine image using Hugging Face AI with text extraction
+      Map<String, dynamic> scanResult;
+      try {
+        scanResult = await HuggingFaceService.scanMedicineImage(image.path);
+      } catch (e) {
+        final errorMsg = e.toString().toLowerCase();
+        if (errorMsg.contains('api key') || errorMsg.contains('not configured')) {
+          // API key missing - show user-friendly message
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('AI scanning requires API configuration. Please check your internet connection and try again.'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+          setState(() {
+            _isProcessing = false;
+          });
+          return;
+        }
+        rethrow;
+      }
+      
       final rawText = scanResult['rawText'] as String? ?? '';
 
       if (!scanResult['success']) {
@@ -114,7 +137,7 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
       // Fallback: if uses or side effects are missing, re-analyze extracted text
       if (rawText.isNotEmpty &&
           (_isValueUnavailable(usesText) || _isValueUnavailable(sideEffectsText))) {
-        final analysis = await GeminiService.analyzeMedicineText(rawText);
+        final analysis = await HuggingFaceService.analyzeMedicineText(rawText);
         if (analysis['success'] == true) {
           final extraParsed = Map<String, dynamic>.from(analysis['parsed'] ?? {});
           usesText = _isValueUnavailable(usesText)
@@ -142,7 +165,7 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
         // Continue even if search fails
       }
 
-      // Step 3: If found in pharmacy, use pharmacy data; otherwise use Gemini data
+      // Step 3: If found in pharmacy, use pharmacy data; otherwise use Hugging Face data
       Map<String, dynamic> medicineData;
       if (pharmacyMedicines.isNotEmpty) {
         _medicineFoundInPharmacy = true;

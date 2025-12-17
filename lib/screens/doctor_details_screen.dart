@@ -6,6 +6,7 @@ import 'package:sugenix/services/appointment_service.dart';
 import 'package:sugenix/services/auth_service.dart';
 import 'package:sugenix/services/revenue_service.dart';
 import 'package:sugenix/services/razorpay_service.dart';
+import 'package:sugenix/screens/dummy_payment_screen.dart';
 
 class DoctorDetailsScreen extends StatelessWidget {
   final Doctor doctor;
@@ -1134,27 +1135,78 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
         }
       }
     } else {
-      // Razorpay payment
+      // Online payment - redirect to dummy payment screen
       final consultationFee = widget.doctor.consultationFee;
       final fees = RevenueService.calculateFees(consultationFee);
       final totalFee = fees['totalFee']!;
 
       setState(() {
-        _isLoading = true;
+        _isLoading = false;
       });
 
-      // Open Razorpay checkout
-      await RazorpayService.openCheckout(
-        amount: totalFee,
-        name: _patientNameController.text.trim(),
-        email: _userProfile?['email'] ?? 'patient@sugenix.com',
-        phone: _mobileController.text.trim(),
-        description: 'Appointment with ${widget.doctor.name}',
-        notes: {
-          'appointment_id': _lastAppointmentId!,
-          'order_type': 'appointment',
-        },
+      // Navigate to dummy payment screen
+      final result = await Navigator.push<Map<String, dynamic>>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DummyPaymentScreen(
+            amount: totalFee,
+            name: _patientNameController.text.trim(),
+            email: _userProfile?['email'] ?? 'patient@sugenix.com',
+            phone: _mobileController.text.trim(),
+            description: 'Appointment with ${widget.doctor.name}',
+            onPaymentComplete: (success, paymentId) {
+              // Handle payment completion
+            },
+          ),
+        ),
       );
+
+      if (result != null && result['success'] == true) {
+        // Payment successful, process payment
+        setState(() {
+          _isLoading = true;
+        });
+        try {
+          await _appointmentService.processPayment(
+            appointmentId: _lastAppointmentId!,
+            paymentMethod: 'razorpay',
+          );
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+            _showSuccessDialog(context, _selectedDate);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Payment successful! Appointment booked.'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Payment recorded but failed to update: ${e.toString()}'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      } else {
+        // Payment cancelled or failed
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Payment cancelled'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
     }
   }
 

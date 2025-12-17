@@ -515,6 +515,8 @@ class LanguageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_languageKey, languageCode);
+      // Update cached language
+      _currentLanguage = languageCode;
       // Notify listeners about language change - this will trigger rebuilds
       _languageController.add(languageCode);
     } catch (e) {

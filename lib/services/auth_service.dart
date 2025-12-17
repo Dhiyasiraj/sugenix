@@ -17,8 +17,8 @@ class AuthService {
     required String password,
     required String name,
     required String phone,
-    required DateTime dateOfBirth,
-    required String gender,
+    DateTime? dateOfBirth,
+    String? gender,
     required String diabetesType,
   }) async {
     try {
@@ -100,14 +100,14 @@ class AuthService {
   }) async {
     try {
       if (currentUser == null) throw Exception('No user logged in');
-      
+
       // Re-authenticate user
       final credential = EmailAuthProvider.credential(
         email: currentUser!.email!,
         password: currentPassword,
       );
       await currentUser!.reauthenticateWithCredential(credential);
-      
+
       // Update password
       await currentUser!.updatePassword(newPassword);
     } catch (e) {
@@ -140,17 +140,15 @@ class AuthService {
       if (currentUser == null) throw Exception('No user logged in');
 
       // Get user role
-      final userDoc = await _firestore
-          .collection('users')
-          .doc(currentUser!.uid)
-          .get();
+      final userDoc =
+          await _firestore.collection('users').doc(currentUser!.uid).get();
       final role = userDoc.data()?['role'] as String?;
 
       // Update users collection (common fields)
       Map<String, dynamic> userUpdateData = {};
       if (name != null) userUpdateData['name'] = name;
       if (phone != null) userUpdateData['phone'] = phone;
-      
+
       // Patient-specific fields
       if (role == 'user' || role == null) {
         if (dateOfBirth != null) userUpdateData['dateOfBirth'] = dateOfBirth;
@@ -172,12 +170,14 @@ class AuthService {
         Map<String, dynamic> doctorUpdateData = {};
         if (name != null) doctorUpdateData['name'] = name;
         if (phone != null) doctorUpdateData['phone'] = phone;
-        if (specialization != null) doctorUpdateData['specialization'] = specialization;
+        if (specialization != null)
+          doctorUpdateData['specialization'] = specialization;
         if (hospital != null) doctorUpdateData['hospital'] = hospital;
         if (bio != null) doctorUpdateData['bio'] = bio;
         if (experience != null) doctorUpdateData['experience'] = experience;
         if (education != null) doctorUpdateData['education'] = education;
-        if (consultationFee != null) doctorUpdateData['consultationFee'] = consultationFee;
+        if (consultationFee != null)
+          doctorUpdateData['consultationFee'] = consultationFee;
         if (languages != null) doctorUpdateData['languages'] = languages;
 
         if (doctorUpdateData.isNotEmpty) {
@@ -191,7 +191,8 @@ class AuthService {
         if (name != null) pharmacyUpdateData['name'] = name;
         if (phone != null) pharmacyUpdateData['phone'] = phone;
         if (address != null) pharmacyUpdateData['address'] = address;
-        if (licenseNumber != null) pharmacyUpdateData['licenseNumber'] = licenseNumber;
+        if (licenseNumber != null)
+          pharmacyUpdateData['licenseNumber'] = licenseNumber;
 
         if (pharmacyUpdateData.isNotEmpty) {
           await _firestore
@@ -211,23 +212,19 @@ class AuthService {
       if (currentUser == null) return null;
 
       // Get user data
-      DocumentSnapshot userDoc = await _firestore
-          .collection('users')
-          .doc(currentUser!.uid)
-          .get();
-      
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(currentUser!.uid).get();
+
       if (!userDoc.exists) return null;
-      
+
       Map<String, dynamic>? userData = userDoc.data() as Map<String, dynamic>?;
       if (userData == null) return null;
-      
+
       // Get role-specific data
       final role = userData['role'] as String?;
       if (role == 'doctor') {
-        DocumentSnapshot doctorDoc = await _firestore
-            .collection('doctors')
-            .doc(currentUser!.uid)
-            .get();
+        DocumentSnapshot doctorDoc =
+            await _firestore.collection('doctors').doc(currentUser!.uid).get();
         if (doctorDoc.exists) {
           final doctorData = doctorDoc.data() as Map<String, dynamic>?;
           if (doctorData != null) {
@@ -246,7 +243,7 @@ class AuthService {
           }
         }
       }
-      
+
       return userData;
     } catch (e) {
       throw Exception('Failed to get user profile: ${e.toString()}');
@@ -282,10 +279,8 @@ class AuthService {
     try {
       if (currentUser == null) throw Exception('No user logged in');
 
-      DocumentSnapshot doc = await _firestore
-          .collection('users')
-          .doc(currentUser!.uid)
-          .get();
+      DocumentSnapshot doc =
+          await _firestore.collection('users').doc(currentUser!.uid).get();
       Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
       List<dynamic> contacts = data['emergencyContacts'] ?? [];
 
@@ -304,7 +299,7 @@ class AuthService {
   Future<void> setUserRole(String role) async {
     try {
       if (currentUser == null) throw Exception('No user logged in');
-      
+
       await _firestore.collection('users').doc(currentUser!.uid).update({
         'role': role,
       });
