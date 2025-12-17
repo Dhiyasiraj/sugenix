@@ -64,19 +64,11 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
       // Step 1: Upload prescription
       final id = await _ordersService.uploadPrescription(_selectedImages);
       
-<<<<<<< HEAD
       // Step 2: Analyze prescription using Hugging Face AI
       if (_selectedImages.isNotEmpty) {
         try {
           final extractedText = await HuggingFaceService.extractTextFromImage(_selectedImages.first);
           final medicines = await HuggingFaceService.analyzePrescription(extractedText);
-=======
-      // Step 2: Analyze prescription using Gemini (if API key is available)
-      if (_selectedImages.isNotEmpty) {
-        try {
-          final extractedText = await GeminiService.extractTextFromImage(_selectedImages.first);
-          final medicines = await GeminiService.analyzePrescription(extractedText);
->>>>>>> 91af75fd901f77c8a06ecd76f91853ace720124d
           
           // Step 3: Check availability in pharmacy
           for (var medicine in medicines) {
@@ -90,7 +82,6 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
                     'pharmacyData': pharmacyMedicines.first,
                   });
                 } else {
-<<<<<<< HEAD
                   // Get info from Hugging Face for unavailable medicines
                   try {
                     final hfInfo = await HuggingFaceService.getMedicineInfo(medicineName);
@@ -100,17 +91,6 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
                     });
                   } catch (e) {
                     // If Hugging Face info fails, just add medicine without info
-=======
-                  // Get info from Gemini for unavailable medicines
-                  try {
-                    final geminiInfo = await GeminiService.getMedicineInfo(medicineName);
-                    _unavailableMedicines.add({
-                      ...medicine,
-                      'geminiInfo': geminiInfo,
-                    });
-                  } catch (e) {
-                    // If Gemini info fails, just add medicine without info
->>>>>>> 91af75fd901f77c8a06ecd76f91853ace720124d
                     _unavailableMedicines.add(medicine);
                   }
                 }
@@ -125,7 +105,6 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
             _suggestedMedicines = medicines;
           });
         } catch (e) {
-<<<<<<< HEAD
           // If Hugging Face API fails, still allow upload but skip analysis
           final errorMsg = e.toString().toLowerCase();
           if (errorMsg.contains('timeout') || errorMsg.contains('connection')) {
@@ -134,16 +113,6 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Prescription uploaded. AI analysis failed - please check your internet connection.'),
-=======
-          // If Gemini API is not configured, still allow upload but skip analysis
-          final errorMsg = e.toString().toLowerCase();
-          if (errorMsg.contains('api key') || errorMsg.contains('not configured')) {
-            // API key missing - skip analysis but allow upload
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Prescription uploaded. AI analysis requires API key configuration.'),
->>>>>>> 91af75fd901f77c8a06ecd76f91853ace720124d
                   backgroundColor: Colors.orange,
                   duration: Duration(seconds: 3),
                 ),

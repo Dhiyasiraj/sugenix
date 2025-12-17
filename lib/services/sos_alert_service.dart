@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sugenix/services/platform_location_service.dart';
@@ -25,9 +24,7 @@ class SOSAlertService {
 
 *Location Details:*
 ${address != null ? 'Address: $address' : ''}
-${latitude != null && longitude != null 
-    ? 'GPS Coordinates: $latitude, $longitude\nView Location: https://maps.google.com/?q=$latitude,$longitude' 
-    : 'Location: Not available'}
+${latitude != null && longitude != null ? 'GPS Coordinates: $latitude, $longitude\nView Location: https://maps.google.com/?q=$latitude,$longitude' : 'Location: Not available'}
 
 *Recent Glucose Readings:*
 ''';
@@ -80,6 +77,66 @@ Please respond immediately! This is a critical health emergency.
     }
   }
 
+  // Get recent glucose readings for the current user
+  Future<List<Map<String, dynamic>>> _getRecentGlucoseReadings() async {
+    try {
+      if (_auth.currentUser == null) return [];
+
+      final userId = _auth.currentUser!.uid;
+
+      final snapshot = await _firestore
+          .collection('glucose_readings')
+          .where('userId', isEqualTo: userId)
+          .orderBy('timestamp', descending: true)
+          .limit(3)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        final timestamp = data['timestamp'] as Timestamp?;
+        return {
+          'value': data['value'] ?? 0,
+          'type': data['type'] ?? 'Unknown',
+          'timestamp': timestamp != null
+              ? timestamp.toDate().toString()
+              : DateTime.now().toString(),
+        };
+      }).toList();
+    } catch (e) {
+      print('Error fetching glucose readings: $e');
+      return [];
+    }
+  }
+
+  // Get emergency contacts for the current user
+  Future<List<Map<String, dynamic>>> _getEmergencyContacts() async {
+    try {
+      if (_auth.currentUser == null) return [];
+
+      final userId = _auth.currentUser!.uid;
+
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      final userData = userDoc.data();
+
+      final contacts = userData?['emergencyContacts'] as List? ?? [];
+
+      return contacts
+          .map((contact) {
+            if (contact is Map) {
+              return Map<String, dynamic>.from(contact);
+            }
+            return <String, dynamic>{};
+          })
+          .where((contact) =>
+              contact['phone'] != null &&
+              contact['phone'].toString().isNotEmpty)
+          .toList();
+    } catch (e) {
+      print('Error fetching emergency contacts: $e');
+      return [];
+    }
+  }
+
   // Send SOS alert to all emergency contacts
   Future<Map<String, dynamic>> triggerSOSAlert({
     String? customMessage,
@@ -99,27 +156,30 @@ Please respond immediately! This is a critical health emergency.
       // Get current location with proper permission handling
       Position? position;
       String? address;
-      
+
       try {
         // Request location permission first
-        final hasPermission = await PlatformLocationService.hasLocationPermission();
+        final hasPermission =
+            await PlatformLocationService.hasLocationPermission();
         if (!hasPermission) {
-          final granted = await PlatformLocationService.requestLocationPermission();
+          final granted =
+              await PlatformLocationService.requestLocationPermission();
           if (!granted) {
             // Permission denied, continue without location
-            print('Location permission denied - SOS will continue without location');
+            print(
+                'Location permission denied - SOS will continue without location');
           }
         }
-        
+
         // Get current location (works with GPS even without SIM card)
-        // Timeout after 8 seconds to not delay SOS too much
         try {
           position = await PlatformLocationService.getCurrentLocation();
         } catch (e) {
-          print('Location request failed: $e - SOS will continue without location');
+          print(
+              'Location request failed: $e - SOS will continue without location');
           position = null;
         }
-        
+
         if (position != null) {
           final pos = position; // Local variable
           try {
@@ -132,13 +192,16 @@ Please respond immediately! This is a critical health emergency.
           } catch (e) {
             print('Error getting address: $e');
             // Continue with coordinates only
-            address = 'Latitude: ${pos.latitude.toStringAsFixed(6)}, Longitude: ${pos.longitude.toStringAsFixed(6)}';
+            address =
+                'Latitude: ${pos.latitude.toStringAsFixed(6)}, Longitude: ${pos.longitude.toStringAsFixed(6)}';
           }
         } else {
-          print('Location not available - SOS will continue without location (this is OK, may be due to no SIM/WiFi)');
+          print(
+              'Location not available - SOS will continue without location (this is OK, may be due to no SIM/WiFi)');
         }
       } catch (e) {
-        print('Error getting location: $e - SOS will continue without location');
+        print(
+            'Error getting location: $e - SOS will continue without location');
         // Continue without location - SOS should still work
       }
 
@@ -159,104 +222,121 @@ Please respond immediately! This is a critical health emergency.
         latitude: position?.latitude,
         longitude: position?.longitude,
         recentReadings: glucoseReadings,
-=======
-import 'package:telephony/telephony.dart';
-import 'package:geolocator/geolocator.dart';
-import 'emergency_service.dart';
-
-class SOSAlertService {
-  final Telephony _telephony = Telephony.instance;
-  final EmergencyService _emergencyService = EmergencyService();
-
-  Future<Map<String, dynamic>> triggerSOSAlert() async {
-    try {
-      final contacts =
-          await _emergencyService.getEmergencyContacts().first;
-
-      if (contacts.isEmpty) {
-        return {
-          'success': false,
-          'error': 'No emergency contacts found'
-        };
-      }
-
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
->>>>>>> 91af75fd901f77c8a06ecd76f91853ace720124d
       );
 
-      final locationLink =
-          "https://www.google.com/maps?q=${position.latitude},${position.longitude}";
+      // Store SOS alert in Firestore
+      final alertDoc = await _firestore.collection('sos_alerts').add({
+        'userId': userId,
+        'userName': userName,
+        'timestamp': FieldValue.serverTimestamp(),
+        'location': position != null
+            ? {
+                'latitude': position.latitude,
+                'longitude': position.longitude,
+                'address': address,
+              }
+            : null,
+        'glucoseReadings': glucoseReadings,
+        'customMessage': customMessage,
+        'sosMessage': sosMessage,
+        'status': 'active',
+        'emergencyContactsCount': emergencyContacts.length,
+        'notificationStatus': {},
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
-      final message = '''
-🚨 SOS ALERT 🚨
-I need immediate help!
+      // Send WhatsApp messages to all emergency contacts
+      List<Map<String, dynamic>> notificationResults = [];
+      Map<String, dynamic> notificationStatus = {};
 
-📍 My location:
-$locationLink
-''';
+      for (final contact in emergencyContacts) {
+        final phoneNumber = contact['phone']?.toString() ?? '';
+        final contactName = contact['name']?.toString() ?? 'Emergency Contact';
 
-      int sentCount = 0;
-      List<Map<String, dynamic>> details = [];
-
-      for (var contact in contacts) {
-        final phone = contact['phone'];
-
-        try {
-          await _telephony.sendSms(
-            to: phone,
-            message: message,
+        if (phoneNumber.isNotEmpty) {
+          final success = await _sendSOSViaWhatsApp(
+            phoneNumber: phoneNumber,
+            message: sosMessage,
           );
 
-<<<<<<< HEAD
-          if (phoneNumber.isNotEmpty) {
-            final success = await _sendSOSViaWhatsApp(
-              phoneNumber: phoneNumber,
-              message: sosMessage,
-            );
-
-            notificationResults.add({
-              'contact': contactName,
-              'phone': phoneNumber,
-              'status': success ? 'sent' : 'failed',
-              'timestamp': DateTime.now().toIso8601String(),
-            });
-
-            notificationStatus[phoneNumber] = {
-              'name': contactName,
-              'status': success ? 'sent' : 'failed',
-              'timestamp': FieldValue.serverTimestamp(),
-            };
-          }
-        } catch (e) {
-          print('Error notifying ${contact['name']}: $e');
-=======
-          sentCount++;
-          details.add({
-            'contact': contact['name'],
-            'phone': phone,
-            'status': 'sent',
+          notificationResults.add({
+            'contact': contactName,
+            'phone': phoneNumber,
+            'status': success ? 'sent' : 'failed',
+            'timestamp': DateTime.now().toIso8601String(),
           });
-        } catch (_) {
-          details.add({
-            'contact': contact['name'],
-            'phone': phone,
-            'status': 'failed',
-          });
->>>>>>> 91af75fd901f77c8a06ecd76f91853ace720124d
+
+          notificationStatus[phoneNumber] = {
+            'name': contactName,
+            'status': success ? 'sent' : 'failed',
+            'timestamp': FieldValue.serverTimestamp(),
+          };
         }
       }
 
+      // Update alert with notification status
+      await alertDoc.update({
+        'notificationStatus': notificationStatus,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      final successCount =
+          notificationResults.where((r) => r['status'] == 'sent').length;
+
       return {
         'success': true,
-        'contactsNotified': sentCount,
-        'notificationDetails': details,
+        'contactsNotified': successCount,
+        'notificationDetails': notificationResults,
       };
     } catch (e) {
       return {
         'success': false,
         'error': e.toString(),
       };
+    }
+  }
+
+  // Get SOS alert history for the current user
+  Future<List<Map<String, dynamic>>> getSOSAlertHistory({
+    int limit = 10,
+  }) async {
+    try {
+      if (_auth.currentUser == null) return [];
+
+      final snapshot = await _firestore
+          .collection('sos_alerts')
+          .where('userId', isEqualTo: _auth.currentUser!.uid)
+          .orderBy('timestamp', descending: true)
+          .limit(limit)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'timestamp': data['timestamp'],
+          'status': data['status'],
+          'location': data['location'],
+          'contactsNotified': data['emergencyContactsCount'],
+          'glucoseReadings': data['glucoseReadings'],
+        };
+      }).toList();
+    } catch (e) {
+      print('Error fetching SOS history: $e');
+      return [];
+    }
+  }
+
+  // Cancel active SOS alert
+  Future<void> cancelSOSAlert({required String alertId}) async {
+    try {
+      await _firestore.collection('sos_alerts').doc(alertId).update({
+        'status': 'cancelled',
+        'cancelledAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Failed to cancel SOS alert: ${e.toString()}');
     }
   }
 }

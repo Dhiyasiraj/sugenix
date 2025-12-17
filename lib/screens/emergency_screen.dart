@@ -126,17 +126,16 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     final size = ResponsiveHelper.isMobile(context) ? 180.0 : 200.0;
 
     return GestureDetector(
-<<<<<<< HEAD
+
       onLongPress: () {
         if (!_isEmergencyActive) {
           _startEmergency();
         }
       },
-=======
       onTapDown: (_) => _startEmergency(),
       onTapUp: (_) => _cancelEmergency(),
       onTapCancel: _cancelEmergency,
->>>>>>> 91af75fd901f77c8a06ecd76f91853ace720124d
+
       child: Container(
         width: size,
         height: size,
@@ -237,11 +236,11 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
 
   void _startCountdown() {
     Future.delayed(const Duration(seconds: 1), () {
-<<<<<<< HEAD
+
       if (!mounted || !_isEmergencyActive) return;
-=======
+
       if (!_isEmergencyActive) return;
->>>>>>> 91af75fd901f77c8a06ecd76f91853ace720124d
+
 
       if (_countdown > 0) {
         setState(() => _countdown--);

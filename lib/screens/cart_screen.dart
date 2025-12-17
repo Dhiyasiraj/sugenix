@@ -317,86 +317,13 @@ class _CartScreenState extends State<CartScreen> {
         paymentMethod: 'razorpay',
         paymentId: result['payment_id'],
       );
-<<<<<<< HEAD
     } else {
       // Payment cancelled or failed
-=======
-      return;
-    }
-
-    if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email is required for payment')),
-      );
-      return;
-    }
-
-    if (phone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Phone number is required')),
-      );
-      return;
-    }
-
-    setState(() {
-      _processingPayment = true;
-    });
-
-    try {
-      await RazorpayService.openCheckout(
-        amount: amount,
-        name: name,
-        email: email,
-        phone: phone,
-        description: 'Medicine Order Payment - Sugenix',
-        notes: {
-          'order_type': 'medicine',
-          'user_id': _authService.currentUser?.uid ?? 'guest',
-          'is_guest': _isGuest.toString(),
-        },
-      );
-      // Payment dialog opened successfully, processingPayment will be set to false
-      // when payment completes (success or error)
-    } catch (e) {
-      setState(() {
-        _processingPayment = false;
-      });
->>>>>>> 91af75fd901f77c8a06ecd76f91853ace720124d
       if (mounted) {
-        String errorMessage = 'Failed to open payment';
-        final errorStr = e.toString().toLowerCase();
-
-        if (errorStr.contains('not configured') ||
-            errorStr.contains('rzp_test_your_key') ||
-            (errorStr.contains('razorpay') && errorStr.contains('key'))) {
-          errorMessage =
-              'Payment service not configured. Please configure Razorpay API key.\n'
-              'Get free test keys (no KYC) from: https://dashboard.razorpay.com/app/keys';
-        } else if (errorStr.contains('invalid') &&
-            errorStr.contains('format')) {
-          errorMessage =
-              'Invalid key format. Key should start with "rzp_test_" or "rzp_live_"';
-        } else if (errorStr.contains('email')) {
-          errorMessage = 'Invalid email format';
-        } else if (errorStr.contains('phone')) {
-          errorMessage = 'Invalid phone number format';
-        } else if (errorStr.contains('amount')) {
-          errorMessage = 'Invalid payment amount';
-        } else {
-          errorMessage = 'Failed to open payment. Please try again.';
-        }
-
         ScaffoldMessenger.of(context).showSnackBar(
-<<<<<<< HEAD
           const SnackBar(
             content: Text('Payment cancelled'),
             backgroundColor: Colors.orange,
-=======
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
->>>>>>> 91af75fd901f77c8a06ecd76f91853ace720124d
           ),
         );
       }
