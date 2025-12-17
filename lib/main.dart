@@ -112,6 +112,7 @@ class _SugenixAppState extends State<SugenixApp> {
           locale: localeNotifier.locale,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
+<<<<<<< HEAD
           theme: ThemeData(
             primarySwatch: Colors.teal,
             primaryColor: const Color(0xFF0C4556),
@@ -166,6 +167,60 @@ class _SugenixAppState extends State<SugenixApp> {
             '/prescription-upload': (context) =>
                 const PrescriptionUploadScreen(),
           },
+=======
+      theme: ThemeData(
+        primarySwatch: Colors.teal,
+        primaryColor: const Color(0xFF0C4556),
+        scaffoldBackgroundColor: Colors.white,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: Color(0xFF0C4556),
+          elevation: 0,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF0C4556),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.grey[100],
+        ),
+      ),
+      home: kIsWeb ? const WebLandingScreen() : const SplashScreen(),
+      routes: {
+        '/login': (context) => const Login(),
+        '/signup': (context) => const Signup(),
+        '/home': (context) => const HomeScreen(),
+        '/register-doctor': (context) => const DoctorRegistrationScreen(),
+        '/register-pharmacy': (context) => const PharmacyRegistrationScreen(),
+        // Note: Doctor details requires a Doctor object; navigate via MaterialPageRoute
+        '/medical-records': (context) => const MedicalRecordsScreen(),
+        '/medicine-orders': (context) => const MedicineOrdersScreen(),
+        '/medicine-catalog': (context) => const MedicineCatalogScreen(),
+        '/patient-dashboard': (context) => const PatientDashboardScreen(),
+        '/profile': (context) => const ProfileScreen(),
+        '/emergency': (context) => const EmergencyScreen(),
+        '/glucose-monitoring': (context) => const GlucoseMonitoringScreen(),
+        '/ai-assistant': (context) => const AIAssistantScreen(),
+        '/wellness': (context) => const WellnessScreen(),
+        '/medicine-scanner': (context) => const MedicineScannerScreen(),
+        '/appointments': (context) => const AppointmentsScreen(),
+        '/glucose-history': (context) => const GlucoseHistoryScreen(),
+        '/bluetooth-devices': (context) => const BluetoothDeviceScreen(),
+        '/emergency-contacts': (context) => const EmergencyContactsScreen(),
+        '/pharmacy-dashboard': (context) => const PharmacyDashboardScreen(),
+        '/prescription-upload': (context) => const PrescriptionUploadScreen(),
+        },
+>>>>>>> 91af75fd901f77c8a06ecd76f91853ace720124d
         );
       },
     );
