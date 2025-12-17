@@ -98,17 +98,10 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
     });
 
     try {
-<<<<<<< HEAD
       // Step 1: Scan medicine image using Hugging Face AI with text extraction
       Map<String, dynamic> scanResult;
       try {
         scanResult = await HuggingFaceService.scanMedicineImage(image.path);
-=======
-      // Step 1: Scan medicine image using Gemini Vision with text extraction
-      Map<String, dynamic> scanResult;
-      try {
-        scanResult = await GeminiService.scanMedicineImage(image.path);
->>>>>>> 91af75fd901f77c8a06ecd76f91853ace720124d
       } catch (e) {
         final errorMsg = e.toString().toLowerCase();
         if (errorMsg.contains('api key') || errorMsg.contains('not configured')) {
@@ -116,11 +109,7 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-<<<<<<< HEAD
                 content: Text('AI scanning requires API configuration. Please check your internet connection and try again.'),
-=======
-                content: Text('AI scanning requires API key configuration. Please configure Gemini API key to use this feature.'),
->>>>>>> 91af75fd901f77c8a06ecd76f91853ace720124d
                 backgroundColor: Colors.orange,
                 duration: Duration(seconds: 4),
               ),
