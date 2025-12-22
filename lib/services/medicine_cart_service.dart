@@ -265,7 +265,8 @@ class MedicineCartService {
       'platformFee': platformFee,
       'pharmacyAmount': pharmacyAmount,
       'total': total,
-      'address': address,
+      'items': processedItems, // Store items in main document for easier access
+      'shippingAddress': address,
       'paymentMethod': paymentMethod,
       'paymentStatus': paymentMethod == 'Razorpay' ? 'paid' : 'pending',
       'createdAt': FieldValue.serverTimestamp(),
@@ -314,5 +315,3 @@ class MedicineCartService {
     return orderRef.id;
   }
 }
-
-

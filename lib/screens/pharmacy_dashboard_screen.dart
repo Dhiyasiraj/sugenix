@@ -164,7 +164,7 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
             labelColor: Color(0xFF0C4556),
             tabs: [
               Tab(text: 'Add Medicine'),
-              Tab(text: 'My Medicines'),
+              Tab(text: 'Inventory'),
             ],
           ),
         ),

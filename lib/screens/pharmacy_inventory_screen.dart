@@ -41,9 +41,60 @@ class PharmacyInventoryScreen extends StatelessWidget {
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Text('No medicines in inventory',
-                  style: TextStyle(color: Colors.grey)),
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0C4556).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.inventory_2_outlined,
+                      size: 60,
+                      color: Color(0xFF0C4556),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'No medicines in inventory',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0C4556),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Start by adding your first medicine to the inventory',
+                    style: TextStyle(color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PharmacyAddMedicineForm(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add First Medicine'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0C4556),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             );
           }
 

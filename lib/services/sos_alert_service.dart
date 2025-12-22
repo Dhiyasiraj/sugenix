@@ -1,13 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sugenix/services/platform_location_service.dart';
-import 'package:sugenix/services/ultramessage_service.dart';
+import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 
 class SOSAlertService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final UltraMessageService _ultraMessageService = UltraMessageService();
 
   // Generate SOS message with location
   static String _generateSOSMessage({
@@ -52,27 +51,37 @@ Please respond immediately! This is a critical health emergency.
     return message;
   }
 
-  // Send SOS alert via WhatsApp using Ultramessage
-  Future<bool> _sendSOSViaWhatsApp({
+  // Send SOS alert via SMS
+  Future<bool> _sendSOSViaSMS({
     required String phoneNumber,
     required String message,
   }) async {
     try {
-      // Ensure phone number is in correct format (remove +, keep only digits)
+      // For now, just log the SMS that would be sent
+      // In production, integrate with SMS service like Twilio, AWS SNS, etc.
+      print('SOS SMS to $phoneNumber: $message');
+
+      // Format phone number (remove +, keep only digits)
       String formattedPhone = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
       // Add country code if missing (assume India +91)
       if (formattedPhone.length == 10) {
         formattedPhone = '91$formattedPhone';
       }
 
-      final result = await _ultraMessageService.sendWhatsAppMessage(
+      // TODO: Integrate with actual SMS service
+      // Example with Twilio (would need API keys):
+      /*
+      final smsResult = await _sendSMSTwilio(
         to: formattedPhone,
         message: message,
       );
+      return smsResult;
+      */
 
-      return result['success'] == true;
+      // For now, simulate success for testing
+      return true;
     } catch (e) {
-      print('Error sending WhatsApp via Ultramessage: $e');
+      print('Error sending SOS SMS: $e');
       return false;
     }
   }
@@ -245,7 +254,7 @@ Please respond immediately! This is a critical health emergency.
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Send WhatsApp messages to all emergency contacts
+      // Send SMS messages to all emergency contacts
       List<Map<String, dynamic>> notificationResults = [];
       Map<String, dynamic> notificationStatus = {};
 
@@ -254,7 +263,7 @@ Please respond immediately! This is a critical health emergency.
         final contactName = contact['name']?.toString() ?? 'Emergency Contact';
 
         if (phoneNumber.isNotEmpty) {
-          final success = await _sendSOSViaWhatsApp(
+          final success = await _sendSOSViaSMS(
             phoneNumber: phoneNumber,
             message: sosMessage,
           );

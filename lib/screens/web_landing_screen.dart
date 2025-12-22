@@ -45,7 +45,8 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
       final password = _passwordController.text;
 
       // Check if credentials match an admin account
-      final isAdmin = await _adminService.verifyAdminCredentials(email, password);
+      final isAdmin =
+          await _adminService.verifyAdminCredentials(email, password);
 
       if (isAdmin) {
         // Admin login
@@ -57,7 +58,8 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
         if (mounted) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+            MaterialPageRoute(
+                builder: (context) => const MainNavigationScreen()),
           );
         }
         return;
@@ -93,7 +95,8 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
         if (mounted) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+            MaterialPageRoute(
+                builder: (context) => const MainNavigationScreen()),
           );
         }
         return;
@@ -136,7 +139,8 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
               if (isWide) Expanded(child: _buildHero()),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -165,15 +169,30 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF0C4556),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.medical_services,
                 color: Colors.white,
-                size: 32,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Image.asset(
+                'assets/logo.png',
+                width: 40,
+                height: 40,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(
+                    Icons.medical_services,
+                    color: Color(0xFF0C4556),
+                    size: 32,
+                  );
+                },
               ),
             ),
             const SizedBox(width: 16),
@@ -475,7 +494,8 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
                           color: const Color(0xFF0C4556).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(item.$1, color: const Color(0xFF0C4556), size: 28),
+                        child: Icon(item.$1,
+                            color: const Color(0xFF0C4556), size: 28),
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -531,10 +551,18 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
                 color: Colors.white.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Icon(
-                Icons.medical_services,
-                color: Colors.white,
-                size: 64,
+              child: Image.asset(
+                'assets/logo.png',
+                width: 64,
+                height: 64,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(
+                    Icons.medical_services,
+                    color: Colors.white,
+                    size: 64,
+                  );
+                },
               ),
             ),
             const SizedBox(height: 40),
@@ -595,4 +623,3 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
     );
   }
 }
-
