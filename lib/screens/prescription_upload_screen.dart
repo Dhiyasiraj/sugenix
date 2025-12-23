@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sugenix/services/medicine_orders_service.dart';
 import 'package:sugenix/services/huggingface_service.dart';
+import 'package:sugenix/services/gemini_service.dart';
 import 'package:sugenix/services/medicine_database_service.dart';
 import 'package:sugenix/screens/medicine_catalog_screen.dart';
 
@@ -64,50 +65,107 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
       // Step 1: Upload prescription
       final id = await _ordersService.uploadPrescription(_selectedImages);
       
-      // Step 2: Analyze prescription using Hugging Face AI
+      // Step 2: Analyze prescription using AI (Hugging Face first, then Gemini fallback)
       if (_selectedImages.isNotEmpty) {
         try {
-          final extractedText = await HuggingFaceService.extractTextFromImage(_selectedImages.first);
-          final medicines = await HuggingFaceService.analyzePrescription(extractedText);
-          
-          // Step 3: Check availability in pharmacy
-          for (var medicine in medicines) {
-            final medicineName = medicine['name'] ?? '';
-            if (medicineName.isNotEmpty) {
+          String extractedText = '';
+          List<Map<String, dynamic>> medicines = [];
+
+          // Try Hugging Face first
+          try {
+            extractedText = await HuggingFaceService.extractTextFromImage(_selectedImages.first);
+            medicines = await HuggingFaceService.analyzePrescription(extractedText);
+          } catch (hfError) {
+            final errorMsg = hfError.toString().toLowerCase();
+            // If HF fails due to API/config issues, try Gemini fallback
+            if (errorMsg.contains('401') ||
+                errorMsg.contains('api key') ||
+                errorMsg.contains('not configured') ||
+                errorMsg.contains('failed to extract text') ||
+                errorMsg.contains('all ocr methods failed')) {
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Using alternative AI service for prescription analysis...'),
+                    backgroundColor: Colors.blue,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+
+              // Use Gemini's vision to extract text then analyze prescription
               try {
-                final pharmacyMedicines = await _medicineService.searchMedicines(medicineName);
-                if (pharmacyMedicines.isNotEmpty) {
-                  _availableMedicines.add({
-                    ...medicine,
-                    'pharmacyData': pharmacyMedicines.first,
-                  });
-                } else {
-                  // Get info from Hugging Face for unavailable medicines
-                  try {
-                    final hfInfo = await HuggingFaceService.getMedicineInfo(medicineName);
-                    _unavailableMedicines.add({
-                      ...medicine,
-                      'geminiInfo': hfInfo, // Keep key name for compatibility
-                    });
-                  } catch (e) {
-                    // If Hugging Face info fails, just add medicine without info
-                    _unavailableMedicines.add(medicine);
-                  }
+                extractedText = await GeminiService.extractTextFromImage(_selectedImages.first);
+                medicines = await GeminiService.analyzePrescription(extractedText);
+              } catch (geminiError) {
+                // If both AI services fail, skip analysis but allow upload
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Prescription uploaded. AI analysis failed - both services unavailable.'),
+                      backgroundColor: Colors.orange,
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
                 }
-              } catch (e) {
-                // If search fails, mark as unavailable
-                _unavailableMedicines.add(medicine);
+                medicines = []; // Empty list to skip further processing
+              }
+            } else {
+              // Other HF error - rethrow
+              rethrow;
+            }
+          }
+
+          // Step 3: Check availability in pharmacy (only if we have medicines)
+          if (medicines.isNotEmpty) {
+            for (var medicine in medicines) {
+              final medicineName = medicine['name'] ?? '';
+              if (medicineName.isNotEmpty) {
+                try {
+                  final pharmacyMedicines = await _medicineService.searchMedicines(medicineName);
+                  if (pharmacyMedicines.isNotEmpty) {
+                    _availableMedicines.add({
+                      ...medicine,
+                      'pharmacyData': pharmacyMedicines.first,
+                    });
+                  } else {
+                    // Get info from AI for unavailable medicines (try HF first, then Gemini)
+                    try {
+                      final medicineInfo = await HuggingFaceService.getMedicineInfo(medicineName);
+                      _unavailableMedicines.add({
+                        ...medicine,
+                        'geminiInfo': medicineInfo, // Keep key name for compatibility
+                      });
+                    } catch (hfInfoError) {
+                      // Try Gemini as fallback for medicine info
+                      try {
+                        final geminiInfo = await GeminiService.getMedicineInfo(medicineName);
+                        _unavailableMedicines.add({
+                          ...medicine,
+                          'geminiInfo': geminiInfo,
+                        });
+                      } catch (geminiInfoError) {
+                        // If both info services fail, just add medicine without info
+                        _unavailableMedicines.add(medicine);
+                      }
+                    }
+                  }
+                } catch (e) {
+                  // If search fails, mark as unavailable
+                  _unavailableMedicines.add(medicine);
+                }
               }
             }
           }
-          
+
           setState(() {
             _suggestedMedicines = medicines;
           });
         } catch (e) {
-          // If Hugging Face API fails, still allow upload but skip analysis
+          // If all AI services fail, still allow upload but skip analysis
           final errorMsg = e.toString().toLowerCase();
-          if (errorMsg.contains('timeout') || errorMsg.contains('connection')) {
+          if (errorMsg.contains('timeout') || errorMsg.contains('connection') || errorMsg.contains('network')) {
             // Network error - skip analysis but allow upload
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -514,5 +572,3 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
     );
   }
 }
-
-

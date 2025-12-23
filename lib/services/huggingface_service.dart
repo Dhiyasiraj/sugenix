@@ -10,13 +10,15 @@ class HuggingFaceService {
   // Hugging Face API base URL
   static const String _baseUrl = 'https://api-inference.huggingface.co/models';
 
-  // Models for different tasks
+  // Models for different tasks - Using working models on Hugging Face Inference API
   static const String _ocrModel =
-      'microsoft/trocr-base-printed'; // OCR for printed text
+      'microsoft/trocr-base-printed'; // Primary OCR model
+  static const String _fallbackOcrModel =
+      'jinhybr/OCR-Donut-CORD'; // Fallback OCR model
   static const String _visionModel =
-      'Salesforce/blip-image-captioning-base'; // Image understanding
+      'nlpconnect/vit-gpt2-image-captioning'; // Alternative vision model
   static const String _textModel =
-      'mistralai/Mistral-7B-Instruct-v0.2'; // Text analysis
+      'mistralai/Mistral-7B-Instruct-v0.1'; // Text analysis (using v0.1 as fallback)
 
   // Optional: API token for higher rate limits (free tier works without it)
   // Get from: https://huggingface.co/settings/tokens
@@ -73,48 +75,94 @@ class HuggingFaceService {
   static Future<String> extractTextFromImage(XFile imageFile) async {
     try {
       final bytes = await imageFile.readAsBytes();
+      final base64Image = base64Encode(bytes);
 
       final token = await _getEffectiveApiToken();
-      final headers = <String, String>{};
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+      };
       if (token.isNotEmpty) {
         headers['Authorization'] = 'Bearer $token';
       }
 
-      // Use OCR model for text extraction
-      // Hugging Face Inference API expects raw image bytes
-      final url = Uri.parse('$_baseUrl/$_ocrModel');
+      // Try primary OCR model first
+      String extractedText = '';
+      bool success = false;
 
-      final response = await http
-          .post(
-            url,
-            headers: headers,
-            body: bytes, // Send raw image bytes
-          )
-          .timeout(const Duration(seconds: 30));
+      // Attempt 1: Primary OCR model with JSON payload
+      try {
+        final url = Uri.parse('$_baseUrl/$_ocrModel');
+        final response = await http.post(
+          url,
+          headers: headers,
+          body: jsonEncode({
+            'inputs': [
+              {
+                'data': 'data:image/jpeg;base64,$base64Image',
+              }
+            ],
+          }),
+        ).timeout(const Duration(seconds: 30));
 
-      if (response.statusCode == 401) {
-        throw Exception('API key required. Please configure HuggingFace API token in app settings or contact support.');
-      } else if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        // OCR model returns text directly or in a structure
-        if (data is String) {
-          return data;
-        } else if (data is Map && data['generated_text'] != null) {
-          return data['generated_text'] as String;
-        } else if (data is List && data.isNotEmpty) {
-          final first = data[0];
-          if (first is Map && first['generated_text'] != null) {
-            return first['generated_text'] as String;
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          if (data is List && data.isNotEmpty) {
+            final first = data[0];
+            if (first is Map && first['generated_text'] != null) {
+              extractedText = first['generated_text'] as String;
+              success = true;
+            }
           }
         }
-        return data.toString();
-      } else if (response.statusCode == 503) {
-        // Model is loading, wait and retry
-        await Future.delayed(const Duration(seconds: 5));
-        return await extractTextFromImage(imageFile);
+      } catch (e) {
+        // Primary model failed, try fallback
+      }
+
+      // Attempt 2: Fallback OCR model if primary failed
+      if (!success) {
+        try {
+          final url = Uri.parse('$_baseUrl/$_fallbackOcrModel');
+          final response = await http.post(
+            url,
+            headers: headers,
+            body: jsonEncode({
+              'inputs': [
+                {
+                  'data': 'data:image/jpeg;base64,$base64Image',
+                }
+              ],
+            }),
+          ).timeout(const Duration(seconds: 30));
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            if (data is List && data.isNotEmpty) {
+              final first = data[0];
+              if (first is Map && first['generated_text'] != null) {
+                extractedText = first['generated_text'] as String;
+                success = true;
+              }
+            }
+          }
+        } catch (e) {
+          // Fallback model also failed
+        }
+      }
+
+      // Attempt 3: Vision model as last resort
+      if (!success) {
+        try {
+          extractedText = await _analyzeImageWithVision(imageFile);
+          success = true;
+        } catch (e) {
+          // All methods failed
+        }
+      }
+
+      if (success && extractedText.isNotEmpty) {
+        return extractedText;
       } else {
-        throw Exception(
-            'Failed to extract text: ${response.statusCode} - ${response.body}');
+        throw Exception('All OCR methods failed to extract text from image');
       }
     } catch (e) {
       if (e.toString().contains('timeout')) {
@@ -384,22 +432,28 @@ IMPORTANT: Provide detailed, comprehensive information about USES and SIDE EFFEC
   static Future<String> _analyzeImageWithVision(XFile imageFile) async {
     try {
       final bytes = await imageFile.readAsBytes();
+      final base64Image = base64Encode(bytes);
 
       final token = await _getEffectiveApiToken();
-      final headers = <String, String>{};
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+      };
       if (token.isNotEmpty) {
         headers['Authorization'] = 'Bearer $token';
       }
 
       final url = Uri.parse('$_baseUrl/$_visionModel');
 
-      final response = await http
-          .post(
-            url,
-            headers: headers,
-            body: bytes, // Send raw image bytes
-          )
-          .timeout(const Duration(seconds: 30));
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: jsonEncode({
+          'inputs': 'Describe this medicine packaging image in detail, focusing on any text, labels, or important information visible:',
+          'parameters': {
+            'images': ['data:image/jpeg;base64,$base64Image'],
+          },
+        }),
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -416,7 +470,7 @@ IMPORTANT: Provide detailed, comprehensive information about USES and SIDE EFFEC
         await Future.delayed(const Duration(seconds: 5));
         return await _analyzeImageWithVision(imageFile);
       } else {
-        throw Exception('Failed to analyze image: ${response.statusCode}');
+        throw Exception('Failed to analyze image: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       throw Exception('Error analyzing image: ${e.toString()}');
