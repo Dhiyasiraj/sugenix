@@ -20,19 +20,15 @@ class PharmacyOrdersScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const TranslatedAppBarTitle('medicine', fallback: 'Orders'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
-          onPressed: () => Navigator.pop(context),
-        ),
+        title: const TranslatedAppBarTitle('orders', fallback: 'Orders'),
+        automaticallyImplyLeading: false,
       ),
       backgroundColor: const Color(0xFFF5F6F8),
       body: StreamBuilder<QuerySnapshot>(
-        // Query all orders and filter client-side so pharmacies can see
-        // orders assigned to them and unassigned (pending) orders to claim.
+        // Query orders assigned to this pharmacy
         stream: FirebaseFirestore.instance
             .collection('orders')
-            .orderBy('createdAt', descending: true)
+            .where('pharmacyId', isEqualTo: userId)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -40,19 +36,52 @@ class PharmacyOrdersScreen extends StatelessWidget {
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child:
-                  Text('No orders yet', style: TextStyle(color: Colors.grey)),
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(40),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0C4556).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.shopping_bag_outlined,
+                        size: 60,
+                        color: Color(0xFF0C4556),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'No Orders Yet',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0C4556),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Orders will appear here when customers place orders',
+                      style: TextStyle(color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
             );
           }
-
-          // Filter orders: assigned to this pharmacy OR pending/unassigned
-          final orders = snapshot.data!.docs.where((doc) {
-            final order = doc.data() as Map<String, dynamic>;
-            final assigned = order['pharmacyId'] as String?;
-            final status = (order['status'] as String?) ?? 'pending';
-            return assigned == userId || status == 'pending';
-          }).toList();
+          final orders = snapshot.data!.docs;
+          orders.sort((a, b) {
+            final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+            final bTime = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+            if (aTime == null || bTime == null) return 0;
+            return bTime.compareTo(aTime); // descending order
+          });
 
           if (orders.isEmpty) {
             return const Center(
@@ -112,37 +141,45 @@ class PharmacyOrdersScreen extends StatelessWidget {
                         ),
                     ],
                   ),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(status).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          status.toUpperCase(),
-                          style: TextStyle(
-                            color: _getStatusColor(status),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                  trailing: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 56),
+                    child: FittedBox(
+                      alignment: Alignment.center,
+                      fit: BoxFit.scaleDown,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(status).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              status.toUpperCase(),
+                              style: TextStyle(
+                                color: _getStatusColor(status),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '₹${total.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Color(0xFF0C4556),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '₹${total.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: Color(0xFF0C4556),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                   children: [
                     Padding(

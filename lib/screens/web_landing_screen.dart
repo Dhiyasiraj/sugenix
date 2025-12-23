@@ -182,7 +182,7 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
                 ],
               ),
               child: Image.asset(
-                'assets/logo.png',
+                'assets/icon/logo.png',
                 width: 40,
                 height: 40,
                 fit: BoxFit.contain,
@@ -539,12 +539,16 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
           stops: [0.0, 0.5, 1.0],
         ),
       ),
-      child: Container(
-        padding: const EdgeInsets.all(64),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: SingleChildScrollView(
+        child: Container(
+          padding: const EdgeInsets.all(64),
+          constraints: BoxConstraints(
+            minHeight: MediaQuery.of(context).size.height,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -552,7 +556,7 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Image.asset(
-                'assets/logo.png',
+                'assets/icon/logo.png',
                 width: 64,
                 height: 64,
                 fit: BoxFit.contain,
@@ -594,7 +598,7 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
             ),
           ],
         ),
-      ),
+      ),),
     );
   }
 

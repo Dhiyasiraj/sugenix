@@ -92,7 +92,9 @@ class HuggingFaceService {
           )
           .timeout(const Duration(seconds: 30));
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 401) {
+        throw Exception('API key required. Please configure HuggingFace API token in app settings or contact support.');
+      } else if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         // OCR model returns text directly or in a structure
         if (data is String) {

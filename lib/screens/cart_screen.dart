@@ -764,7 +764,7 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                       const SizedBox(height: 24),
                       const Text(
-                        'Booking Completed',
+                        'Order Placed Successfully',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -773,7 +773,7 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Successfully!',
+                        'Your order has been placed successfully.',
                         style: TextStyle(
                           fontSize: 18,
                           color: Colors.green,

@@ -23,17 +23,14 @@ class PharmacyInventoryScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         title: const TranslatedAppBarTitle('medicine', fallback: 'Inventory'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF0C4556)),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
       ),
       backgroundColor: const Color(0xFFF5F6F8),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('medicines')
             .where('pharmacyId', isEqualTo: userId)
-            .orderBy('createdAt', descending: true)
+
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {

@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class GeminiService {
   // Default Gemini API key. For production, keep this empty and store key in
-  // Firestore at: app_config/gemini (field: apiKey)
+  // Firestore at: app_config/gemini (field: apiKey) 
   // IMPORTANT: Get your API key from https://makersuite.google.com/app/apikey
   static const String _apiKey = 'AIzaSyAPQr6I9Q1dIC6_Q-L3I3xlULH5sE3fYfs';
   static const String _baseUrl =

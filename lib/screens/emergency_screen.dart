@@ -126,16 +126,11 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     final size = ResponsiveHelper.isMobile(context) ? 180.0 : 200.0;
 
     return GestureDetector(
-
       onLongPress: () {
         if (!_isEmergencyActive) {
           _startEmergency();
         }
       },
-      onTapDown: (_) => _startEmergency(),
-      onTapUp: (_) => _cancelEmergency(),
-      onTapCancel: _cancelEmergency,
-
       child: Container(
         width: size,
         height: size,

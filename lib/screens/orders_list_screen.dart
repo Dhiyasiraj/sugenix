@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sugenix/services/medicine_orders_service.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'order_details_screen.dart';
 
 class OrdersListScreen extends StatelessWidget {
@@ -58,7 +59,9 @@ class OrdersListScreen extends StatelessWidget {
               final order = orders[index];
               final createdAt = order['createdAt'];
               DateTime? created;
-              if (createdAt is DateTime) {
+              if (createdAt is Timestamp) {
+                created = createdAt.toDate();
+              } else if (createdAt is DateTime) {
                 created = createdAt;
               } else if (createdAt is String) {
                 created = DateTime.tryParse(createdAt);
@@ -71,7 +74,7 @@ class OrdersListScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => OrderDetailsScreen(orderId: order['id'] as String),
+                      builder: (_) => OrderDetailsScreen(orderId: (order['id'] ?? '').toString()),
                     ),
                   );
                 },
@@ -109,10 +112,16 @@ class OrdersListScreen extends StatelessWidget {
                       created != null ? DateFormat('MMM dd, yyyy • hh:mm a').format(created) : '',
                       style: const TextStyle(color: Colors.grey),
                     ),
-                    trailing: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
+                    trailing: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 56),
+                      child: FittedBox(
+                        alignment: Alignment.center,
+                        fit: BoxFit.scaleDown,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
                         Text(
                           '₹${total.toStringAsFixed(2)}',
                           style: const TextStyle(
@@ -136,10 +145,11 @@ class OrdersListScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                ),)
               );
             },
           );

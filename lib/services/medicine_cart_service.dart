@@ -238,13 +238,39 @@ class MedicineCartService {
       return {'id': data['id'] ?? data['medicineId'], ...data};
     }).toList();
 
-    // Get pharmacy ID from first item (if available)
+    // Get pharmacy ID from first item (if available). If not present, try looking up
+    // medicine documents for ownership fields like `pharmacyId`, `pharmacy` or `owner`.
     String? pharmacyId;
     if (processedItems.isNotEmpty) {
-      // Try to get pharmacyId from medicine data
       final firstItem = processedItems.first;
       if (firstItem.containsKey('pharmacyId')) {
         pharmacyId = firstItem['pharmacyId'] as String?;
+      }
+    }
+
+    if (pharmacyId == null) {
+      for (final item in processedItems) {
+        final medId = (item['medicineId'] as String?) ?? (item['id'] as String?);
+        if (medId == null || medId.isEmpty) continue;
+        try {
+          final medDoc = await _db.collection('medicines').doc(medId).get();
+          if (!medDoc.exists) continue;
+          final mdata = medDoc.data() as Map<String, dynamic>;
+          if (mdata.containsKey('pharmacyId') && mdata['pharmacyId'] != null) {
+            pharmacyId = mdata['pharmacyId'] as String?;
+            break;
+          }
+          if (mdata.containsKey('pharmacy') && mdata['pharmacy'] != null) {
+            pharmacyId = mdata['pharmacy'] as String?;
+            break;
+          }
+          if (mdata.containsKey('owner') && mdata['owner'] != null) {
+            pharmacyId = mdata['owner'] as String?;
+            break;
+          }
+        } catch (e) {
+          // ignore lookup errors
+        }
       }
     }
 

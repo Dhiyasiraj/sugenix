@@ -149,38 +149,23 @@ class _PharmacyDashboardScreenState extends State<PharmacyDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text(
-            'Pharmacy Dashboard',
-            style: TextStyle(
-                color: Color(0xFF0C4556), fontWeight: FontWeight.bold),
-          ),
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF0C4556),
-          bottom: const TabBar(
-            labelColor: Color(0xFF0C4556),
-            tabs: [
-              Tab(text: 'Add Medicine'),
-              Tab(text: 'Inventory'),
-            ],
-          ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Pharmacy Dashboard',
+          style: TextStyle(
+              color: Color(0xFF0C4556), fontWeight: FontWeight.bold),
         ),
-        body: Column(
-          children: [
-            _buildStatsCards(),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _buildInteractiveAddPanel(),
-                  _buildMedicinesList(),
-                ],
-              ),
-            ),
-          ],
-        ),
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF0C4556),
+      ),
+      body: Column(
+        children: [
+          _buildStatsCards(),
+          Expanded(
+            child: _buildInteractiveAddPanel(),
+          ),
+        ],
       ),
     );
   }

@@ -7,6 +7,7 @@ import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/screens/prescription_upload_screen.dart';
 import 'package:sugenix/screens/orders_list_screen.dart';
 import 'package:sugenix/screens/medicine_catalog_screen.dart';
+import 'package:sugenix/screens/patient_order_history_screen.dart';
 
 class MedicineOrdersScreen extends StatefulWidget {
   const MedicineOrdersScreen({super.key});
@@ -63,10 +64,16 @@ class _MedicineOrdersScreenState extends State<MedicineOrdersScreen> {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: Colors.grey),
             ),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
+            trailing: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 56),
+              child: FittedBox(
+                alignment: Alignment.center,
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
                 Text('₹${price.toStringAsFixed(2)}',
                     style: const TextStyle(
                         fontWeight: FontWeight.w600, color: Color(0xFF0C4556))),
@@ -106,8 +113,8 @@ class _MedicineOrdersScreenState extends State<MedicineOrdersScreen> {
                 ),
               ],
             ),
-          ),
-        );
+          ),),
+        ));
       },
     );
   }
@@ -211,7 +218,11 @@ class _MedicineOrdersScreenState extends State<MedicineOrdersScreen> {
         "icon": Icons.description,
         "color": Colors.green,
       },
-      
+      {
+        "title": "Order history",
+        "icon": Icons.history,
+        "color": Colors.orange,
+      },
       {"title": "Help & Support", "icon": Icons.help, "color": Colors.teal},
     ];
 
@@ -298,7 +309,7 @@ class _MedicineOrdersScreenState extends State<MedicineOrdersScreen> {
         Navigator.push(context, MaterialPageRoute(builder: (_) => OrdersListScreen()));
         break;
       case "Order history":
-        Navigator.push(context, MaterialPageRoute(builder: (_) => OrdersListScreen()));
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const PatientOrderHistoryScreen()));
         break;
       case "Help & Support":
         _showHelpSupportDialog(context);

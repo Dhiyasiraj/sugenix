@@ -177,7 +177,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                     ],
                   ),
                   child: Image.asset(
-                    'assets/logo.png',
+                    'assets/icon/logo.png',
                     width: 32,
                     height: 32,
                     fit: BoxFit.contain,

@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:sugenix/services/platform_image_service.dart';
 import 'package:sugenix/services/medicine_database_service.dart';
 import 'package:sugenix/services/huggingface_service.dart';
+import 'package:sugenix/services/gemini_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/services/medicine_cart_service.dart';
@@ -96,109 +97,106 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
       _medicineFoundInPharmacy = false;
       _pharmacyMedicine = null;
     });
-
     try {
-      // Step 1: Scan medicine image using Hugging Face AI with text extraction
-      Map<String, dynamic> scanResult;
+      // Try Hugging Face first
+      Map<String, dynamic>? scanResult;
+      bool usedGemini = false;
+
       try {
         scanResult = await HuggingFaceService.scanMedicineImage(image.path);
+        if (scanResult == null || scanResult['success'] != true) {
+          throw Exception('Hugging Face scan failed');
+        }
       } catch (e) {
         final errorMsg = e.toString().toLowerCase();
-        if (errorMsg.contains('api key') || errorMsg.contains('not configured')) {
-          // API key missing - show user-friendly message
+        // If HF fails due to API/config issues, try Gemini fallback
+        if (errorMsg.contains('401') ||
+            errorMsg.contains('api key') ||
+            errorMsg.contains('not configured')) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('AI scanning requires API configuration. Please check your internet connection and try again.'),
-                backgroundColor: Colors.orange,
-                duration: Duration(seconds: 4),
+                content: Text('Using alternative AI service...'),
+                backgroundColor: Colors.blue,
+                duration: Duration(seconds: 2),
               ),
             );
           }
-          setState(() {
-            _isProcessing = false;
-          });
-          return;
-        }
-        rethrow;
-      }
-      
-      final rawText = scanResult['rawText'] as String? ?? '';
 
-      if (!scanResult['success']) {
-        throw Exception(scanResult['error'] ?? 'Failed to scan medicine');
-      }
-
-      final parsed = Map<String, dynamic>.from(scanResult['parsed'] ?? {});
-      String medicineName = parsed['medicineName'] ?? '';
-      String usesText = parsed['uses'] ?? '';
-      String sideEffectsText = parsed['sideEffects'] ?? '';
-
-      // Fallback: if uses or side effects are missing, re-analyze extracted text
-      if (rawText.isNotEmpty &&
-          (_isValueUnavailable(usesText) || _isValueUnavailable(sideEffectsText))) {
-        final analysis = await HuggingFaceService.analyzeMedicineText(rawText);
-        if (analysis['success'] == true) {
-          final extraParsed = Map<String, dynamic>.from(analysis['parsed'] ?? {});
-          usesText = _isValueUnavailable(usesText)
-              ? (extraParsed['uses'] ?? usesText)
-              : usesText;
-          sideEffectsText = _isValueUnavailable(sideEffectsText)
-              ? (extraParsed['sideEffects'] ?? sideEffectsText)
-              : sideEffectsText;
+          // Use Gemini's vision to extract text then ask Gemini to parse details
+          final extractedText = await GeminiService.extractTextFromImage(image);
+          final geminiInfo = await GeminiService.getMedicineInfo(extractedText);
+          usedGemini = true;
+          scanResult = {
+            'success': true,
+            'rawText': extractedText ?? '',
+            'parsed': {
+              'medicineName': geminiInfo['name'] ?? '',
+              'uses': geminiInfo['uses'] ?? '',
+              'sideEffects': geminiInfo['sideEffects'] ?? '',
+              'ingredients': geminiInfo['activeIngredient'] ?? geminiInfo['ingredients'] ?? '',
+            },
+          };
+        } else {
+          rethrow;
         }
       }
+
+      final parsed = (scanResult?['parsed'] ?? {}) as Map<String, dynamic>;
+      final medicineName = (parsed['medicineName'] ?? '').toString().trim();
+      final usesText = parsed['uses'] is List
+          ? (parsed['uses'] as List).join('\n')
+          : (parsed['uses']?.toString() ?? '');
+      final sideEffectsText = parsed['sideEffects'] is List
+          ? (parsed['sideEffects'] as List).join('\n')
+          : (parsed['sideEffects']?.toString() ?? '');
 
       final List<String> usesList = _normalizeList(usesText);
       final List<String> sideEffectsList = _normalizeList(sideEffectsText);
 
-      if (medicineName.isEmpty || medicineName == 'Not available') {
+      if (medicineName.isEmpty) {
         throw Exception('Could not identify medicine name from image');
       }
 
-      // Step 2: Check if medicine exists in pharmacy database
+      // Check pharmacy database for the medicine
       List<Map<String, dynamic>> pharmacyMedicines = [];
       try {
-        pharmacyMedicines =
-            await _medicineService.searchMedicines(medicineName);
-      } catch (e) {
-        // Continue even if search fails
+        pharmacyMedicines = await _medicineService.searchMedicines(medicineName);
+      } catch (_) {
+        // ignore search errors and continue with parsed data
       }
 
-      // Step 3: If found in pharmacy, use pharmacy data; otherwise use Hugging Face data
       Map<String, dynamic> medicineData;
       if (pharmacyMedicines.isNotEmpty) {
         _medicineFoundInPharmacy = true;
         _pharmacyMedicine = pharmacyMedicines.first;
+        final pm = pharmacyMedicines.first;
+        double price = 0.0;
+        try {
+          price = double.tryParse(pm['price']?.toString() ?? '') ?? 0.0;
+        } catch (_) {
+          price = 0.0;
+        }
+
         medicineData = {
-          'name': pharmacyMedicines.first['name'] ?? medicineName,
-          'manufacturer': pharmacyMedicines.first['manufacturer'] ??
-              parsed['medicineName'] ??
-              '',
-          'type': pharmacyMedicines.first['type'] ?? 'Medicine',
-          'activeIngredient': pharmacyMedicines.first['activeIngredient'] ??
-              parsed['ingredients'] ??
-              '',
-          'strength': pharmacyMedicines.first['strength'] ?? '',
-          'form': pharmacyMedicines.first['form'] ?? '',
-          'uses': pharmacyMedicines.first['uses'] is List
-              ? (pharmacyMedicines.first['uses'] as List)
-                  .map((e) => e.toString())
-                  .toList()
+          'name': pm['name'] ?? medicineName,
+          'manufacturer': pm['manufacturer'] ?? parsed['medicineName'] ?? '',
+          'type': pm['type'] ?? 'Medicine',
+          'activeIngredient': pm['activeIngredient'] ?? parsed['ingredients'] ?? '',
+          'strength': pm['strength'] ?? '',
+          'form': pm['form'] ?? '',
+          'uses': pm['uses'] is List
+              ? (pm['uses'] as List).map((e) => e.toString()).toList()
               : usesList,
-          'dosage': pharmacyMedicines.first['dosage'] ?? parsed['uses'] ?? '',
-          'precautions': pharmacyMedicines.first['precautions'] is List
-              ? (pharmacyMedicines.first['precautions'] as List)
-                  .map((e) => e.toString())
-                  .toList()
-              : [],
-          'sideEffects': pharmacyMedicines.first['sideEffects'] is List
-              ? (pharmacyMedicines.first['sideEffects'] as List)
-                  .map((e) => e.toString())
-                  .toList()
+          'dosage': pm['dosage'] ?? parsed['uses'] ?? '',
+          'precautions': pm['precautions'] is List
+              ? (pm['precautions'] as List).map((e) => e.toString()).toList()
+              : <String>[],
+          'sideEffects': pm['sideEffects'] is List
+              ? (pm['sideEffects'] as List).map((e) => e.toString()).toList()
               : sideEffectsList,
-          'price': pharmacyMedicines.first['price'] ?? 0.0,
-          'priceRange': '',
+          'price': price,
+          'priceRange': pm['priceRange'] ?? '',
           'available': true,
         };
       } else {
@@ -212,7 +210,7 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
           'form': '',
           'uses': usesList,
           'dosage': '',
-          'precautions': [],
+          'precautions': <String>[],
           'sideEffects': sideEffectsList,
           'price': 0.0,
           'priceRange': '',
@@ -220,12 +218,12 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
         };
       }
 
-      setState(() {
-        _isProcessing = false;
-        _medicineInfo = medicineData;
-      });
-
       if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          _medicineInfo = medicineData;
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_medicineFoundInPharmacy
@@ -237,22 +235,23 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
         );
       }
     } catch (e) {
-      setState(() {
-        _isProcessing = false;
-      });
       if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+
         final msg = e.toString();
         String userMessage = 'Failed to process image: $msg';
-        // Provide clearer guidance for common errors
         if (msg.contains('429')) {
           userMessage =
               'Rate limit reached while processing the image. Please try again later.';
         } else if (msg.toLowerCase().contains('timeout')) {
           userMessage =
               'The request timed out. Please check your connection and try again.';
-        } else if (msg.toLowerCase().contains('api key is not configured')) {
+        } else if (msg.toLowerCase().contains('api key') ||
+            msg.toLowerCase().contains('not configured')) {
           userMessage =
-              'Server not configured: API key missing. Contact support.';
+              'AI service not configured: API key missing or invalid. Contact support.';
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -270,6 +269,10 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
             ),
           ),
         );
+      } else {
+        setState(() {
+          _isProcessing = false;
+        });
       }
     }
   }

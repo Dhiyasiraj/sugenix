@@ -157,8 +157,41 @@ class MedicineOrdersService {
         });
       }
 
-      // Create order
-      DocumentReference orderRef = await _firestore.collection('orders').add({
+      // Try to determine pharmacyId for the order from items or medicine docs
+      String? pharmacyId;
+      for (var item in orderItems) {
+        if (item.containsKey('pharmacyId') && item['pharmacyId'] != null) {
+          pharmacyId = item['pharmacyId'] as String?;
+          break;
+        }
+        // Attempt to lookup medicine document for pharmacy ownership
+        try {
+          final medId = item['medicineId'] as String?;
+          if (medId != null && medId.isNotEmpty) {
+            final medDoc = await _firestore.collection('medicines').doc(medId).get();
+            if (medDoc.exists) {
+              final mdata = medDoc.data() as Map<String, dynamic>;
+              if (mdata.containsKey('pharmacyId') && mdata['pharmacyId'] != null) {
+                pharmacyId = mdata['pharmacyId'] as String?;
+                break;
+              }
+              if (mdata.containsKey('pharmacy') && mdata['pharmacy'] != null) {
+                pharmacyId = mdata['pharmacy'] as String?;
+                break;
+              }
+              if (mdata.containsKey('owner') && mdata['owner'] != null) {
+                pharmacyId = mdata['owner'] as String?;
+                break;
+              }
+            }
+          }
+        } catch (e) {
+          // ignore lookup errors and continue
+        }
+      }
+
+      // Create order (include pharmacyId when available)
+      final orderData = {
         'userId': _auth.currentUser!.uid,
         'orderNumber': _generateOrderNumber(),
         'items': orderItems,
@@ -170,7 +203,10 @@ class MedicineOrdersService {
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+        if (pharmacyId != null) 'pharmacyId': pharmacyId,
+      };
+
+      DocumentReference orderRef = await _firestore.collection('orders').add(orderData);
 
       // Clear cart after successful order
       await clearCart();
@@ -216,6 +252,7 @@ class MedicineOrdersService {
   // Get order by ID
   Future<Map<String, dynamic>?> getOrderById(String orderId) async {
     try {
+      if (orderId.trim().isEmpty) return null;
       DocumentSnapshot doc =
           await _firestore.collection('orders').doc(orderId).get();
       if (doc.exists) {
