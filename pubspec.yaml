@@ -51,7 +51,7 @@ flutter:
   
   assets:
     - assets/icon/logo.png
-    - assets/sugenix_logo.png.png
+    - assets/sugenix_logo.png
     - .env
   
   generate: true

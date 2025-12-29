@@ -54,7 +54,7 @@ class SplashScreen extends StatelessWidget {
                   Transform.translate(
                     offset: Offset(0, -15),
                     child: Image.asset(
-                    'assets/icon/logo.png',
+                    'assets/sugenix_logo.png',
                     height: logoSize,
                     width: logoSize,
                     ),
