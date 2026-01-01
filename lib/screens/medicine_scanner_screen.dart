@@ -105,24 +105,20 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
       try {
         scanResult = await HuggingFaceService.scanMedicineImage(image.path);
         if (scanResult == null || scanResult['success'] != true) {
-          throw Exception('Hugging Face scan failed');
+          throw Exception(scanResult?['error'] ?? 'Hugging Face scan failed');
         }
       } catch (e) {
-        final errorMsg = e.toString().toLowerCase();
-        // If HF fails due to API/config issues, try Gemini fallback
-        if (errorMsg.contains('401') ||
-            errorMsg.contains('api key') ||
-            errorMsg.contains('not configured')) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Using alternative AI service...'),
-                backgroundColor: Colors.blue,
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Using alternative AI service...'),
+              backgroundColor: Colors.blue,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
 
+        try {
           // Use Gemini's vision to extract text then ask Gemini to parse details
           final extractedText = await GeminiService.extractTextFromImage(image);
           final geminiInfo = await GeminiService.getMedicineInfo(extractedText);
@@ -137,8 +133,9 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
               'ingredients': geminiInfo['activeIngredient'] ?? geminiInfo['ingredients'] ?? '',
             },
           };
-        } else {
-          rethrow;
+        } catch (geminiError) {
+          // Both failed
+          throw Exception('Both AI services failed: ${e.toString()}');
         }
       }
 

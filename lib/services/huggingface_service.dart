@@ -18,7 +18,7 @@ class HuggingFaceService {
   static const String _visionModel =
       'nlpconnect/vit-gpt2-image-captioning'; // Alternative vision model
   static const String _textModel =
-      'mistralai/Mistral-7B-Instruct-v0.1'; // Text analysis (using v0.1 as fallback)
+      'mistralai/Mistral-7B-Instruct-v0.2'; // Text analysis (using v0.2)
 
   // Optional: API token for higher rate limits (free tier works without it)
   // Get from: https://huggingface.co/settings/tokens
@@ -89,19 +89,16 @@ class HuggingFaceService {
       String extractedText = '';
       bool success = false;
 
-      // Attempt 1: Primary OCR model with JSON payload
+      // Attempt 1: Primary OCR model with raw bytes
       try {
         final url = Uri.parse('$_baseUrl/$_ocrModel');
         final response = await http.post(
           url,
-          headers: headers,
-          body: jsonEncode({
-            'inputs': [
-              {
-                'data': 'data:image/jpeg;base64,$base64Image',
-              }
-            ],
-          }),
+          headers: {
+            ...headers,
+            'Content-Type': 'image/jpeg',
+          },
+          body: bytes,
         ).timeout(const Duration(seconds: 30));
 
         if (response.statusCode == 200) {
@@ -113,6 +110,9 @@ class HuggingFaceService {
               success = true;
             }
           }
+        } else if (response.statusCode == 503) {
+          // Model loading, small delay and will try next model or fallback
+          await Future.delayed(const Duration(seconds: 2));
         }
       } catch (e) {
         // Primary model failed, try fallback
@@ -124,14 +124,11 @@ class HuggingFaceService {
           final url = Uri.parse('$_baseUrl/$_fallbackOcrModel');
           final response = await http.post(
             url,
-            headers: headers,
-            body: jsonEncode({
-              'inputs': [
-                {
-                  'data': 'data:image/jpeg;base64,$base64Image',
-                }
-              ],
-            }),
+            headers: {
+              ...headers,
+              'Content-Type': 'image/jpeg',
+            },
+            body: bytes,
           ).timeout(const Duration(seconds: 30));
 
           if (response.statusCode == 200) {
@@ -432,12 +429,9 @@ IMPORTANT: Provide detailed, comprehensive information about USES and SIDE EFFEC
   static Future<String> _analyzeImageWithVision(XFile imageFile) async {
     try {
       final bytes = await imageFile.readAsBytes();
-      final base64Image = base64Encode(bytes);
 
       final token = await _getEffectiveApiToken();
-      final headers = <String, String>{
-        'Content-Type': 'application/json',
-      };
+      final headers = <String, String>{};
       if (token.isNotEmpty) {
         headers['Authorization'] = 'Bearer $token';
       }
@@ -446,13 +440,11 @@ IMPORTANT: Provide detailed, comprehensive information about USES and SIDE EFFEC
 
       final response = await http.post(
         url,
-        headers: headers,
-        body: jsonEncode({
-          'inputs': 'Describe this medicine packaging image in detail, focusing on any text, labels, or important information visible:',
-          'parameters': {
-            'images': ['data:image/jpeg;base64,$base64Image'],
-          },
-        }),
+        headers: {
+          ...headers,
+          'Content-Type': 'image/jpeg',
+        },
+        body: bytes,
       ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {

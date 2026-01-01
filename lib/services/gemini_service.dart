@@ -9,9 +9,9 @@ class GeminiService {
   // IMPORTANT: Get your API key from https://makersuite.google.com/app/apikey
   static const String _apiKey = 'AIzaSyAPQr6I9Q1dIC6_Q-L3I3xlULH5sE3fYfs';
   static const String _baseUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
   static const String _textUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
   // Helper: fetch API key from Firestore (app_config/gemini -> apiKey)
   static Future<String?> _getApiKeyFromFirestore() async {
@@ -118,8 +118,8 @@ class GeminiService {
                             'Extract all text from this medicine label image. Return only the medicine name, manufacturer, dosage, and any other visible text in a structured format.'
                       },
                       {
-                        'inline_data': {
-                          'mime_type': 'image/jpeg',
+                        'inlineData': {
+                          'mimeType': 'image/jpeg',
                           'data': base64Image
                         }
                       }

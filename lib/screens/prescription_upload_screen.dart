@@ -76,44 +76,32 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
             extractedText = await HuggingFaceService.extractTextFromImage(_selectedImages.first);
             medicines = await HuggingFaceService.analyzePrescription(extractedText);
           } catch (hfError) {
-            final errorMsg = hfError.toString().toLowerCase();
-            // If HF fails due to API/config issues, try Gemini fallback
-            if (errorMsg.contains('401') ||
-                errorMsg.contains('api key') ||
-                errorMsg.contains('not configured') ||
-                errorMsg.contains('failed to extract text') ||
-                errorMsg.contains('all ocr methods failed')) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Using alternative AI service for prescription analysis...'),
+                  backgroundColor: Colors.blue,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
 
+            // Use Gemini's vision to extract text then analyze prescription
+            try {
+              extractedText = await GeminiService.extractTextFromImage(_selectedImages.first);
+              medicines = await GeminiService.analyzePrescription(extractedText);
+            } catch (geminiError) {
+              // If both AI services fail, skip analysis but allow upload
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Using alternative AI service for prescription analysis...'),
-                    backgroundColor: Colors.blue,
-                    duration: Duration(seconds: 2),
+                    content: Text('Prescription uploaded. AI analysis failed - both services unavailable.'),
+                    backgroundColor: Colors.orange,
+                    duration: Duration(seconds: 3),
                   ),
                 );
               }
-
-              // Use Gemini's vision to extract text then analyze prescription
-              try {
-                extractedText = await GeminiService.extractTextFromImage(_selectedImages.first);
-                medicines = await GeminiService.analyzePrescription(extractedText);
-              } catch (geminiError) {
-                // If both AI services fail, skip analysis but allow upload
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Prescription uploaded. AI analysis failed - both services unavailable.'),
-                      backgroundColor: Colors.orange,
-                      duration: Duration(seconds: 3),
-                    ),
-                  );
-                }
-                medicines = []; // Empty list to skip further processing
-              }
-            } else {
-              // Other HF error - rethrow
-              rethrow;
+              medicines = []; // Empty list to skip further processing
             }
           }
 
