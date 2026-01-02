@@ -9,9 +9,9 @@ class GeminiService {
   // IMPORTANT: Get your API key from https://makersuite.google.com/app/apikey
   static const String _apiKey = 'AIzaSyAPQr6I9Q1dIC6_Q-L3I3xlULH5sE3fYfs';
   static const String _baseUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+      'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
   static const String _textUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+      'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
 
   // Helper: fetch API key from Firestore (app_config/gemini -> apiKey)
   static Future<String?> _getApiKeyFromFirestore() async {
@@ -91,18 +91,17 @@ class GeminiService {
   }
 
   // Extract text from image using Gemini Vision
-  static Future<String> extractTextFromImage(XFile imageFile) async {
+  static Future<String> extractTextFromImage(XFile imageFile, {String? prompt}) async {
     final key = await _getEffectiveApiKey();
-
-    // Implement retries with exponential backoff for transient errors (429, 5xx)
     const int maxRetries = 3;
     int attempt = 0;
 
     final bytes = await imageFile.readAsBytes();
     final base64Image = base64Encode(bytes);
     final url = Uri.parse('$_baseUrl?key=$key');
+    final effectivePrompt = prompt ?? 'Extract all text from this medicine label image.';
 
-    while (true) {
+    while (attempt < maxRetries) {
       attempt++;
       try {
         final response = await http
@@ -113,10 +112,7 @@ class GeminiService {
                 'contents': [
                   {
                     'parts': [
-                      {
-                        'text':
-                            'Extract all text from this medicine label image. Return only the medicine name, manufacturer, dosage, and any other visible text in a structured format.'
-                      },
+                      {'text': effectivePrompt},
                       {
                         'inlineData': {
                           'mimeType': 'image/jpeg',
@@ -132,41 +128,33 @@ class GeminiService {
 
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
-          return data['candidates'][0]['content']['parts'][0]['text'] ?? '';
-        }
-
-        // Handle rate limit / server errors with retry
-        if (response.statusCode == 429 ||
-            (response.statusCode >= 500 && response.statusCode < 600)) {
-          if (attempt <= maxRetries) {
-            final waitMs = 500 * (1 << (attempt - 1)); // exponential backoff
-            await Future.delayed(Duration(milliseconds: waitMs));
-            continue; // retry
-          } else {
-            final body = response.body;
-            throw Exception(
-                'Failed to extract text: ${response.statusCode} - $body');
+          if (data['candidates'] != null &&
+              data['candidates'].isNotEmpty &&
+              data['candidates'][0]['content'] != null &&
+              data['candidates'][0]['content']['parts'] != null &&
+              data['candidates'][0]['content']['parts'].isNotEmpty) {
+            return data['candidates'][0]['content']['parts'][0]['text'] ?? '';
           }
+          return '';
         }
 
-        // Non-retryable error
-        throw Exception(
-            'Failed to extract text: ${response.statusCode} - ${response.body}');
-      } catch (e) {
-        // If we timed out or had a transient network error, retry up to maxRetries
-        final errStr = e.toString();
-        if (attempt <= maxRetries &&
-            (errStr.contains('timeout') ||
-                errStr.contains('SocketException'))) {
+        if (response.statusCode == 429 || (response.statusCode >= 500)) {
           final waitMs = 500 * (1 << (attempt - 1));
           await Future.delayed(Duration(milliseconds: waitMs));
           continue;
         }
 
-        // No more retries or unrecoverable error
-        throw Exception('Error extracting text: ${e.toString()}');
+        throw Exception('API error: ${response.statusCode}');
+      } catch (e) {
+        if (attempt < maxRetries && (e.toString().contains('timeout') || e.toString().contains('SocketException'))) {
+          final waitMs = 500 * (1 << (attempt - 1));
+          await Future.delayed(Duration(milliseconds: waitMs));
+          continue;
+        }
+        throw Exception('Error extracting text: $e');
       }
     }
+    throw Exception('Failed to extract text after $maxRetries attempts');
   }
 
   // Get medicine information from Gemini
@@ -179,6 +167,7 @@ Analyze this medicine: $medicineName
 Provide detailed information in JSON format with the following structure:
 {
   "name": "medicine name",
+  "activeIngredient": "main active ingredients",
   "uses": ["use1", "use2"],
   "sideEffects": ["effect1", "effect2"],
   "dosage": "recommended dosage",

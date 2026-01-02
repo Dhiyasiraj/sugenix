@@ -12,13 +12,13 @@ class HuggingFaceService {
 
   // Models for different tasks - Using working models on Hugging Face Inference API
   static const String _ocrModel =
-      'microsoft/trocr-base-printed'; // Primary OCR model
+      'microsoft/trocr-large-printed'; // Using large model for better accuracy
   static const String _fallbackOcrModel =
-      'jinhybr/OCR-Donut-CORD'; // Fallback OCR model
+      'naver-clova-ix/donut-base'; // Modern OCR model
   static const String _visionModel =
-      'nlpconnect/vit-gpt2-image-captioning'; // Alternative vision model
+      'nlpconnect/vit-gpt2-image-captioning'; 
   static const String _textModel =
-      'mistralai/Mistral-7B-Instruct-v0.2'; // Text analysis (using v0.2)
+      'mistralai/Mistral-7B-Instruct-v0.3'; // Updated to v0.3
 
   // Optional: API token for higher rate limits (free tier works without it)
   // Get from: https://huggingface.co/settings/tokens
@@ -111,8 +111,11 @@ class HuggingFaceService {
             }
           }
         } else if (response.statusCode == 503) {
-          // Model loading, small delay and will try next model or fallback
-          await Future.delayed(const Duration(seconds: 2));
+          // Model loading
+          await Future.delayed(const Duration(seconds: 3));
+        } else {
+          // Log other status codes but don't throw yet, try next model
+          print('HF Primary OCR failed: ${response.statusCode} - ${response.body}');
         }
       } catch (e) {
         // Primary model failed, try fallback

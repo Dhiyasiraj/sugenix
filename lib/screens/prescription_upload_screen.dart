@@ -71,11 +71,14 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
           String extractedText = '';
           List<Map<String, dynamic>> medicines = [];
 
-          // Try Hugging Face first
+          // Try Gemini first (more robust for vision tasks)
           try {
-            extractedText = await HuggingFaceService.extractTextFromImage(_selectedImages.first);
-            medicines = await HuggingFaceService.analyzePrescription(extractedText);
-          } catch (hfError) {
+            extractedText = await GeminiService.extractTextFromImage(
+              _selectedImages.first,
+              prompt: 'Read this medical prescription. Extract all medicine names, dosages, and frequencies mentioned.',
+            );
+            medicines = await GeminiService.analyzePrescription(extractedText);
+          } catch (geminiError) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -86,11 +89,11 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
               );
             }
 
-            // Use Gemini's vision to extract text then analyze prescription
+            // Fallback to Hugging Face
             try {
-              extractedText = await GeminiService.extractTextFromImage(_selectedImages.first);
-              medicines = await GeminiService.analyzePrescription(extractedText);
-            } catch (geminiError) {
+              extractedText = await HuggingFaceService.extractTextFromImage(_selectedImages.first);
+              medicines = await HuggingFaceService.analyzePrescription(extractedText);
+            } catch (hfError) {
               // If both AI services fail, skip analysis but allow upload
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(

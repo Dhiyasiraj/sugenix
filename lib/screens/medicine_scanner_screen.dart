@@ -103,15 +103,31 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
       bool usedGemini = false;
 
       try {
-        scanResult = await HuggingFaceService.scanMedicineImage(image.path);
-        if (scanResult == null || scanResult['success'] != true) {
-          throw Exception(scanResult?['error'] ?? 'Hugging Face scan failed');
+        // Use Gemini's vision with a labels-specific prompt
+        final extractedText = await GeminiService.extractTextFromImage(
+          image,
+          prompt: 'Identify this medicine. Extract the name, manufacturer, and all visible text from the label.',
+        );
+        if (extractedText.isEmpty) {
+          throw Exception('Gemini extraction returned empty text');
         }
-      } catch (e) {
+        final geminiInfo = await GeminiService.getMedicineInfo(extractedText);
+        usedGemini = true;
+        scanResult = {
+          'success': true,
+          'rawText': extractedText,
+          'parsed': {
+            'medicineName': geminiInfo['name'] ?? '',
+            'uses': geminiInfo['uses'] ?? '',
+            'sideEffects': geminiInfo['sideEffects'] ?? '',
+            'ingredients': geminiInfo['activeIngredient'] ?? geminiInfo['ingredients'] ?? '',
+          },
+        };
+      } catch (geminiError) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Using alternative AI service...'),
+              content: Text('Alternative AI service active...'),
               backgroundColor: Colors.blue,
               duration: Duration(seconds: 2),
             ),
@@ -119,23 +135,14 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
         }
 
         try {
-          // Use Gemini's vision to extract text then ask Gemini to parse details
-          final extractedText = await GeminiService.extractTextFromImage(image);
-          final geminiInfo = await GeminiService.getMedicineInfo(extractedText);
-          usedGemini = true;
-          scanResult = {
-            'success': true,
-            'rawText': extractedText ?? '',
-            'parsed': {
-              'medicineName': geminiInfo['name'] ?? '',
-              'uses': geminiInfo['uses'] ?? '',
-              'sideEffects': geminiInfo['sideEffects'] ?? '',
-              'ingredients': geminiInfo['activeIngredient'] ?? geminiInfo['ingredients'] ?? '',
-            },
-          };
-        } catch (geminiError) {
+          // Fallback to Hugging Face
+          scanResult = await HuggingFaceService.scanMedicineImage(image.path);
+          if (scanResult == null || scanResult['success'] != true) {
+            throw Exception(scanResult?['error'] ?? 'Hugging Face scan failed');
+          }
+        } catch (hfError) {
           // Both failed
-          throw Exception('Both AI services failed: ${e.toString()}');
+          throw Exception('Both AI services failed: ${geminiError.toString()}');
         }
       }
 
