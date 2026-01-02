@@ -5,6 +5,7 @@ import 'package:sugenix/services/medicine_orders_service.dart';
 import 'package:sugenix/services/gemini_service.dart';
 import 'package:sugenix/services/medicine_database_service.dart';
 import 'package:sugenix/screens/medicine_catalog_screen.dart';
+import 'package:sugenix/services/ocr_service.dart';
 
 class PrescriptionUploadScreen extends StatefulWidget {
   const PrescriptionUploadScreen({super.key});
@@ -64,102 +65,36 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
       // Step 1: Upload prescription
       final id = await _ordersService.uploadPrescription(_selectedImages);
       
-      // Step 2: Analyze prescription using Gemini AI
+      // Step 2: Analyze prescription using On-Device OCR (No API)
       if (_selectedImages.isNotEmpty) {
         try {
           String extractedText = '';
           List<Map<String, dynamic>> medicines = [];
 
-          // Use Gemini for prescription analysis
           try {
-            extractedText = await GeminiService.extractTextFromImage(
-              _selectedImages.first,
-              prompt: 'Read this medical prescription. Extract all medicine names, dosages, and frequencies mentioned.',
-            );
+            // Use OCR Service
+            extractedText = await OCRService.extractText(_selectedImages.first);
+            
             if (extractedText.isNotEmpty) {
-              medicines = await GeminiService.analyzePrescription(extractedText);
+               medicines = await _parseMedicinesFromOCR(extractedText);
             }
-          } catch (geminiError) {
-            // Gemini failed - provide helpful feedback
-            } catch (geminiError) {
-            // Gemini failed - show detailed error dialog
-            if (mounted) {
-              await showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text("AI Analysis Failed"),
-                  content: SingleChildScrollView(
-                    child: Text(
-                      "Error Details:\n${geminiError.toString()}",
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text("OK"),
-                    ),
-                  ],
-                ),
-              );
-            }
-            medicines = []; // Empty list to skip further processing
+          } catch (e) {
+            print('OCR Failed: $e');
+            medicines = [];
           }
 
-          // Step 3: Check availability in pharmacy (only if we have medicines)
-          if (medicines.isNotEmpty) {
-            for (var medicine in medicines) {
-              final medicineName = medicine['name'] ?? '';
-              if (medicineName.isNotEmpty) {
-                try {
-                  final pharmacyMedicines = await _medicineService.searchMedicines(medicineName);
-                  if (pharmacyMedicines.isNotEmpty) {
-                    _availableMedicines.add({
-                      ...medicine,
-                      'pharmacyData': pharmacyMedicines.first,
-                    });
-                  } else {
-                    // Get info from Gemini for unavailable medicines
-                    try {
-                      final geminiInfo = await GeminiService.getMedicineInfo(medicineName);
-                      _unavailableMedicines.add({
-                        ...medicine,
-                        'geminiInfo': geminiInfo,
-                      });
-                    } catch (geminiInfoError) {
-                      // If info service fails, just add medicine without info
-                      _unavailableMedicines.add(medicine);
-                    }
-                  }
-                } catch (e) {
-                  // If search fails, mark as unavailable
-                  _unavailableMedicines.add(medicine);
-                }
-              }
-            }
-          }
-
+          // Step 3: Check availability in pharmacy (already done in _parseMedicinesFromOCR technically, but let's organize)
+          // Actually _parseMedicinesFromOCR can just return the raw names found, and then we check DB.
+          // But since _parseMedicinesFromOCR needs to check DB to know if it's a medicine, we effectively populate _availableMedicines there.
+          
           setState(() {
-            _suggestedMedicines = medicines;
+             // _suggestedMedicines is combined list
+             _suggestedMedicines = medicines;
           });
+          
         } catch (e) {
-          // Unexpected error - log but don't fail the upload
-          final errorMsg = e.toString().toLowerCase();
-          if (errorMsg.contains('timeout') || errorMsg.contains('connection') || errorMsg.contains('network')) {
-            // Network error - skip analysis but allow upload
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Prescription uploaded. AI analysis failed - please check your internet connection.'),
-                  backgroundColor: Colors.orange,
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            }
-          } else {
-            // Other error - rethrow to be caught by outer catch
-            rethrow;
-          }
+             print("Analysis Error: $e");
+             // Non-fatal
         }
       }
       
@@ -172,7 +107,7 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_suggestedMedicines.isNotEmpty 
-              ? 'Prescription analyzed! ${_availableMedicines.length} medicines available.'
+              ? 'Prescription scanned! ${_availableMedicines.length} medicines identified.'
               : 'Prescription uploaded successfully'),
           backgroundColor: Colors.green,
         ),
@@ -194,44 +129,111 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
     }
   }
 
-  Future<void> _testApiConnection() async {
-    setState(() => _analyzing = true);
-    try {
-      final response = await GeminiService.generateText("Hello, are you working?");
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text("API Test Success"),
-            content: Text("Response from AI:\n$response"),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text("OK"),
-              ),
-            ],
-          ),
-        );
+  // Helper to parse medicines using Database matching
+  Future<List<Map<String, dynamic>>> _parseMedicinesFromOCR(String text) async {
+    final lines = text.split('\n');
+    List<Map<String, dynamic>> results = [];
+    final Set<String> addedIds = {};
+    final Set<String> addedNames = {};
+    
+    for (var line in lines) {
+      final cleanLine = line.trim();
+      if (cleanLine.length < 3) continue;
+      if (_isNoise(cleanLine)) continue;
+
+      final words = cleanLine.split(' ');
+
+      // 1. Try search with full line
+      var matches = await _searchBestMatch(cleanLine);
+      
+      // 2. If no match, try first word if it looks like a name
+      if (matches.isEmpty && words.isNotEmpty && words[0].length >= 3) {
+         matches = await _searchBestMatch(words[0]);
       }
-    } catch (e) {
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text("API Test Failed"),
-            content: Text("Error:\n$e"),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text("OK"),
-              ),
-            ],
-          ),
-        );
+
+      if (matches.isNotEmpty) {
+         final match = matches.first;
+         final id = match['id'] ?? '';
+         final name = (match['name'] ?? '').toString().toLowerCase();
+
+         // Strict deduplication
+         if ((id.isNotEmpty && addedIds.contains(id)) || 
+             (name.isNotEmpty && addedNames.contains(name))) {
+           continue;
+         }
+         
+         if (id.isNotEmpty) addedIds.add(id);
+         if (name.isNotEmpty) addedNames.add(name);
+
+         // It's a valid medicine in our DB
+         _availableMedicines.add({
+           'name': match['name'],
+           'dosage': match['strength'] ?? 'As prescribed',
+           'pharmacyData': match,
+         });
+         results.add({
+           'name': match['name'],
+           'dosage': match['strength'] ?? 'As prescribed',
+         });
+      } else {
+         // Not found in DB -> Add to unavailable list
+         // Heuristic: Name is text before numbers usually
+         final nameCandidate = cleanLine.split(RegExp(r'[\d]')).first.trim(); 
+         if (nameCandidate.length > 2 && !addedNames.contains(nameCandidate.toLowerCase())) {
+             addedNames.add(nameCandidate.toLowerCase());
+             
+             _unavailableMedicines.add({
+               'name': cleanLine, // Show full extracted text
+               'dosage': 'Details from prescription',
+             });
+         }
       }
-    } finally {
-      if (mounted) setState(() => _analyzing = false);
     }
+    return results;
+  }
+
+  Future<List<Map<String, dynamic>>> _searchBestMatch(String query) async {
+    try {
+      final matches = await _medicineService.searchMedicines(query);
+      // Filter out Matches that matched only description, we want Name matching for OCR
+      return matches.where((m) {
+        final name = (m['name'] ?? '').toString().toLowerCase();
+        final q = query.toLowerCase();
+        return name.contains(q);
+      }).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  bool _isNoise(String text) {
+    final lower = text.toLowerCase();
+    // Skip purely numeric/special
+    if (RegExp(r'^[\d\W]+$').hasMatch(lower)) return true;
+    
+    // Skip common dosage/form keywords if the line implies it's just meta-info
+    final keywords = ['tablet', 'tablets', 'cap', 'capsule', 'capsules', 'mg', 'ml', 'gm', 'g', 'mcg', 'daily', 'times', 'day', 'night', 'morning', 'after', 'before', 'food', 'dose', 'take', 'qty', 'quantity', 'total', 'price', 'mrp', 'exp', 'date', 'batch', 'no', 'code', 'reg'];
+    
+    // Check if line consists mostly of keywords + numbers
+    final words = lower.split(RegExp(r'\s+'));
+    int noiseCount = 0;
+    for(var w in words) {
+       if (keywords.any((k) => w.contains(k)) || double.tryParse(w.replaceAll(RegExp(r'[^\d.]'), '')) != null || w.length < 3) {
+         noiseCount++;
+       }
+    }
+    
+    // If > 70% of words are noise, skip
+    if (words.isNotEmpty && (noiseCount / words.length > 0.7)) return true;
+    
+    return false;
+  }
+
+  Future<void> _testApiConnection() async {
+     // Deprecated / Not needed for OCR mode
+     ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Using On-Device Scanning (Offline)')),
+     );
   }
 
   @override
@@ -253,9 +255,9 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.bug_report, color: Color(0xFF0C4556)),
-            onPressed: _uploading ? null : _testApiConnection,
-            tooltip: "Test API Connection",
+            icon: const Icon(Icons.scanner, color: Color(0xFF0C4556)),
+            onPressed: null, // Just an indicator
+            tooltip: "On-Device Scan Active",
           ),
           if (_selectedImages.isNotEmpty && !_uploading)
             TextButton(
@@ -399,7 +401,7 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
                   children: [
                     CircularProgressIndicator(),
                     SizedBox(height: 12),
-                    Text('Analyzing prescription with AI...'),
+                    Text('Scanning prescription...'),
                   ],
                 ),
               ),
@@ -412,7 +414,7 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Suggested Medicines',
+                      'Detected Medicines',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

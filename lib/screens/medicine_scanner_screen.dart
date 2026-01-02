@@ -9,6 +9,7 @@ import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:sugenix/widgets/translated_text.dart';
 import 'package:sugenix/services/medicine_cart_service.dart';
 import 'package:sugenix/screens/medicine_catalog_screen.dart';
+import 'package:sugenix/services/ocr_service.dart';
 
 class MedicineScannerScreen extends StatefulWidget {
   const MedicineScannerScreen({super.key});
@@ -96,114 +97,106 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
       _medicineFoundInPharmacy = false;
       _pharmacyMedicine = null;
     });
+
     try {
-      // Use Gemini AI for medicine scanning
-      Map<String, dynamic>? scanResult;
+      // 1. Extract Text using On-Device OCR (No API required)
+      final extractedText = await OCRService.extractText(image);
+      
+      if (extractedText.isEmpty) {
+        throw Exception('Could not extract text. Please ensure the label is clear.');
+      }
 
-      try {
-        // Use Gemini's vision with a labels-specific prompt
-        final extractedText = await GeminiService.extractTextFromImage(
-          image,
-          prompt: 'Identify this medicine. Extract the name, manufacturer, and all visible text from the label.',
-        );
-        if (extractedText.isEmpty) {
-          throw Exception('Could not extract text from the image. Please ensure the medicine label is clearly visible and try again.');
+      // 2. Try to find medicine in local database using extracted lines
+      final lines = extractedText.split('\n');
+      Map<String, dynamic>? dbMatch;
+      String bestNameCandidate = '';
+
+      for (var line in lines) {
+        final cleanLine = line.trim();
+        if (cleanLine.length < 3) continue;
+        if (_isNoise(cleanLine)) continue;
+        
+        // Potential name candidate if no match found yet
+        if (bestNameCandidate.isEmpty) bestNameCandidate = cleanLine;
+
+        // Try full line search
+        var matches = await _searchBestMatch(cleanLine);
+        
+        // Try first word search if full line failed
+        final words = cleanLine.split(' ');
+        if (matches.isEmpty && words.isNotEmpty && words[0].length >= 3) {
+            matches = await _searchBestMatch(words[0]);
         }
-        final geminiInfo = await GeminiService.getMedicineInfo(extractedText);
-        scanResult = {
-          'success': true,
-          'rawText': extractedText,
-          'parsed': {
-            'medicineName': geminiInfo['name'] ?? '',
-            'uses': geminiInfo['uses'] ?? '',
-            'sideEffects': geminiInfo['sideEffects'] ?? '',
-            'ingredients': geminiInfo['activeIngredient'] ?? geminiInfo['ingredients'] ?? '',
-          },
-        };
-      } catch (geminiError) {
-        // Gemini failed - provide helpful error message
-        final errorMsg = geminiError.toString().toLowerCase();
-        if (errorMsg.contains('api key') || errorMsg.contains('not configured')) {
-          throw Exception('AI service not configured properly. Please contact support.');
-        } else if (errorMsg.contains('quota') || errorMsg.contains('limit')) {
-          throw Exception('Service temporarily unavailable due to usage limits. Please try again later.');
-        } else if (errorMsg.contains('timeout') || errorMsg.contains('connection')) {
-          throw Exception('Connection timeout. Please check your internet connection and try again.');
-        } else {
-          throw Exception('Failed to scan medicine. Please ensure the image is clear and try again.');
+
+        if (matches.isNotEmpty) {
+           dbMatch = matches.first;
+           break; 
         }
       }
 
-      final parsed = (scanResult?['parsed'] ?? {}) as Map<String, dynamic>;
-      final medicineName = (parsed['medicineName'] ?? '').toString().trim();
-      final usesText = parsed['uses'] is List
-          ? (parsed['uses'] as List).join('\n')
-          : (parsed['uses']?.toString() ?? '');
-      final sideEffectsText = parsed['sideEffects'] is List
-          ? (parsed['sideEffects'] as List).join('\n')
-          : (parsed['sideEffects']?.toString() ?? '');
-
-      final List<String> usesList = _normalizeList(usesText);
-      final List<String> sideEffectsList = _normalizeList(sideEffectsText);
-
-      if (medicineName.isEmpty) {
-        throw Exception('Could not identify medicine name from image');
-      }
-
-      // Check pharmacy database for the medicine
-      List<Map<String, dynamic>> pharmacyMedicines = [];
-      try {
-        pharmacyMedicines = await _medicineService.searchMedicines(medicineName);
-      } catch (_) {
-        // ignore search errors and continue with parsed data
-      }
-
+      // 3. Construct Medicine Data
       Map<String, dynamic> medicineData;
-      if (pharmacyMedicines.isNotEmpty) {
+
+      if (dbMatch != null) {
+        // Found in DB
         _medicineFoundInPharmacy = true;
-        _pharmacyMedicine = pharmacyMedicines.first;
-        final pm = pharmacyMedicines.first;
+        _pharmacyMedicine = dbMatch;
         double price = 0.0;
         try {
-          price = double.tryParse(pm['price']?.toString() ?? '') ?? 0.0;
+          price = double.tryParse(dbMatch['price']?.toString() ?? '') ?? 0.0;
         } catch (_) {
           price = 0.0;
         }
 
         medicineData = {
-          'name': pm['name'] ?? medicineName,
-          'manufacturer': pm['manufacturer'] ?? parsed['medicineName'] ?? '',
-          'type': pm['type'] ?? 'Medicine',
-          'activeIngredient': pm['activeIngredient'] ?? parsed['ingredients'] ?? '',
-          'strength': pm['strength'] ?? '',
-          'form': pm['form'] ?? '',
-          'uses': pm['uses'] is List
-              ? (pm['uses'] as List).map((e) => e.toString()).toList()
-              : usesList,
-          'dosage': pm['dosage'] ?? parsed['uses'] ?? '',
-          'precautions': pm['precautions'] is List
-              ? (pm['precautions'] as List).map((e) => e.toString()).toList()
-              : <String>[],
-          'sideEffects': pm['sideEffects'] is List
-              ? (pm['sideEffects'] as List).map((e) => e.toString()).toList()
-              : sideEffectsList,
+          'name': dbMatch['name'],
+          'manufacturer': dbMatch['manufacturer'] ?? '',
+          'type': dbMatch['type'] ?? 'Medicine',
+          'activeIngredient': dbMatch['activeIngredient'] ?? '',
+          'strength': dbMatch['strength'] ?? '',
+          'form': dbMatch['form'] ?? '',
+          'uses': dbMatch['uses'] is List
+              ? (dbMatch['uses'] as List).map((e) => e.toString()).toList()
+              : [dbMatch['uses']?.toString() ?? ''],
+          'dosage': dbMatch['dosage'] ?? '',
+          'precautions': dbMatch['precautions'] is List
+              ? (dbMatch['precautions'] as List).map((e) => e.toString()).toList()
+              : [],
+          'sideEffects': dbMatch['sideEffects'] is List
+              ? (dbMatch['sideEffects'] as List).map((e) => e.toString()).toList()
+              : [],
           'price': price,
-          'priceRange': pm['priceRange'] ?? '',
+          'priceRange': dbMatch['priceRange'] ?? '',
           'available': true,
         };
       } else {
+        // Not found in DB - Show Extracted Info
         _medicineFoundInPharmacy = false;
+        
+        // Simple heuristic parsing from raw text
+        String ingredients = '';
+        String dosage = '';
+        
+        for (var line in lines) {
+           if (line.toLowerCase().contains('mg') || line.toLowerCase().contains('ml')) {
+             dosage = line;
+           }
+           if (line.toLowerCase().contains('ingredient') || line.toLowerCase().contains('contains')) {
+             ingredients = line;
+           }
+        }
+
         medicineData = {
-          'name': medicineName,
-          'manufacturer': parsed['medicineName'] ?? '',
+          'name': bestNameCandidate.isNotEmpty ? bestNameCandidate : 'Unknown Medicine',
+          'manufacturer': 'Not identified',
           'type': 'Medicine',
-          'activeIngredient': parsed['ingredients'] ?? '',
-          'strength': '',
-          'form': '',
-          'uses': usesList,
-          'dosage': '',
+          'activeIngredient': ingredients,
+          'strength': dosage,
+          'form': 'Tablet/Syrup',
+          'uses': ['Scanned Text:', ...lines.take(10)],
+          'dosage': dosage,
           'precautions': <String>[],
-          'sideEffects': sideEffectsList,
+          'sideEffects': <String>['Consult a doctor for side effects.'],
           'price': 0.0,
           'priceRange': '',
           'available': false,
@@ -219,54 +212,54 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_medicineFoundInPharmacy
-                ? 'Medicine found in pharmacy! You can add it to cart.'
-                : 'Medicine information retrieved. Not available in pharmacy.'),
+                ? 'Medicine found in pharmacy!'
+                : 'Text extracted. Medicine not found in database.'),
             backgroundColor:
                 _medicineFoundInPharmacy ? Colors.green : Colors.orange,
           ),
         );
       }
     } catch (e) {
-      if (mounted) {
+       if (mounted) {
         setState(() {
           _isProcessing = false;
         });
-
-        final msg = e.toString();
-        String userMessage = 'Failed to process image: $msg';
-        if (msg.contains('429')) {
-          userMessage =
-              'Rate limit reached while processing the image. Please try again later.';
-        } else if (msg.toLowerCase().contains('timeout')) {
-          userMessage =
-              'The request timed out. Please check your connection and try again.';
-        } else if (msg.toLowerCase().contains('api key') ||
-            msg.toLowerCase().contains('not configured')) {
-          userMessage =
-              'AI service not configured: API key missing or invalid. Contact support.';
-        }
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(userMessage),
+            content: Text('Scan failed: ${e.toString()}'),
             backgroundColor: Colors.red,
-            action: SnackBarAction(
-              label: 'Retry',
-              textColor: Colors.white,
-              onPressed: () {
-                if (_scannedImage != null) {
-                  _processImage(_scannedImage!);
-                }
-              },
-            ),
           ),
         );
-      } else {
-        setState(() {
-          _isProcessing = false;
-        });
       }
     }
+  }
+
+  Future<List<Map<String, dynamic>>> _searchBestMatch(String query) async {
+    try {
+      final matches = await _medicineService.searchMedicines(query);
+      return matches.where((m) {
+        final name = (m['name'] ?? '').toString().toLowerCase();
+        final q = query.toLowerCase();
+        return name.contains(q);
+      }).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  bool _isNoise(String text) {
+    final lower = text.toLowerCase();
+    if (RegExp(r'^[\d\W]+$').hasMatch(lower)) return true;
+    final keywords = ['tablet', 'tablets', 'cap', 'capsule', 'capsules', 'mg', 'ml', 'gm', 'g', 'mcg', 'daily', 'times', 'day', 'night', 'morning', 'after', 'before', 'food', 'dose', 'take', 'qty', 'quantity', 'total', 'price', 'mrp', 'exp', 'date', 'batch', 'no', 'code', 'reg'];
+    final words = lower.split(RegExp(r'\s+'));
+    int noiseCount = 0;
+    for(var w in words) {
+       if (keywords.any((k) => w.contains(k)) || double.tryParse(w.replaceAll(RegExp(r'[^\d.]'), '')) != null || w.length < 3) {
+         noiseCount++;
+       }
+    }
+    if (words.isNotEmpty && (noiseCount / words.length > 0.7)) return true;
+    return false;
   }
 
   List<String> _normalizeList(String? value) {
@@ -442,7 +435,7 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
                   CircularProgressIndicator(),
                   SizedBox(height: 15),
                   Text(
-                    "Processing image with AI...",
+                    "Processing image...",
                     style: TextStyle(color: Colors.grey),
                   ),
                 ],
@@ -783,6 +776,7 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
                   Icons.check_circle,
                   size: 16,
                   color: iconColor ?? const Color(0xFF0C4556),
+                  // color: iconColor ?? const Color(0xFF0C4556), // Duplicate key?
                 ),
                 const SizedBox(width: 10),
                 Expanded(
