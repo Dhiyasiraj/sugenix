@@ -2,16 +2,17 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GeminiService {
   // Default Gemini API key. For production, keep this empty and store key in
   // Firestore at: app_config/gemini (field: apiKey) 
   // IMPORTANT: Get your API key from https://makersuite.google.com/app/apikey
-  static const String _apiKey = 'AIzaSyAPQr6I9Q1dIC6_Q-L3I3xlULH5sE3fYfs';
+  static const String _apiKey = 'AIzaSyD5HS7D41Njnf2i5fZbtmDJWjlbXQM-qbI';
   static const String _baseUrl =
-      'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
   static const String _textUrl =
-      'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
   // Helper: fetch API key from Firestore (app_config/gemini -> apiKey)
   static Future<String?> _getApiKeyFromFirestore() async {
@@ -33,14 +34,35 @@ class GeminiService {
     return null;
   }
 
-  // Get the effective API key (Firestore -> default constant)
+  // Get the effective API key (Firestore -> .env -> default constant)
   static Future<String> _getEffectiveApiKey() async {
+    // 1. Check Firestore
     final fromFs = await _getApiKeyFromFirestore();
     if (fromFs != null && fromFs.isNotEmpty) return fromFs;
+
+    // 2. Check .env
+    String? fromEnv;
+    try {
+      fromEnv = dotenv.env['GEMINI_API_KEY'];
+    } catch (_) {}
+    
+    if (fromEnv != null && fromEnv.isNotEmpty && !fromEnv.contains('AIzaSyAPQr6I9Q1dIC6_Q-L3I3xlULH5sE3fYfs')) {
+       return fromEnv;
+    }
+
+    // 3. Fallback to constant
     if (_apiKey.isNotEmpty) return _apiKey;
+    
     throw Exception(
-        'Gemini API key not configured. Add a document `app_config/gemini` with field `apiKey` or set the key in code.');
+        'Gemini API key not configured. Please check your .env file or hardcoded key.');
   }
+
+  static const List<Map<String, dynamic>> _safetySettings = [
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
+  ];
 
   // Generate text response using Gemini
   static Future<String> generateText(String prompt) async {
@@ -59,7 +81,8 @@ class GeminiService {
                     {'text': prompt}
                   ]
                 }
-              ]
+              ],
+              'safetySettings': _safetySettings,
             }),
           )
           .timeout(const Duration(seconds: 30));
@@ -74,10 +97,12 @@ class GeminiService {
           return data['candidates'][0]['content']['parts'][0]['text'] ??
               'No response';
         } else {
-          throw Exception('Invalid response format from Gemini API');
+          print('Gemini API Error Response: ${response.body}');
+          throw Exception('Invalid response format from Gemini API: ${response.body}');
         }
       } else {
         final errorBody = response.body;
+        print('Gemini API Error: ${response.statusCode} - $errorBody');
         throw Exception(
             'Failed to generate text: ${response.statusCode} - $errorBody');
       }
@@ -121,10 +146,11 @@ class GeminiService {
                       }
                     ]
                   }
-                ]
+                ],
+                'safetySettings': _safetySettings,
               }),
             )
-            .timeout(const Duration(seconds: 30));
+            .timeout(const Duration(seconds: 45)); // Increased timeout for images
 
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
@@ -135,17 +161,28 @@ class GeminiService {
               data['candidates'][0]['content']['parts'].isNotEmpty) {
             return data['candidates'][0]['content']['parts'][0]['text'] ?? '';
           }
+          // Check for safety finish reason
+          if (data['candidates'] != null &&
+              data['candidates'].isNotEmpty &&
+              data['candidates'][0]['finishReason'] == 'SAFETY') {
+            print('Gemini Safety Block: ${response.body}');
+            throw Exception('Content blocked by safety filters. Please try a different image.');
+          }
+           print('Gemini Empty Response: ${response.body}');
           return '';
         }
 
         if (response.statusCode == 429 || (response.statusCode >= 500)) {
+          final errorBody = response.body;
+          print('Gemini Retryable Error ($attempt): ${response.statusCode} - $errorBody');
           final waitMs = 500 * (1 << (attempt - 1));
           await Future.delayed(Duration(milliseconds: waitMs));
           continue;
         }
 
-        throw Exception('API error: ${response.statusCode}');
+        throw Exception('API error: ${response.statusCode} - ${response.body}');
       } catch (e) {
+        print('Gemini Exception ($attempt): $e');
         if (attempt < maxRetries && (e.toString().contains('timeout') || e.toString().contains('SocketException'))) {
           final waitMs = 500 * (1 << (attempt - 1));
           await Future.delayed(Duration(milliseconds: waitMs));
@@ -250,9 +287,12 @@ Return only valid JSON array, no additional text.
         final data = jsonDecode(jsonStr);
         if (data is List) {
           return List<Map<String, dynamic>>.from(data);
+        } else if (data is Map && data.containsKey('medicines') && data['medicines'] is List) {
+           return List<Map<String, dynamic>>.from(data['medicines']);
         }
         return [];
       } catch (e) {
+        print('Gemini JSON Parse Error: $e\nResponse: $response');
         // Fallback: extract medicine names from text
         return _extractMedicinesFromText(response);
       }

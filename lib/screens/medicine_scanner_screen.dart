@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:sugenix/services/platform_image_service.dart';
 import 'package:sugenix/services/medicine_database_service.dart';
-import 'package:sugenix/services/huggingface_service.dart';
 import 'package:sugenix/services/gemini_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:sugenix/widgets/translated_text.dart';
@@ -98,9 +97,8 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
       _pharmacyMedicine = null;
     });
     try {
-      // Try Hugging Face first
+      // Use Gemini AI for medicine scanning
       Map<String, dynamic>? scanResult;
-      bool usedGemini = false;
 
       try {
         // Use Gemini's vision with a labels-specific prompt
@@ -109,10 +107,9 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
           prompt: 'Identify this medicine. Extract the name, manufacturer, and all visible text from the label.',
         );
         if (extractedText.isEmpty) {
-          throw Exception('Gemini extraction returned empty text');
+          throw Exception('Could not extract text from the image. Please ensure the medicine label is clearly visible and try again.');
         }
         final geminiInfo = await GeminiService.getMedicineInfo(extractedText);
-        usedGemini = true;
         scanResult = {
           'success': true,
           'rawText': extractedText,
@@ -124,25 +121,16 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
           },
         };
       } catch (geminiError) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Alternative AI service active...'),
-              backgroundColor: Colors.blue,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-
-        try {
-          // Fallback to Hugging Face
-          scanResult = await HuggingFaceService.scanMedicineImage(image.path);
-          if (scanResult == null || scanResult['success'] != true) {
-            throw Exception(scanResult?['error'] ?? 'Hugging Face scan failed');
-          }
-        } catch (hfError) {
-          // Both failed
-          throw Exception('Both AI services failed: ${geminiError.toString()}');
+        // Gemini failed - provide helpful error message
+        final errorMsg = geminiError.toString().toLowerCase();
+        if (errorMsg.contains('api key') || errorMsg.contains('not configured')) {
+          throw Exception('AI service not configured properly. Please contact support.');
+        } else if (errorMsg.contains('quota') || errorMsg.contains('limit')) {
+          throw Exception('Service temporarily unavailable due to usage limits. Please try again later.');
+        } else if (errorMsg.contains('timeout') || errorMsg.contains('connection')) {
+          throw Exception('Connection timeout. Please check your internet connection and try again.');
+        } else {
+          throw Exception('Failed to scan medicine. Please ensure the image is clear and try again.');
         }
       }
 

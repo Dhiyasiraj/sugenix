@@ -3,10 +3,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sugenix/services/platform_location_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
+import 'package:telephony/telephony.dart';
 
 class SOSAlertService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final Telephony _telephony = Telephony.instance;
+
+  // Request necessary permissions proactively
+  Future<bool> requestSMSPermissions() async {
+    final bool? granted = await _telephony.requestPhoneAndSmsPermissions;
+    return granted ?? false;
+  }
 
   // Generate SOS message with location
   static String _generateSOSMessage({
@@ -57,28 +65,33 @@ Please respond immediately! This is a critical health emergency.
     required String message,
   }) async {
     try {
-      // For now, just log the SMS that would be sent
-      // In production, integrate with SMS service like Twilio, AWS SNS, etc.
-      print('SOS SMS to $phoneNumber: $message');
+      print('Attempting to send SOS SMS to $phoneNumber');
 
-      // Format phone number (remove +, keep only digits)
-      String formattedPhone = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
-      // Add country code if missing (assume India +91)
-      if (formattedPhone.length == 10) {
-        formattedPhone = '91$formattedPhone';
+      // Check/Request SMS permission
+      final bool? permissionsGranted = await _telephony.requestPhoneAndSmsPermissions;
+      
+      if (permissionsGranted != true) {
+        print('SMS permissions denied');
+        return false;
       }
 
-      // TODO: Integrate with actual SMS service
-      // Example with Twilio (would need API keys):
-      /*
-      final smsResult = await _sendSMSTwilio(
-        to: formattedPhone,
+      // Format phone number (remove +, keep only digits)
+      String cleanPhone = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
+      
+      // Basic validation for India (10 digits) - default to +91 if needed, 
+      // but Telephony usually handles local numbers fine. 
+      // Keeping it as is or adding + if missing might be safer depending on the carrier.
+      // Ideally, pass the number as stored in contacts (usually full number).
+      
+      print('Sending SMS to $phoneNumber...');
+      
+      await _telephony.sendSms(
+        to: phoneNumber,
         message: message,
+        isMultipart: true, // Handle long messages
       );
-      return smsResult;
-      */
-
-      // For now, simulate success for testing
+      
+      print('SMS sent successfully to $phoneNumber');
       return true;
     } catch (e) {
       print('Error sending SOS SMS: $e');

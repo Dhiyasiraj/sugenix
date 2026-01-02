@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sugenix/services/sos_alert_service.dart';
 import 'package:sugenix/utils/responsive_layout.dart';
 import 'package:sugenix/services/language_service.dart';
+import 'package:sugenix/services/platform_location_service.dart';
 
 class EmergencyScreen extends StatefulWidget {
   const EmergencyScreen({super.key});
@@ -16,6 +17,23 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   bool _isEmergencyActive = false;
   bool _isSending = false;
   int _countdown = 5;
+
+
+
+  @override
+  void initState() {
+    super.initState();
+    // Request permissions immediately when screen loads
+    // so the user isn't interrupted during an emergency
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _requestPermissions();
+    });
+  }
+
+  Future<void> _requestPermissions() async {
+    await _sosAlertService.requestSMSPermissions();
+    await PlatformLocationService.requestLocationPermission();
+  }
 
   @override
   Widget build(BuildContext context) {

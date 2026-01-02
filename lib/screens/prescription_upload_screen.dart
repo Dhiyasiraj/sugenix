@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sugenix/services/medicine_orders_service.dart';
-import 'package:sugenix/services/huggingface_service.dart';
 import 'package:sugenix/services/gemini_service.dart';
 import 'package:sugenix/services/medicine_database_service.dart';
 import 'package:sugenix/screens/medicine_catalog_screen.dart';
@@ -27,7 +26,7 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
   List<Map<String, dynamic>> _unavailableMedicines = [];
 
   Future<void> _pickImages() async {
-    final images = await _picker.pickMultiImage(imageQuality: 80);
+    final images = await _picker.pickMultiImage(imageQuality: 70, maxWidth: 1024);
     if (images.isNotEmpty) {
       setState(() {
         _selectedImages
@@ -38,7 +37,7 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
   }
 
   Future<void> _captureImage() async {
-    final image = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+    final image = await _picker.pickImage(source: ImageSource.camera, imageQuality: 70, maxWidth: 1024);
     if (image != null) {
       setState(() {
         _selectedImages.add(image);
@@ -65,47 +64,46 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
       // Step 1: Upload prescription
       final id = await _ordersService.uploadPrescription(_selectedImages);
       
-      // Step 2: Analyze prescription using AI (Hugging Face first, then Gemini fallback)
+      // Step 2: Analyze prescription using Gemini AI
       if (_selectedImages.isNotEmpty) {
         try {
           String extractedText = '';
           List<Map<String, dynamic>> medicines = [];
 
-          // Try Gemini first (more robust for vision tasks)
+          // Use Gemini for prescription analysis
           try {
             extractedText = await GeminiService.extractTextFromImage(
               _selectedImages.first,
               prompt: 'Read this medical prescription. Extract all medicine names, dosages, and frequencies mentioned.',
             );
-            medicines = await GeminiService.analyzePrescription(extractedText);
+            if (extractedText.isNotEmpty) {
+              medicines = await GeminiService.analyzePrescription(extractedText);
+            }
           } catch (geminiError) {
+            // Gemini failed - provide helpful feedback
+            } catch (geminiError) {
+            // Gemini failed - show detailed error dialog
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Using alternative AI service for prescription analysis...'),
-                  backgroundColor: Colors.blue,
-                  duration: Duration(seconds: 2),
+              await showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text("AI Analysis Failed"),
+                  content: SingleChildScrollView(
+                    child: Text(
+                      "Error Details:\n${geminiError.toString()}",
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("OK"),
+                    ),
+                  ],
                 ),
               );
             }
-
-            // Fallback to Hugging Face
-            try {
-              extractedText = await HuggingFaceService.extractTextFromImage(_selectedImages.first);
-              medicines = await HuggingFaceService.analyzePrescription(extractedText);
-            } catch (hfError) {
-              // If both AI services fail, skip analysis but allow upload
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Prescription uploaded. AI analysis failed - both services unavailable.'),
-                    backgroundColor: Colors.orange,
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-              }
-              medicines = []; // Empty list to skip further processing
-            }
+            medicines = []; // Empty list to skip further processing
           }
 
           // Step 3: Check availability in pharmacy (only if we have medicines)
@@ -121,25 +119,16 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
                       'pharmacyData': pharmacyMedicines.first,
                     });
                   } else {
-                    // Get info from AI for unavailable medicines (try HF first, then Gemini)
+                    // Get info from Gemini for unavailable medicines
                     try {
-                      final medicineInfo = await HuggingFaceService.getMedicineInfo(medicineName);
+                      final geminiInfo = await GeminiService.getMedicineInfo(medicineName);
                       _unavailableMedicines.add({
                         ...medicine,
-                        'geminiInfo': medicineInfo, // Keep key name for compatibility
+                        'geminiInfo': geminiInfo,
                       });
-                    } catch (hfInfoError) {
-                      // Try Gemini as fallback for medicine info
-                      try {
-                        final geminiInfo = await GeminiService.getMedicineInfo(medicineName);
-                        _unavailableMedicines.add({
-                          ...medicine,
-                          'geminiInfo': geminiInfo,
-                        });
-                      } catch (geminiInfoError) {
-                        // If both info services fail, just add medicine without info
-                        _unavailableMedicines.add(medicine);
-                      }
+                    } catch (geminiInfoError) {
+                      // If info service fails, just add medicine without info
+                      _unavailableMedicines.add(medicine);
                     }
                   }
                 } catch (e) {
@@ -154,7 +143,7 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
             _suggestedMedicines = medicines;
           });
         } catch (e) {
-          // If all AI services fail, still allow upload but skip analysis
+          // Unexpected error - log but don't fail the upload
           final errorMsg = e.toString().toLowerCase();
           if (errorMsg.contains('timeout') || errorMsg.contains('connection') || errorMsg.contains('network')) {
             // Network error - skip analysis but allow upload
@@ -205,6 +194,46 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
     }
   }
 
+  Future<void> _testApiConnection() async {
+    setState(() => _analyzing = true);
+    try {
+      final response = await GeminiService.generateText("Hello, are you working?");
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text("API Test Success"),
+            content: Text("Response from AI:\n$response"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("OK"),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text("API Test Failed"),
+            content: Text("Error:\n$e"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("OK"),
+              ),
+            ],
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _analyzing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -223,6 +252,11 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.bug_report, color: Color(0xFF0C4556)),
+            onPressed: _uploading ? null : _testApiConnection,
+            tooltip: "Test API Connection",
+          ),
           if (_selectedImages.isNotEmpty && !_uploading)
             TextButton(
               onPressed: () {
