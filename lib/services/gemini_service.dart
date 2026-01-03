@@ -471,13 +471,41 @@ Please provide helpful, accurate medical advice for diabetes management. If the 
     final lines = text.split('\n');
 
     for (var line in lines) {
-      if (line.trim().isNotEmpty &&
-          (line.contains('mg') ||
-              line.contains('tablet') ||
-              line.contains('capsule'))) {
+      final cleanLine = line.trim();
+      if (cleanLine.length < 3) continue;
+      
+      // Skip common non-medicine lines
+      final lower = cleanLine.toLowerCase();
+      if (lower.contains('date:') || lower.contains('name:') || lower.contains('age:') || lower.contains('sex:')) continue;
+      if (lower.contains('dr.') || lower.contains('doctor') || lower.contains('hospital')) continue;
+
+      // Extract looking for common signs of a medicine or dosage
+      bool looksLikeMedicine = (lower.contains('mg') || lower.contains('ml') || lower.contains('mcg') || 
+                                lower.contains('tab') || lower.contains('cap') || lower.contains('daily') ||
+                                lower.contains('times') || lower.contains('dose'));
+      
+      // Additional heuristic: if it's a short line with 2-3 words, high chance it's a medicine name
+      final words = cleanLine.split(' ');
+      if (!looksLikeMedicine && words.length >= 1 && words.length <= 4) {
+         looksLikeMedicine = true;
+      }
+
+      if (looksLikeMedicine) {
+        // Try to separate name and dosage roughly
+        final dosageRegex = RegExp(r'(\d+(?:\.\d+)?\s*(?:mg|ml|gm|g|mcg|iu|unit|tablet|capsule|cap|tab))', caseSensitive: false);
+        final match = dosageRegex.firstMatch(cleanLine);
+        
+        String name = cleanLine;
+        String dosage = 'As prescribed';
+        
+        if (match != null) {
+           dosage = match.group(0)!;
+           name = cleanLine.replaceFirst(dosage, '').trim();
+        }
+
         medicines.add({
-          'name': line.trim(),
-          'dosage': 'As prescribed',
+          'name': name.isEmpty ? cleanLine : name,
+          'dosage': dosage,
           'frequency': 'As prescribed',
           'duration': 'As prescribed'
         });

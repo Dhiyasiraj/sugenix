@@ -93,6 +93,7 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
 
       // Step 3: Analyze Text
       if (extractedText.isNotEmpty) {
+        print("DEBUG: Extracted Text for Analysis: \n$extractedText");
         List<Map<String, dynamic>> aiMedicines = [];
         bool usedAi = false;
 
@@ -110,9 +111,19 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
            // Process AI Results
            for (var med in aiMedicines) {
               final name = med['name'] ?? '';
-              final dosage = med['dosage'] ?? 'As prescribed';
+              String dosage = med['dosage']?.toString() ?? '';
               
               if (name.isEmpty) continue;
+
+              // If AI gave generic dosage, try to find a more specific one in the extracted text for this medicine
+              if (dosage.isEmpty || dosage.toLowerCase() == 'as prescribed' || dosage.toLowerCase() == 'not specified') {
+                 final localDosage = _extractDosage(extractedText); // This is a bit broad, but better than nothing
+                 if (localDosage.isNotEmpty && localDosage != 'As prescribed') {
+                   dosage = localDosage;
+                 }
+              }
+              
+              if (dosage.isEmpty) dosage = 'As prescribed';
 
               final matches = await _searchBestMatch(name);
               
@@ -137,6 +148,7 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
            // Fallback to Local Regex Parsing
            print("Using Local Regex Parsing on text: $extractedText");
            final localMeds = await _parseMedicinesFromOCR(extractedText);
+           // Note: _parseMedicinesFromOCR now populates _availableMedicines and _unavailableMedicines directly
            _suggestedMedicines.addAll(localMeds);
         }
 
@@ -221,15 +233,13 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
          if (name.isNotEmpty) addedNames.add(name);
 
          // It's a valid medicine in our DB
-         _availableMedicines.add({
+         final medData = {
            'name': match['name'],
            'dosage': match['strength'] ?? 'As prescribed',
            'pharmacyData': match,
-         });
-         results.add({
-           'name': match['name'],
-           'dosage': match['strength'] ?? 'As prescribed',
-         });
+         };
+         _availableMedicines.add(medData);
+         results.add(medData);
       } else {
          // Not found in DB -> Add to unavailable list
          // Improved extraction logic
@@ -240,10 +250,13 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
          if (nameCandidate.length > 2 && !addedNames.contains(nameCandidate.toLowerCase())) {
              addedNames.add(nameCandidate.toLowerCase());
              
-             _unavailableMedicines.add({
+             final medData = {
                'name': nameCandidate, 
                'dosage': dosage,
-             });
+               'isUnavailable': true,
+             };
+             _unavailableMedicines.add(medData);
+             results.add(medData);
          }
       }
     }
@@ -252,9 +265,13 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
   
   String _extractDosage(String text) {
      // Look for patterns like 500mg, 500 mg, 5ml, 5 ml, etc.
-     final regex = RegExp(r'(\d+(?:\.\d+)?\s*(?:mg|ml|gm|g|mcg|iu|unit|tablet|capsule|cap|tab))', caseSensitive: false);
-     final match = regex.firstMatch(text);
-     return match?.group(0) ?? 'As prescribed';
+     final regex = RegExp(r'(\d+(?:\.\d+)?\s*(?:mg|ml|gm|g|mcg|iu|unit|tablet|capsule|cap|tab|tsp|tbsp))', caseSensitive: false);
+     final matches = regex.allMatches(text);
+     if (matches.isNotEmpty) {
+       // Return the most likely dosage (usually the first one for a specific line/medicine)
+       return matches.first.group(0) ?? 'As prescribed';
+     }
+     return 'As prescribed';
   }
   
   String _extractName(String text) {
@@ -491,7 +508,7 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
                 ),
               ),
             ),
-          if (_suggestedMedicines.isNotEmpty && !_analyzing)
+          if ((_availableMedicines.isNotEmpty || _unavailableMedicines.isNotEmpty) && !_analyzing)
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
@@ -518,8 +535,8 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
                     ],
                     if (_unavailableMedicines.isNotEmpty) ...[
                       const Text(
-                        'Not Available in Pharmacy',
-                        style: TextStyle(fontWeight: FontWeight.w600, color: Colors.orange),
+                        'Other Prescribed Items',
+                        style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey),
                       ),
                       const SizedBox(height: 8),
                       ..._unavailableMedicines.map((medicine) => _buildMedicineCard(medicine, false)),
@@ -612,13 +629,22 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
   Widget _buildMedicineCard(Map<String, dynamic> medicine, bool available) {
     final pharmacyData = medicine['pharmacyData'];
     
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      color: available ? Colors.white : Colors.orange.withOpacity(0.05),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        side: available ? BorderSide.none : const BorderSide(color: Colors.orange, width: 0.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: available ? Colors.green.withOpacity(0.3) : Colors.grey.withOpacity(0.2),
+          width: 1,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -628,9 +654,17 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  available ? Icons.check_circle : Icons.info_outline,
-                  color: available ? Colors.green : Colors.orange,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: available ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    available ? Icons.check_circle : Icons.medication,
+                    color: available ? Colors.green : Colors.grey[600],
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -638,29 +672,19 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        medicine['name'] ?? 'Unknown',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        medicine['name'] ?? 'Unknown Medicine',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 16,
+                          color: available ? const Color(0xFF0C4556) : Colors.black87,
+                        ),
                       ),
                       const SizedBox(height: 4),
                        // Show Dosage
                        if (medicine['dosage'] != null && medicine['dosage'].toString().isNotEmpty)
                         Text(
                           'Dosage: ${medicine['dosage']}',
-                           style: TextStyle(color: Colors.grey[700], fontSize: 13),
-                        ),
-                      
-                      // For unavailable items, show explicit "Currently not available" text
-                      if (!available)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 6),
-                          child: Text(
-                            'Currently not available',
-                            style: TextStyle(
-                              color: Colors.red,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
-                          ),
+                           style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w500),
                         ),
                     ],
                   ),
@@ -669,14 +693,23 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
             ),
             
             if (available && pharmacyData != null) ...[
-              const Divider(height: 20),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Divider(height: 1),
+              ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                   Text(
-                    '₹${(pharmacyData['price'] ?? 0.0).toStringAsFixed(2)}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 16),
-                  ),
+                   Column(
+                     crossAxisAlignment: CrossAxisAlignment.start,
+                     children: [
+                       const Text('Price', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                       Text(
+                        '₹${(pharmacyData['price'] ?? 0.0).toStringAsFixed(2)}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 18),
+                      ),
+                     ],
+                   ),
                   ElevatedButton(
                     onPressed: () {
                       Navigator.push(
@@ -686,10 +719,12 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF0C4556),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      minimumSize: const Size(0, 36),
+                      minimumSize: const Size(0, 40),
                     ),
-                    child: const Text('Add to Cart', style: TextStyle(color: Colors.white, fontSize: 12)),
+                    child: const Text('Add to Cart', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
