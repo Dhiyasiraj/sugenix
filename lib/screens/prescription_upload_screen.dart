@@ -382,44 +382,48 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: _uploading ? null : _pickImages,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0C4556),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        icon: const Icon(Icons.photo_library, color: Colors.white),
-                        label: const Text('Gallery', style: TextStyle(color: Colors.white)),
-                      ),
-                      const SizedBox(width: 12),
-                      OutlinedButton.icon(
-                        onPressed: _uploading ? null : _captureImage,
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Color(0xFF0C4556)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        icon: const Icon(Icons.photo_camera, color: Color(0xFF0C4556)),
-                        label: const Text('Camera', style: TextStyle(color: Color(0xFF0C4556))),
-                      ),
-                      const Spacer(),
-                      if (_selectedImages.isNotEmpty)
-                        ElevatedButton(
-                          onPressed: _uploading ? null : _upload,
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _uploading ? null : _pickImages,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF0C4556),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
-                          child: _uploading
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Text('Upload', style: TextStyle(color: Colors.white)),
+                          icon: const Icon(Icons.photo_library, color: Colors.white),
+                          label: const Text('Gallery', style: TextStyle(color: Colors.white)),
                         ),
-                    ],
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(
+                          onPressed: _uploading ? null : _captureImage,
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFF0C4556)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          icon: const Icon(Icons.photo_camera, color: Color(0xFF0C4556)),
+                          label: const Text('Camera', style: TextStyle(color: Color(0xFF0C4556))),
+                        ),
+                        const SizedBox(width: 12),
+                        if (_selectedImages.isNotEmpty)
+                          ElevatedButton(
+                            onPressed: _uploading ? null : _upload,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0C4556),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: _uploading
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : const Text('Upload', style: TextStyle(color: Colors.white)),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
