@@ -65,36 +65,91 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
       // Step 1: Upload prescription
       final id = await _ordersService.uploadPrescription(_selectedImages);
       
-      // Step 2: Analyze prescription using On-Device OCR (No API)
+      // Step 2: Extract Text (Try Gemini Vision first, then Local OCR)
+      String extractedText = '';
       if (_selectedImages.isNotEmpty) {
+        // Option A: Gemini Vision (Better for handwriting)
         try {
-          String extractedText = '';
-          List<Map<String, dynamic>> medicines = [];
-
-          try {
-            // Use OCR Service
-            extractedText = await OCRService.extractText(_selectedImages.first);
-            
-            if (extractedText.isNotEmpty) {
-               medicines = await _parseMedicinesFromOCR(extractedText);
-            }
-          } catch (e) {
-            print('OCR Failed: $e');
-            medicines = [];
-          }
-
-          // Step 3: Check availability in pharmacy (already done in _parseMedicinesFromOCR technically, but let's organize)
-          // Actually _parseMedicinesFromOCR can just return the raw names found, and then we check DB.
-          // But since _parseMedicinesFromOCR needs to check DB to know if it's a medicine, we effectively populate _availableMedicines there.
-          
-          setState(() {
-             // _suggestedMedicines is combined list
-             _suggestedMedicines = medicines;
-          });
-          
+           extractedText = await GeminiService.extractTextFromImage(
+              _selectedImages.first, 
+              prompt: "Read this prescription and extract all text exactly as written. List every medicine name and dosage you see."
+           );
         } catch (e) {
-             print("Analysis Error: $e");
-             // Non-fatal
+           print('Gemini Vision Failed: $e');
+        }
+
+        // Option B: Fallback to Local OCR
+        if (extractedText.isEmpty || extractedText.length < 10) {
+           try {
+             final ocrText = await OCRService.extractText(_selectedImages.first);
+             if (ocrText.length > extractedText.length) {
+                extractedText = ocrText;
+             }
+           } catch (e) {
+             print('OCR Failed: $e');
+           }
+        }
+      }
+
+      // Step 3: Analyze Text
+      if (extractedText.isNotEmpty) {
+        List<Map<String, dynamic>> aiMedicines = [];
+        bool usedAi = false;
+
+        // Try Gemini Analysis to structure the text
+        try {
+          aiMedicines = await GeminiService.analyzePrescription(extractedText);
+          if (aiMedicines.isNotEmpty) {
+             usedAi = true;
+          }
+        } catch (e) {
+          print("Gemini Analysis Failed: $e");
+        }
+
+        if (usedAi) {
+           // Process AI Results
+           for (var med in aiMedicines) {
+              final name = med['name'] ?? '';
+              final dosage = med['dosage'] ?? 'As prescribed';
+              
+              if (name.isEmpty) continue;
+
+              final matches = await _searchBestMatch(name);
+              
+              if (matches.isNotEmpty) {
+                 final match = matches.first;
+                 _availableMedicines.add({
+                   'name': match['name'],
+                   'dosage': dosage, 
+                   'pharmacyData': match,
+                   'geminiInfo': med, 
+                 });
+              } else {
+                 _unavailableMedicines.add({
+                   'name': name,
+                   'dosage': dosage,
+                   'geminiInfo': med,
+                 });
+              }
+           }
+           _suggestedMedicines.addAll(aiMedicines);
+        } else {
+           // Fallback to Local Regex Parsing
+           print("Using Local Regex Parsing on text: $extractedText");
+           final localMeds = await _parseMedicinesFromOCR(extractedText);
+           _suggestedMedicines.addAll(localMeds);
+        }
+
+        // Ultimate Fallback: If nothing was found but we have text, show raw text lines
+        if (_suggestedMedicines.isEmpty && extractedText.trim().isNotEmpty) {
+            final lines = extractedText.split('\n').where((l) => l.trim().length > 4).toList();
+            for(var line in lines) {
+                _unavailableMedicines.add({
+                  'name': line.trim(),
+                  'dosage': 'Not specified',
+                });
+                _suggestedMedicines.add({'name': line.trim()});
+            }
         }
       }
       
@@ -107,9 +162,9 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_suggestedMedicines.isNotEmpty 
-              ? 'Prescription scanned! ${_availableMedicines.length} medicines identified.'
-              : 'Prescription uploaded successfully'),
-          backgroundColor: Colors.green,
+              ? 'Analysis complete! ${_suggestedMedicines.length} items identified.'
+              : 'Prescription uploaded. Only raw text extracted.'),
+          backgroundColor: _suggestedMedicines.isNotEmpty ? Colors.green : Colors.orange,
         ),
       );
     } catch (e) {
@@ -119,7 +174,7 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Upload failed: ${e.toString()}'),
+            content: Text('Processing failed: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -177,19 +232,45 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
          });
       } else {
          // Not found in DB -> Add to unavailable list
-         // Heuristic: Name is text before numbers usually
-         final nameCandidate = cleanLine.split(RegExp(r'[\d]')).first.trim(); 
+         // Improved extraction logic
+         final dosage = _extractDosage(cleanLine);
+         // Clean the name by removing dosage info
+         final nameCandidate = _extractName(cleanLine); 
+
          if (nameCandidate.length > 2 && !addedNames.contains(nameCandidate.toLowerCase())) {
              addedNames.add(nameCandidate.toLowerCase());
              
              _unavailableMedicines.add({
-               'name': cleanLine, // Show full extracted text
-               'dosage': 'Details from prescription',
+               'name': nameCandidate, 
+               'dosage': dosage,
              });
          }
       }
     }
     return results;
+  }
+  
+  String _extractDosage(String text) {
+     // Look for patterns like 500mg, 500 mg, 5ml, 5 ml, etc.
+     final regex = RegExp(r'(\d+(?:\.\d+)?\s*(?:mg|ml|gm|g|mcg|iu|unit|tablet|capsule|cap|tab))', caseSensitive: false);
+     final match = regex.firstMatch(text);
+     return match?.group(0) ?? 'As prescribed';
+  }
+  
+  String _extractName(String text) {
+     // Remove dosage info to get name
+     final regex = RegExp(r'(\d+(?:\.\d+)?\s*(?:mg|ml|gm|g|mcg|iu|unit|tablet|capsule|cap|tab))', caseSensitive: false);
+     String name = text.replaceAll(regex, '').trim();
+     // Remove any remaining trailing numbers that might be detached strength
+     name = name.replaceAll(RegExp(r'\s+\d+$'), '').trim();
+     // Remove special chars
+     name = name.replaceAll(RegExp(r'^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$'), '').trim();
+     
+     // Heuristic: if name is still empty or too short, revert to first part of original text
+     if (name.length < 2) {
+       return text.split(RegExp(r'\s+')).first;
+     }
+     return name;
   }
 
   Future<List<Map<String, dynamic>>> _searchBestMatch(String query) async {
@@ -212,19 +293,19 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
     if (RegExp(r'^[\d\W]+$').hasMatch(lower)) return true;
     
     // Skip common dosage/form keywords if the line implies it's just meta-info
-    final keywords = ['tablet', 'tablets', 'cap', 'capsule', 'capsules', 'mg', 'ml', 'gm', 'g', 'mcg', 'daily', 'times', 'day', 'night', 'morning', 'after', 'before', 'food', 'dose', 'take', 'qty', 'quantity', 'total', 'price', 'mrp', 'exp', 'date', 'batch', 'no', 'code', 'reg'];
+    final keywords = ['tablet', 'tablets', 'cap', 'capsule', 'capsules', 'mg', 'ml', 'gm', 'g', 'mcg', 'daily', 'times', 'day', 'night', 'morning', 'after', 'before', 'food', 'dose', 'take', 'qty', 'quantity', 'total', 'price', 'mrp', 'exp', 'date', 'batch', 'no', 'code', 'reg', 'dr', 'doctor', 'patient', 'name', 'date', 'age', 'sex'];
     
     // Check if line consists mostly of keywords + numbers
     final words = lower.split(RegExp(r'\s+'));
     int noiseCount = 0;
     for(var w in words) {
-       if (keywords.any((k) => w.contains(k)) || double.tryParse(w.replaceAll(RegExp(r'[^\d.]'), '')) != null || w.length < 3) {
+       if (keywords.any((k) => w == k || w.contains(k)) || double.tryParse(w.replaceAll(RegExp(r'[^\d.]'), '')) != null || w.length < 2) {
          noiseCount++;
        }
     }
     
-    // If > 70% of words are noise, skip
-    if (words.isNotEmpty && (noiseCount / words.length > 0.7)) return true;
+    // If > 60% of words are noise, skip (relaxed from 70%)
+    if (words.isNotEmpty && (noiseCount / words.length > 0.6)) return true;
     
     return false;
   }
@@ -526,72 +607,88 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
 
   Widget _buildMedicineCard(Map<String, dynamic> medicine, bool available) {
     final pharmacyData = medicine['pharmacyData'];
-    final geminiInfo = medicine['geminiInfo'];
     
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: available ? Colors.green.withOpacity(0.05) : Colors.orange.withOpacity(0.05),
+      color: available ? Colors.white : Colors.orange.withOpacity(0.05),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: available ? BorderSide.none : const BorderSide(color: Colors.orange, width: 0.5),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(
-                  available ? Icons.check_circle : Icons.info,
+                  available ? Icons.check_circle : Icons.info_outline,
                   color: available ? Colors.green : Colors.orange,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    medicine['name'] ?? 'Unknown',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        medicine['name'] ?? 'Unknown',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      const SizedBox(height: 4),
+                       // Show Dosage
+                       if (medicine['dosage'] != null && medicine['dosage'].toString().isNotEmpty)
+                        Text(
+                          'Dosage: ${medicine['dosage']}',
+                           style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                        ),
+                      
+                      // For unavailable items, show explicit "Currently not available" text
+                      if (!available)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 6),
+                          child: Text(
+                            'Currently not available',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ],
             ),
-            if (medicine['dosage'] != null) ...[
-              const SizedBox(height: 4),
-              Text('Dosage: ${medicine['dosage']}'),
-            ],
+            
             if (available && pharmacyData != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Price: ₹${(pharmacyData['price'] ?? 0.0).toStringAsFixed(2)}',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+              const Divider(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                   Text(
+                    '₹${(pharmacyData['price'] ?? 0.0).toStringAsFixed(2)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 16),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const MedicineCatalogScreen()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0C4556),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      minimumSize: const Size(0, 36),
+                    ),
+                    child: const Text('Add to Cart', style: TextStyle(color: Colors.white, fontSize: 12)),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const MedicineCatalogScreen()),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0C4556),
-                ),
-                child: const Text('Add to Cart', style: TextStyle(color: Colors.white)),
-              ),
-            ] else if (geminiInfo != null) ...[
-              const SizedBox(height: 8),
-              if (geminiInfo['amount'] != null && geminiInfo['amount'].toString().isNotEmpty)
-                Text('Package Size: ${geminiInfo['amount']}'),
-              if (geminiInfo['priceRange'] != null && geminiInfo['priceRange'].toString().isNotEmpty)
-                Text('Estimated Price: ${geminiInfo['priceRange']}'),
-              if (medicine['dosage'] != null && medicine['dosage'].toString().isNotEmpty)
-                Text('Dosage: ${medicine['dosage']}'),
-              if (geminiInfo['uses'] != null && geminiInfo['uses'] is List) ...[
-                const SizedBox(height: 8),
-                const Text('Uses:', style: TextStyle(fontWeight: FontWeight.w600)),
-                ...(geminiInfo['uses'] as List).take(3).map((use) => Text('• $use')),
-              ],
-              if (geminiInfo['sideEffects'] != null && geminiInfo['sideEffects'] is List) ...[
-                const SizedBox(height: 8),
-                const Text('Side Effects:', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red)),
-                ...(geminiInfo['sideEffects'] as List).take(3).map((effect) => Text('• $effect', style: const TextStyle(color: Colors.red))),
-              ],
             ],
           ],
         ),

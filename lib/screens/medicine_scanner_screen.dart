@@ -117,7 +117,9 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
         if (_isNoise(cleanLine)) continue;
         
         // Potential name candidate if no match found yet
-        if (bestNameCandidate.isEmpty) bestNameCandidate = cleanLine;
+        if (bestNameCandidate.isEmpty) {
+             bestNameCandidate = _extractName(cleanLine);
+        }
 
         // Try full line search
         var matches = await _searchBestMatch(cleanLine);
@@ -170,33 +172,65 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
           'available': true,
         };
       } else {
-        // Not found in DB - Show Extracted Info
+        // Not found in DB - Use Gemini AI to analyze the whole text context
         _medicineFoundInPharmacy = false;
         
-        // Simple heuristic parsing from raw text
-        String ingredients = '';
-        String dosage = '';
+        // 1. Try to analyze the full extracted text which usually contains the name AND context
+        Map<String, dynamic> parsedInfo = {};
+        bool analysisSuccess = false;
         
-        for (var line in lines) {
-           if (line.toLowerCase().contains('mg') || line.toLowerCase().contains('ml')) {
-             dosage = line;
+        try {
+           final analysisResult = await GeminiService.analyzeMedicineText(extractedText);
+           if (analysisResult['success'] == true && analysisResult['parsed'] != null) {
+             parsedInfo = analysisResult['parsed'];
+             analysisSuccess = true;
            }
-           if (line.toLowerCase().contains('ingredient') || line.toLowerCase().contains('contains')) {
-             ingredients = line;
+        } catch (e) {
+           print("Gemini full text analysis failed: $e");
+        }
+
+        // 2. If full analysis failed or didn't give a name, try specific name lookup
+        String finalName = parsedInfo['medicineName'] ?? 'Unknown';
+        if (finalName == 'Unknown' || finalName == 'Not available' || finalName == 'Parse error') {
+             // Fallback to heuristic name
+             finalName = bestNameCandidate.isNotEmpty ? bestNameCandidate : 'Unknown Medicine';
+             // If we have a name now, maybe try getting info just for that name?
+             if (finalName != 'Unknown Medicine' && !analysisSuccess) {
+                 try {
+                    final specificInfo = await GeminiService.getMedicineInfo(finalName);
+                    parsedInfo = {
+                        'medicineName': finalName,
+                        'uses': (specificInfo['uses'] as List?)?.join('\n') ?? 'Details not available',
+                        'sideEffects': (specificInfo['sideEffects'] as List?)?.join('\n') ?? 'Consult a doctor',
+                        'ingredients': specificInfo['activeIngredient']?.toString() ?? 'Not identified',
+                         // dosage/strength might differ, but let's keep it simple
+                    };
+                 } catch (_) {}
+             }
+        }
+        
+        // 3. Construct Data
+        // Helper to convert string block to list
+        List<String> toList(dynamic val) {
+           if (val is List) return val.map((e) => e.toString()).toList();
+           if (val is String) {
+              if (val.toLowerCase().contains('not available') || val.toLowerCase().contains('parse error')) return [];
+              return val.split('\n').where((s) => s.trim().isNotEmpty).map((s) => s.trim().replaceAll(RegExp(r'^[-•*]'), '').trim()).toList();
            }
+           return [];
         }
 
         medicineData = {
-          'name': bestNameCandidate.isNotEmpty ? bestNameCandidate : 'Unknown Medicine',
-          'manufacturer': 'Not identified',
+          'name': finalName,
+          'manufacturer': parsedInfo['manufacturer'] ?? 'Not identified', // map might not have manufacturer in 'parsed', check service
           'type': 'Medicine',
-          'activeIngredient': ingredients,
-          'strength': dosage,
+          'activeIngredient': parsedInfo['ingredients'] ?? 'Not identified',
+          'strength': _extractDosage(extractedText), // Keep keeping regex dosage as backup
           'form': 'Tablet/Syrup',
-          'uses': ['Scanned Text:', ...lines.take(10)],
-          'dosage': dosage,
-          'precautions': <String>[],
-          'sideEffects': <String>['Consult a doctor for side effects.'],
+          'uses': toList(parsedInfo['uses']).isEmpty ? ['Information not available for this specific text'] : toList(parsedInfo['uses']),
+          'dosage': parsedInfo['dosageInstructions'] ?? _extractDosage(extractedText),
+          'precautions': <String>[], // Parsed info doesn't strictly return precautions in the helper, maybe leave empty
+          'sideEffects': toList(parsedInfo['sideEffects']).isEmpty ? ['Consult a doctor for side effects'] : toList(parsedInfo['sideEffects']),
           'price': 0.0,
           'priceRange': '',
           'available': false,
@@ -232,6 +266,21 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
         );
       }
     }
+  }
+
+  String _extractDosage(String text) {
+     final regex = RegExp(r'(\d+(?:\.\d+)?\s*(?:mg|ml|gm|g|mcg|iu|unit|tablet|capsule|cap|tab))', caseSensitive: false);
+     final match = regex.firstMatch(text);
+     return match?.group(0) ?? '';
+  }
+  
+  String _extractName(String text) {
+     final regex = RegExp(r'(\d+(?:\.\d+)?\s*(?:mg|ml|gm|g|mcg|iu|unit|tablet|capsule|cap|tab))', caseSensitive: false);
+     String name = text.replaceAll(regex, '').trim();
+     name = name.replaceAll(RegExp(r'\s+\d+$'), '').trim();
+     name = name.replaceAll(RegExp(r'^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$'), '').trim();
+     if (name.length < 2) return text.split(RegExp(r'\s+')).first;
+     return name;
   }
 
   Future<List<Map<String, dynamic>>> _searchBestMatch(String query) async {
@@ -661,29 +710,29 @@ class _MedicineScannerScreenState extends State<MedicineScannerScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.red.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange),
+                border: Border.all(color: Colors.red),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.info, color: Colors.orange),
+                      const Icon(Icons.info_outline, color: Colors.red),
                       const SizedBox(width: 8),
                       const Text(
-                        'Not Available in Pharmacy',
+                        'Currently not available',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Colors.orange,
+                          color: Colors.red,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'This medicine is not currently available in our pharmacy. Please consult your doctor or visit a local pharmacy.',
+                    'This medicine is not currently available in our pharmacy. Name and dosage extracted from scan.',
                     style: TextStyle(color: Colors.grey),
                   ),
                 ],
