@@ -257,21 +257,23 @@ Return only valid JSON, no additional text.
       String prescriptionText) async {
     try {
       final prompt = '''
-Analyze this prescription and extract all medicine names:
+Analyze this prescription text and extract ALL medicine names and their corresponding dosages exactly as they appear in the text.
 
+PRESCRIPTION TEXT:
 $prescriptionText
 
 Return a JSON array of medicines with this structure:
 [
   {
-    "name": "medicine name",
-    "dosage": "dosage information",
+    "name": "exact medicine name from text",
+    "dosage": "exact dosage/strength from text (e.g., 500mg, 5ml)",
     "frequency": "how often to take",
     "duration": "duration of treatment"
   }
 ]
 
-Return only valid JSON array, no additional text.
+If a dosage is not explicitly mentioned next to a medicine, use "As prescribed".
+Return ONLY the JSON array, no markdown markers or additional text.
 ''';
 
       final response = await generateText(prompt);

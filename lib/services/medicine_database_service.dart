@@ -17,7 +17,7 @@ class MedicineDatabaseService {
       // Search in medicines collection
       QuerySnapshot snapshot = await _firestore
           .collection('medicines')
-          .limit(20)
+          .limit(100)
           .get();
 
       List<Map<String, dynamic>> results = [];
