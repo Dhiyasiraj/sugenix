@@ -35,6 +35,8 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
           ..clear()
           ..addAll(images);
       });
+      // Auto-analyze after selection
+      _analyze();
     }
   }
 
@@ -44,10 +46,12 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
       setState(() {
         _selectedImages.add(image);
       });
+      // Auto-analyze after capture
+      _analyze();
     }
   }
 
-  Future<void> _upload() async {
+  Future<void> _analyze() async {
     if (_selectedImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please add at least one image')),
@@ -55,25 +59,23 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
       return;
     }
     setState(() {
-      _uploading = true;
       _analyzing = true;
       _suggestedMedicines.clear();
       _availableMedicines.clear();
       _unavailableMedicines.clear();
+      _rawExtractedText = null;
+      _uploadedPrescriptionId = null;
     });
     
     try {
-      // Step 1: Upload prescription
-      final id = await _ordersService.uploadPrescription(_selectedImages);
-      
-      // Step 2: Extract Text (Try Gemini Vision first, then Local OCR)
+      // Step 1: Extract Text (Try Gemini Vision first, then Local OCR)
       String extractedText = '';
       if (_selectedImages.isNotEmpty) {
         // Option A: Gemini Vision (Better for handwriting)
         try {
            extractedText = await GeminiService.extractTextFromImage(
               _selectedImages.first, 
-              prompt: "Read this prescription and extract all text exactly as written. List every medicine name and dosage you see."
+              prompt: "Read this prescription and extract all text exactly as written. List every medicine name and dosage you see. Also find frequency and duration if available."
            );
         } catch (e) {
            print('Gemini Vision Failed: $e');
@@ -83,7 +85,7 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
         if (extractedText.isEmpty || extractedText.length < 10) {
            try {
              final ocrText = await OCRService.extractText(_selectedImages.first);
-             if (ocrText.length > extractedText.length) {
+             if (ocrText.length > (extractedText.length)) {
                 extractedText = ocrText;
              }
            } catch (e) {
@@ -92,7 +94,7 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
         }
       }
 
-      // Step 3: Analyze Text
+      // Step 2: Analyze Text
       if (extractedText.isNotEmpty) {
         setState(() {
           _rawExtractedText = extractedText;
@@ -144,6 +146,8 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
                    'name': match['name'],
                    'originalName': name,
                    'dosage': dosage, 
+                   'frequency': med['frequency'] ?? 'As prescribed',
+                   'duration': med['duration'] ?? 'As prescribed',
                    'pharmacyData': match,
                    'geminiInfo': med, 
                    'isAvailable': true,
@@ -152,6 +156,8 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
                  _unavailableMedicines.add({
                    'name': name,
                    'dosage': dosage,
+                   'frequency': med['frequency'] ?? 'As prescribed',
+                   'duration': med['duration'] ?? 'As prescribed',
                    'geminiInfo': med,
                    'isAvailable': false,
                  });
@@ -196,7 +202,6 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
       
       if (!mounted) return;
       setState(() {
-        _uploadedPrescriptionId = id;
         _analyzing = false;
       });
       
@@ -204,7 +209,7 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
         SnackBar(
           content: Text(_suggestedMedicines.isNotEmpty 
               ? 'Analysis complete! ${_suggestedMedicines.length} items identified.'
-              : 'Prescription uploaded. Only raw text extracted.'),
+              : 'Prescription analyzed. Only raw text extracted.'),
           backgroundColor: _suggestedMedicines.isNotEmpty ? Colors.green : Colors.orange,
         ),
       );
@@ -215,7 +220,45 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Processing failed: ${e.toString()}'),
+            content: Text('Analysis failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _upload() async {
+    if (_selectedImages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add at least one image')),
+      );
+      return;
+    }
+    setState(() {
+      _uploading = true;
+    });
+    
+    try {
+      // Step 3: Upload prescription
+      final id = await _ordersService.uploadPrescription(_selectedImages);
+      
+      if (!mounted) return;
+      setState(() {
+        _uploadedPrescriptionId = id;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Prescription uploaded successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Upload failed: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -400,147 +443,158 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
         ],
       ),
       backgroundColor: const Color(0xFFF5F6F8),
-      body: Column(
-        children: [
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  )
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Add prescription images',
-                    style: TextStyle(
-                      color: Color(0xFF0C4556),
-                      fontWeight: FontWeight.w600,
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Add prescription images',
+                      style: TextStyle(
+                        color: Color(0xFF0C4556),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: _uploading ? null : _pickImages,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0C4556),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          icon: const Icon(Icons.photo_library, color: Colors.white),
-                          label: const Text('Gallery', style: TextStyle(color: Colors.white)),
-                        ),
-                        const SizedBox(width: 8),
-                        OutlinedButton.icon(
-                          onPressed: _uploading ? null : _captureImage,
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFF0C4556)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          icon: const Icon(Icons.photo_camera, color: Color(0xFF0C4556)),
-                          label: const Text('Camera', style: TextStyle(color: Color(0xFF0C4556))),
-                        ),
-                        const SizedBox(width: 12),
-                        if (_selectedImages.isNotEmpty)
-                          ElevatedButton(
-                            onPressed: _uploading ? null : _upload,
+                    const SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: (_uploading || _analyzing) ? null : _pickImages,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0C4556),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
-                            child: _uploading
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                  )
-                                : const Text('Upload', style: TextStyle(color: Colors.white)),
+                            icon: const Icon(Icons.photo_library, color: Colors.white),
+                            label: const Text('Gallery', style: TextStyle(color: Colors.white)),
                           ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _selectedImages.isEmpty
-                  ? _buildEmptyState()
-                  : GridView.builder(
-                      itemCount: _selectedImages.length,
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                      ),
-                      itemBuilder: (context, index) {
-                        final file = _selectedImages[index];
-                        return Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.file(File(file.path), fit: BoxFit.cover),
+                          const SizedBox(width: 8),
+                          OutlinedButton.icon(
+                            onPressed: (_uploading || _analyzing) ? null : _captureImage,
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFF0C4556)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
-                            Positioned(
-                              top: 6,
-                              right: 6,
-                              child: InkWell(
-                                onTap: _uploading
-                                    ? null
-                                    : () {
-                                        setState(() {
-                                          _selectedImages.removeAt(index);
-                                        });
-                                      },
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.35),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(Icons.close, color: Colors.white, size: 16),
-                                ),
+                            icon: const Icon(Icons.photo_camera, color: Color(0xFF0C4556)),
+                            label: const Text('Camera', style: TextStyle(color: Color(0xFF0C4556))),
+                          ),
+                          const SizedBox(width: 12),
+                          if (_selectedImages.isNotEmpty && _uploadedPrescriptionId == null)
+                            ElevatedButton(
+                              onPressed: (_analyzing || _uploading) ? null : _analyze,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0C4556),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
+                              child: _analyzing
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : const Text('Re-Analyze', style: TextStyle(color: Colors.white)),
                             ),
-                          ],
-                        );
-                      },
+                        ],
+                      ),
                     ),
-            ),
-          ),
-          if (_analyzing)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(
-                child: Column(
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 12),
-                    Text('Scanning prescription...'),
                   ],
                 ),
               ),
             ),
-          if ((_availableMedicines.isNotEmpty || _unavailableMedicines.isNotEmpty) && !_analyzing)
-            Expanded(
-              child: SingleChildScrollView(
+            const SizedBox(height: 12),
+            if (_selectedImages.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _selectedImages.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                  ),
+                  itemBuilder: (context, index) {
+                    final file = _selectedImages[index];
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.file(File(file.path), fit: BoxFit.cover),
+                        ),
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: InkWell(
+                            onTap: (_uploading || _analyzing)
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _selectedImages.removeAt(index);
+                                      if (_selectedImages.isEmpty) {
+                                        _suggestedMedicines.clear();
+                                        _availableMedicines.clear();
+                                        _unavailableMedicines.clear();
+                                      }
+                                    });
+                                  },
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.35),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.close, color: Colors.white, size: 16),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            if (_selectedImages.isEmpty)
+              SizedBox(
+                height: 300,
+                child: _buildEmptyState(),
+              ),
+            if (_analyzing)
+              const Padding(
+                padding: EdgeInsets.all(32),
+                child: Center(
+                  child: Column(
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('AI Analyzing Prescription...', style: TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(height: 8),
+                      Text('Identifying medicines & dosages', style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              ),
+            if ((_availableMedicines.isNotEmpty || _unavailableMedicines.isNotEmpty) && !_analyzing)
+              Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -611,20 +665,70 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
                         ),
                       ),
                     ],
+                    if (_uploadedPrescriptionId != null) ...[
+                      const SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.green),
+                        ),
+                        child: Column(
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.check_circle, color: Colors.green),
+                                SizedBox(width: 12),
+                                Text(
+                                  'Uploaded Successfully!',
+                                  style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Prescription ID: $_uploadedPrescriptionId',
+                              style: const TextStyle(color: Colors.green, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 16),
+                    const SizedBox(height: 16),
+                    if (_uploadedPrescriptionId == null)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _uploading ? null : _upload,
+                          icon: _uploading 
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.cloud_upload, color: Colors.white),
+                          label: Text(_uploading ? 'Uploading...' : 'Confirm & Upload Prescription', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0C4556),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton(
+                      child: OutlinedButton(
                         onPressed: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(builder: (_) => const MedicineCatalogScreen()),
                           );
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0C4556),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF0C4556)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: const Text('View All Medicines', style: TextStyle(color: Colors.white)),
+                        child: const Text('Search in Pharmacy', style: TextStyle(color: Color(0xFF0C4556))),
                       ),
                     ),
                   ],
@@ -745,16 +849,46 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
                         medicine['name'] ?? 'Unknown Medicine',
                         style: TextStyle(
                           fontWeight: FontWeight.bold, 
-                          fontSize: 16,
+                          fontSize: 17,
                           color: available ? const Color(0xFF0C4556) : Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                        // Show Dosage
                        if (medicine['dosage'] != null && medicine['dosage'].toString().isNotEmpty)
-                        Text(
-                          'Dosage: ${medicine['dosage']}',
-                           style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w500),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0C4556).withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.medication_liquid, size: 14, color: Color(0xFF0C4556)),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Dosage: ${medicine['dosage']}',
+                                 style: const TextStyle(color: Color(0xFF0C4556), fontSize: 13, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (medicine['frequency'] != null && medicine['frequency'] != 'As prescribed')
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            'Frequency: ${medicine['frequency']}',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          ),
+                        ),
+                      if (medicine['duration'] != null && medicine['duration'] != 'As prescribed')
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            'Duration: ${medicine['duration']}',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          ),
                         ),
                       if (!available)
                         Container(

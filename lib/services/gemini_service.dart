@@ -257,35 +257,45 @@ Return only valid JSON, no additional text.
       String prescriptionText) async {
     try {
       final prompt = '''
-Analyze this prescription text and extract ALL medicine names and their corresponding dosages exactly as they appear in the text.
+Analyze this prescription text and extract ALL medicine names and their corresponding dosages, frequencies, and durations.
 
 PRESCRIPTION TEXT:
 $prescriptionText
 
-Return a JSON array of medicines with this structure:
+IMPORTANT: 
+1. Extract medicine names accurately.
+2. For each medicine, find the dosage (e.g., 500mg, 10ml). If not found, look for strength or quantity.
+3. Extract frequency (e.g., "twice daily", "1-0-1", "before food").
+4. Extract duration (e.g., "5 days", "1 month").
+5. Return a JSON array of medicines in this exact format:
 [
   {
-    "name": "exact medicine name from text",
-    "dosage": "exact dosage/strength from text (e.g., 500mg, 5ml)",
-    "frequency": "how often to take",
-    "duration": "duration of treatment"
+    "name": "Medicine Name",
+    "dosage": "500mg",
+    "frequency": "1-0-1",
+    "duration": "5 days"
   }
 ]
 
-If a dosage is not explicitly mentioned next to a medicine, use "As prescribed".
-Return ONLY the JSON array, no markdown markers or additional text.
+If a field is missing, use "Not specified".
+Return ONLY the raw JSON array. No markdown, no "```json", no additional text.
 ''';
 
       final response = await generateText(prompt);
 
       try {
-        String jsonStr = response;
-        if (jsonStr.contains('```json')) {
-          jsonStr = jsonStr.split('```json')[1].split('```')[0].trim();
-        } else if (jsonStr.contains('```')) {
-          jsonStr = jsonStr.split('```')[1].split('```')[0].trim();
+        String jsonStr = response.trim();
+        // Remove markdown formatting if present
+        if (jsonStr.contains('```')) {
+          final regex = RegExp(r'```(?:json)?\s*([\s\S]*?)\s*```');
+          final match = regex.firstMatch(jsonStr);
+          if (match != null) {
+            jsonStr = match.group(1)!;
+          } else {
+             jsonStr = jsonStr.replaceAll('```json', '').replaceAll('```', '').trim();
+          }
         }
-
+        
         final data = jsonDecode(jsonStr);
         if (data is List) {
           return List<Map<String, dynamic>>.from(data);
