@@ -305,7 +305,6 @@ Return ONLY the raw JSON array. No markdown, no "```json", no additional text.
         return [];
       } catch (e) {
         print('Gemini JSON Parse Error: $e\nResponse: $response');
-        // Fallback: extract medicine names from text
         return _extractMedicinesFromText(response);
       }
     } catch (e) {

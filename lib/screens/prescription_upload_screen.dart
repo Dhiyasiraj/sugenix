@@ -734,35 +734,39 @@ class _PrescriptionUploadScreenState extends State<PrescriptionUploadScreen> {
                   ],
                 ),
               ),
-            ),
-          if (_uploadedPrescriptionId != null && _suggestedMedicines.isEmpty)
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.check_circle, color: Colors.green),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Uploaded. ID: $_uploadedPrescriptionId',
-                          style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w600),
-                          overflow: TextOverflow.ellipsis,
+            // START DEBUGGING: Commented out potentially problematic block
+            /*
+            if (_uploadedPrescriptionId != null && _suggestedMedicines.isEmpty)
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_circle, color: Colors.green),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Uploaded. ID: $_uploadedPrescriptionId',
+                            style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
+              */
+            // END DEBUGGING
+          ],
+        ),
       ),
     );
   }
